@@ -1,6 +1,6 @@
 ---
 title: "Integration test: ModelManager with mocked HTTP"
-status: ready-for-agent
+status: done
 created: 2026-06-02
 ---
 
