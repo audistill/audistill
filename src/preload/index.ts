@@ -30,7 +30,25 @@ const api = {
     const handler = (_event: Electron.IpcRendererEvent, percent: number): void => callback(percent)
     ipcRenderer.on('model-download-progress', handler)
     return () => ipcRenderer.removeListener('model-download-progress', handler)
-  }
+  },
+
+  // Database API
+  getEpisodes: (folderId?: string | null) => ipcRenderer.invoke('db:get-episodes', folderId),
+  getEpisode: (id: string) => ipcRenderer.invoke('db:get-episode', id),
+  getFolders: () => ipcRenderer.invoke('db:get-folders'),
+  getOpenTabs: () => ipcRenderer.invoke('db:get-open-tabs'),
+  saveOpenTabs: (tabs: { episode_id: string; position: number; is_preview: boolean }[]) =>
+    ipcRenderer.invoke('db:save-open-tabs', tabs),
+  getSetting: (key: string) => ipcRenderer.invoke('db:get-setting', key),
+  setSetting: (key: string, value: string) => ipcRenderer.invoke('db:set-setting', key, value),
+  searchEpisodes: (query: string) => ipcRenderer.invoke('db:search-episodes', query),
+
+  // Episode updated event from main process
+  onEpisodeUpdated: (callback: (episode: unknown) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, episode: unknown): void => callback(episode)
+    ipcRenderer.on('episode-updated', handler)
+    return () => ipcRenderer.removeListener('episode-updated', handler)
+  },
 }
 
 export type Api = typeof api

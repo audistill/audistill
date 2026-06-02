@@ -10,7 +10,7 @@ export default defineConfig({
           index: resolve('src/main/index.ts'),
           'transcription-worker': resolve('src/main/transcription-worker.ts')
         },
-        external: ['onnxruntime-node', 'ffmpeg-static']
+        external: ['onnxruntime-node', 'ffmpeg-static', 'better-sqlite3']
       }
     }
   },

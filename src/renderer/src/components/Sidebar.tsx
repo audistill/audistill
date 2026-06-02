@@ -1,5 +1,4 @@
-import { useAppStore } from '../store/app-store'
-import { Episode } from '../store/mock-data'
+import { useAppStore, Episode } from '../store/app-store'
 
 export function Sidebar(): React.JSX.Element {
   const episodes = useAppStore((s) => s.episodes)
@@ -16,16 +15,16 @@ export function Sidebar(): React.JSX.Element {
 
   const filteredEpisodes = searchQuery
     ? episodes.filter((ep) => {
-        const title = (ep.title || ep.file).toLowerCase()
-        const summary = ep.summary?.rundown?.toLowerCase() || ''
+        const title = (ep.title || ep.file_path).toLowerCase()
+        const summary = ep.summary?.toLowerCase() || ''
         const q = searchQuery.toLowerCase()
         return title.includes(q) || summary.includes(q)
       })
     : episodes
 
-  const inboxItems = filteredEpisodes.filter((e) => e.folderId === null)
+  const inboxItems = filteredEpisodes.filter((e) => e.folder_id === null)
   const folderEpisodes = (folderId: string) =>
-    filteredEpisodes.filter((e) => e.folderId === folderId && e.status === 'complete')
+    filteredEpisodes.filter((e) => e.folder_id === folderId && e.status === 'complete')
 
   return (
     <div className="w-[280px] shrink-0 bg-[var(--bg)] border-r border-[var(--surface)] flex flex-col overflow-hidden">
@@ -109,7 +108,7 @@ export function Sidebar(): React.JSX.Element {
           </div>
         </div>
         {folders
-          .filter((f) => f.parentId === null)
+          .filter((f) => f.parent_id === null)
           .map((folder) => {
             const children = folderEpisodes(folder.id)
             const isExpanded = expandedFolders.has(folder.id)
@@ -171,12 +170,15 @@ function SidebarEpisode({
   onSelect: (id: string) => void
   onPin: (id: string) => void
 }): React.JSX.Element {
+  const fileName = episode.file_path.split('/').pop() || episode.file_path
+  const title = episode.title || fileName
+
   let statusIcon: React.ReactNode = null
   if (episode.status === 'transcribing') {
     statusIcon = (
       <div className="flex gap-0.5 items-center">
         <span className="processing-dot w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
-        <span className="text-[10px] text-[var(--accent)] ml-1">{episode.progress}%</span>
+        <span className="text-[10px] text-[var(--accent)] ml-1">Transcribing</span>
       </div>
     )
   } else if (episode.status === 'queued') {
@@ -188,9 +190,9 @@ function SidebarEpisode({
         <span className="text-[10px] text-[var(--accent)] ml-1">Summarizing</span>
       </div>
     )
+  } else if (episode.status === 'error') {
+    statusIcon = <span className="text-[10px] text-red-400">Error</span>
   }
-
-  const title = episode.title || episode.file
 
   return (
     <div

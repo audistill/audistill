@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Episode } from '../store/mock-data'
-import { useAppStore } from '../store/app-store'
+import { useAppStore, Episode } from '../store/app-store'
 
 export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Element {
   if (episode.status !== 'complete') {
@@ -10,12 +9,15 @@ export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Elemen
 }
 
 function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
+  const fileName = episode.file_path.split('/').pop() || episode.file_path
   const statusText =
     episode.status === 'queued'
       ? 'Waiting in queue...'
       : episode.status === 'transcribing'
-        ? `Transcribing... ${episode.progress}%`
-        : 'Generating summary...'
+        ? 'Transcribing...'
+        : episode.status === 'summarizing'
+          ? 'Generating summary...'
+          : 'Error'
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-12">
@@ -33,19 +35,27 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
           </svg>
         </div>
-        <p className="font-heading text-sm font-medium text-[var(--text)] mb-2">{episode.file}</p>
+        <p className="font-heading text-sm font-medium text-[var(--text)] mb-2">{fileName}</p>
         <p className="text-sm text-[var(--secondary)] mb-4">{statusText}</p>
-        {episode.status === 'transcribing' && (
-          <div className="w-full h-2 rounded-full bg-[var(--surface)] overflow-hidden">
-            <div
-              className="h-full rounded-full bg-[var(--accent)] transition-all"
-              style={{ width: `${episode.progress}%` }}
-            />
-          </div>
+        {episode.error_message && (
+          <p className="text-sm text-red-400 mb-4">{episode.error_message}</p>
         )}
       </div>
     </div>
   )
+}
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return ''
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
@@ -53,6 +63,8 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(episode.title || '')
   const updateEpisode = useAppStore((s) => s.updateEpisode)
+
+  const fileName = episode.file_path.split('/').pop() || episode.file_path
 
   const handleSaveTitle = () => {
     if (editTitle.trim()) {
@@ -77,7 +89,9 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
             />
           ) : (
             <>
-              <h1 className="font-heading text-2xl font-semibold text-[var(--text)]">{episode.title}</h1>
+              <h1 className="font-heading text-2xl font-semibold text-[var(--text)]">
+                {episode.title || fileName}
+              </h1>
               <svg
                 className="pencil-icon text-[var(--secondary)] cursor-pointer"
                 width="16"
@@ -99,77 +113,59 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
 
         {/* Metadata */}
         <div className="flex items-center gap-3 text-xs text-[var(--secondary)] mb-8">
-          <span>{episode.file}</span>
+          <span>{fileName}</span>
+          {episode.duration_sec && (
+            <>
+              <span className="w-1 h-1 rounded-full bg-[var(--secondary)]" />
+              <span>{formatDuration(episode.duration_sec)}</span>
+            </>
+          )}
           <span className="w-1 h-1 rounded-full bg-[var(--secondary)]" />
-          <span>{episode.duration}</span>
-          <span className="w-1 h-1 rounded-full bg-[var(--secondary)]" />
-          <span>{episode.date}</span>
+          <span>{formatDate(episode.created_at)}</span>
         </div>
 
         {/* Summary */}
         {episode.summary && (
-          <>
-            <div className="mb-8">
-              <h2 className="font-heading text-sm font-semibold text-[var(--accent)] uppercase tracking-wide mb-3">
-                The Rundown
-              </h2>
-              <p className="text-[var(--text)] leading-relaxed text-[15px]">{episode.summary.rundown}</p>
+          <div className="mb-8">
+            <h2 className="font-heading text-sm font-semibold text-[var(--accent)] uppercase tracking-wide mb-3">
+              Summary
+            </h2>
+            <div className="text-[var(--text)] leading-relaxed text-[15px] whitespace-pre-wrap">
+              {episode.summary}
             </div>
-
-            <div className="mb-8">
-              <h2 className="font-heading text-sm font-semibold text-[var(--accent)] uppercase tracking-wide mb-3">
-                The Details
-              </h2>
-              <ul className="list-disc list-outside pl-5 space-y-2 text-[15px]">
-                {episode.summary.details.map((d, i) => (
-                  <li key={i} className="text-[var(--text)] leading-relaxed">
-                    {d}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mb-8">
-              <h2 className="font-heading text-sm font-semibold text-[var(--accent)] uppercase tracking-wide mb-3">
-                Why It Matters
-              </h2>
-              <p className="text-[var(--text)] leading-relaxed text-[15px]">{episode.summary.whyItMatters}</p>
-            </div>
-          </>
+          </div>
         )}
 
         {/* Transcript */}
-        <div className="mb-8 border-t border-[var(--surface)] pt-6">
-          <div
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={() => setTranscriptExpanded(!transcriptExpanded)}
-            aria-expanded={transcriptExpanded}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className={`text-[var(--secondary)] transition-transform ${transcriptExpanded ? 'rotate-90' : ''}`}
+        {episode.transcript && (
+          <div className="mb-8 border-t border-[var(--surface)] pt-6">
+            <div
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() => setTranscriptExpanded(!transcriptExpanded)}
+              aria-expanded={transcriptExpanded}
             >
-              <path d="m9 18 6-6-6-6" />
-            </svg>
-            <h2 className="font-heading text-sm font-semibold text-[var(--secondary)]">Transcript</h2>
-            <span className="text-[10px] text-[var(--secondary)] ml-1">{episode.transcript.length} segments</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`text-[var(--secondary)] transition-transform ${transcriptExpanded ? 'rotate-90' : ''}`}
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+              <h2 className="font-heading text-sm font-semibold text-[var(--secondary)]">Transcript</h2>
+            </div>
+            <div
+              className={`mt-3 pl-5 overflow-hidden transition-all duration-300 ${transcriptExpanded ? 'max-h-[600px] overflow-y-auto' : 'max-h-0'}`}
+            >
+              <p className="text-sm text-[var(--text)] whitespace-pre-wrap leading-relaxed">
+                {episode.transcript}
+              </p>
+            </div>
           </div>
-          <div
-            className={`mt-3 pl-5 overflow-hidden transition-all duration-300 ${transcriptExpanded ? 'max-h-[600px] overflow-y-auto' : 'max-h-0'}`}
-          >
-            {episode.transcript.map((t, i) => (
-              <div key={i} className="flex gap-3 text-sm py-1">
-                <span className="shrink-0 font-mono text-xs text-[var(--secondary)]">{t.time}</span>
-                <span className="text-[var(--text)]">{t.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Chat placeholder */}

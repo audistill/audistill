@@ -1,10 +1,47 @@
-import { app, shell, BrowserWindow, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, nativeTheme, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ModelManager } from './model-manager'
 import { registerTranscriptionService } from './transcription-service'
+import { DatabaseService } from './database-service'
 
 nativeTheme.themeSource = 'system'
+
+let db: DatabaseService
+
+function registerDatabaseHandlers(): void {
+  ipcMain.handle('db:get-episodes', (_event, folderId?: string | null) => {
+    return db.getEpisodes(folderId)
+  })
+
+  ipcMain.handle('db:get-episode', (_event, id: string) => {
+    return db.getEpisode(id)
+  })
+
+  ipcMain.handle('db:get-folders', () => {
+    return db.getFolders()
+  })
+
+  ipcMain.handle('db:get-open-tabs', () => {
+    return db.getOpenTabs()
+  })
+
+  ipcMain.handle('db:save-open-tabs', (_event, tabs: { episode_id: string; position: number; is_preview: boolean }[]) => {
+    db.saveOpenTabs(tabs)
+  })
+
+  ipcMain.handle('db:get-setting', (_event, key: string) => {
+    return db.getSetting(key)
+  })
+
+  ipcMain.handle('db:set-setting', (_event, key: string, value: string) => {
+    db.setSetting(key, value)
+  })
+
+  ipcMain.handle('db:search-episodes', (_event, query: string) => {
+    return db.searchEpisodes(query)
+  })
+}
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -43,6 +80,9 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  db = new DatabaseService()
+  registerDatabaseHandlers()
 
   const modelManager = new ModelManager()
   modelManager.on('progress', (percent) => {
