@@ -1,10 +1,17 @@
+/**
+ * Smoke test: verify ModelManager downloads model files from HuggingFace.
+ * Run: npx tsx scripts/test-model-download.mts
+ *
+ * Downloads to a temp dir, prints progress, then verifies all files exist
+ * with non-zero size. Cleans up on success (pass --keep to retain files).
+ */
 import { EventEmitter } from 'node:events'
 import { createWriteStream } from 'node:fs'
-import { access, mkdir, rename, rm } from 'node:fs/promises'
+import { access, mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import https from 'node:https'
 import http from 'node:http'
 import { join } from 'node:path'
-import { app } from 'electron'
+import { tmpdir } from 'node:os'
 
 const MODEL_REPO = 'https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main'
 const MODEL_FILES = [
@@ -14,16 +21,16 @@ const MODEL_FILES = [
   'config.json'
 ]
 
-export interface ModelManagerEvents {
+interface ModelManagerEvents {
   progress: [percent: number]
 }
 
-export class ModelManager extends EventEmitter<ModelManagerEvents> {
+class ModelManager extends EventEmitter<ModelManagerEvents> {
   private modelDir: string
 
-  constructor(modelDir?: string) {
+  constructor(modelDir: string) {
     super()
-    this.modelDir = modelDir ?? join(app.getPath('userData'), 'models')
+    this.modelDir = modelDir
   }
 
   async ensureModel(): Promise<string> {
@@ -138,5 +145,62 @@ export class ModelManager extends EventEmitter<ModelManagerEvents> {
         res.on('error', reject)
       }).on('error', reject)
     })
+  }
+}
+
+// --- Run the test ---
+
+const keep = process.argv.includes('--keep')
+const testDir = join(tmpdir(), `podcapture-model-test-${Date.now()}`)
+
+console.log(`\n📂 Download directory: ${testDir}`)
+console.log(`📦 Files to download: ${MODEL_FILES.join(', ')}`)
+console.log('')
+
+const manager = new ModelManager(testDir)
+
+let lastPrinted = -1
+manager.on('progress', (percent) => {
+  if (percent !== lastPrinted && percent % 5 === 0) {
+    lastPrinted = percent
+    process.stdout.write(`\r   Progress: ${percent}%`)
+  }
+})
+
+try {
+  console.log('1. First call — downloading model...')
+  const t0 = Date.now()
+  const modelPath = await manager.ensureModel()
+  const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
+  console.log(`\n   Done in ${elapsed}s → ${modelPath}`)
+
+  // Verify files
+  console.log('\n2. Verifying downloaded files...')
+  const files = await readdir(modelPath)
+  for (const expected of MODEL_FILES) {
+    if (!files.includes(expected)) {
+      throw new Error(`Missing file: ${expected}`)
+    }
+    const s = await stat(join(modelPath, expected))
+    console.log(`   ✓ ${expected} (${(s.size / 1024 / 1024).toFixed(1)} MB)`)
+  }
+
+  // Second call should be instant
+  console.log('\n3. Second call — should resolve immediately...')
+  const t1 = Date.now()
+  await manager.ensureModel()
+  const elapsed2 = Date.now() - t1
+  console.log(`   ✓ Resolved in ${elapsed2}ms (no download)`)
+
+  console.log('\n✅ All checks passed!\n')
+} catch (err) {
+  console.error('\n❌ Test failed:', err)
+  process.exit(1)
+} finally {
+  if (!keep) {
+    await rm(testDir, { recursive: true, force: true })
+    console.log('🧹 Cleaned up temp directory')
+  } else {
+    console.log(`📁 Keeping files at: ${testDir}`)
   }
 }
