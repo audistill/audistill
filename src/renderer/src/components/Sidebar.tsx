@@ -1,6 +1,37 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAppStore, Episode, Folder } from '../store/app-store'
 
+function formatRelativeDate(dateStr: string): string {
+  const now = Date.now()
+  const then = new Date(dateStr).getTime()
+  const diffMs = now - then
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHours = Math.floor(diffMin / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  const diffWeeks = Math.floor(diffDays / 7)
+
+  if (diffHours < 1) return 'just now'
+  if (diffHours < 24) {
+    return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-diffHours, 'hour')
+  }
+  if (diffDays < 7) {
+    return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-diffDays, 'day')
+  }
+  if (diffDays < 30) {
+    return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-diffWeeks, 'week')
+  }
+  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(dateStr))
+}
+
+function formatDurationShort(seconds: number | null): string {
+  if (!seconds) return ''
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
 export function Sidebar(): React.JSX.Element {
   const episodes = useAppStore((s) => s.episodes)
   const folders = useAppStore((s) => s.folders)
@@ -19,6 +50,7 @@ export function Sidebar(): React.JSX.Element {
 
   const moveEpisode = useAppStore((s) => s.moveEpisode)
   const deleteEpisode = useAppStore((s) => s.deleteEpisode)
+  const renameEpisode = useAppStore((s) => s.renameEpisode)
 
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -29,7 +61,9 @@ export function Sidebar(): React.JSX.Element {
     episodeId?: string
   } | null>(null)
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
+  const [editingEpisodeId, setEditingEpisodeId] = useState<string | null>(null)
   const [creatingFolder, setCreatingFolder] = useState<{ parentId: string | null } | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const handler = (): void => setContextMenu(null)
@@ -103,6 +137,16 @@ export function Sidebar(): React.JSX.Element {
     }
   }
 
+  const handleRenameEpisode = (episodeId: string): void => {
+    setContextMenu(null)
+    setEditingEpisodeId(episodeId)
+  }
+
+  const handleClearSearch = (): void => {
+    setSearchQuery('')
+    searchInputRef.current?.focus()
+  }
+
   return (
     <div className="w-[280px] shrink-0 bg-[var(--bg)] border-r border-[var(--surface)] flex flex-col overflow-hidden">
       {/* Header */}
@@ -111,7 +155,7 @@ export function Sidebar(): React.JSX.Element {
         <div className="flex items-center gap-1">
           <button
             onClick={openSettings}
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors"
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-[background-color,color] duration-150"
             title="Settings"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -126,7 +170,7 @@ export function Sidebar(): React.JSX.Element {
                 await window.api.addFiles(filePaths)
               }
             }}
-            className="flex items-center gap-1 px-2 py-1 rounded-[12px] text-xs font-medium text-[var(--accent)] hover:bg-[var(--surface)] transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-[12px] text-xs font-medium text-[var(--accent)] hover:bg-[var(--surface)] transition-[background-color] duration-150"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14M5 12h14" />
@@ -144,12 +188,25 @@ export function Sidebar(): React.JSX.Element {
             <path d="m21 21-4.35-4.35" />
           </svg>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Search episodes..."
+            aria-label="Search episodes"
             className="bg-transparent outline-none w-full text-[var(--text)] placeholder-[var(--secondary)]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery.length > 0 && (
+            <button
+              onClick={handleClearSearch}
+              className="flex items-center justify-center w-4 h-4 rounded-full text-[var(--secondary)] hover:text-[var(--text)] transition-[color] duration-150 shrink-0"
+              aria-label="Clear search"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -174,13 +231,25 @@ export function Sidebar(): React.JSX.Element {
               key={ep.id}
               episode={ep}
               isActive={activeTabId === ep.id && !settingsOpen}
+              isEditing={editingEpisodeId === ep.id}
               onSelect={selectEpisode}
               onPin={pinEpisode}
               onContextMenu={handleEpisodeContextMenu}
+              onRenameSubmit={async (id, name) => {
+                await renameEpisode(id, name)
+                setEditingEpisodeId(null)
+              }}
+              onRenameCancel={() => setEditingEpisodeId(null)}
             />
           ))}
           {inboxItems.length === 0 && !searchQuery && (
-            <div className="px-3 py-2 text-xs text-[var(--secondary)]">No items in Inbox</div>
+            <div className="flex items-center gap-2 px-3 py-3 text-xs text-[var(--secondary)]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0 opacity-60">
+                <path d="M22 12h-6l-2 3H10l-2-3H2" />
+                <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+              </svg>
+              <span>Add audio files to start building your knowledge base</span>
+            </div>
           )}
         </div>
 
@@ -193,7 +262,7 @@ export function Sidebar(): React.JSX.Element {
             <span>Folders</span>
             <button
               onClick={() => handleNewFolder(null)}
-              className="flex items-center justify-center w-5 h-5 rounded text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors"
+              className="flex items-center justify-center w-5 h-5 rounded text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-[background-color,color] duration-150"
               title="New Folder"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -224,6 +293,7 @@ export function Sidebar(): React.JSX.Element {
             activeTabId={activeTabId}
             settingsOpen={settingsOpen}
             editingFolderId={editingFolderId}
+            editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
             folderEpisodes={folderEpisodes}
             getChildFolders={getChildFolders}
@@ -242,49 +312,340 @@ export function Sidebar(): React.JSX.Element {
               setCreatingFolder(null)
             }}
             onCreateCancel={() => setCreatingFolder(null)}
+            onEpisodeRenameSubmit={async (id, name) => {
+              await renameEpisode(id, name)
+              setEditingEpisodeId(null)
+            }}
+            onEpisodeRenameCancel={() => setEditingEpisodeId(null)}
           />
         ))}
 
         {folders.length === 0 && !creatingFolder && (
-          <div className="px-3 py-2 text-xs text-[var(--secondary)]">No folders yet</div>
+          <div className="flex items-center gap-2 px-3 py-3 text-xs text-[var(--secondary)]">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0 opacity-60">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              <path d="M12 11v6M9 14h6" />
+            </svg>
+            <span>Right-click to create a folder</span>
+          </div>
         )}
       </div>
 
       {/* Context Menu */}
-      {contextMenu && (
+      {contextMenu && contextMenu.type === 'episode' && (
+        <EpisodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          episodeId={contextMenu.episodeId!}
+          episodes={episodes}
+          getChildFolders={getChildFolders}
+          onRename={handleRenameEpisode}
+          onMove={handleMoveEpisode}
+          onDelete={handleDeleteEpisode}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+      {contextMenu && contextMenu.type === 'folder' && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          items={
-            contextMenu.type === 'episode'
-              ? [
-                  ...folders.map((f) => ({
-                    label: `Move to ${f.name}`,
-                    action: () => handleMoveEpisode(contextMenu.episodeId!, f.id),
-                  })),
-                  {
-                    label: 'Move to Inbox',
-                    action: () => handleMoveEpisode(contextMenu.episodeId!, null),
-                  },
-                  {
-                    label: 'Delete',
-                    action: () => handleDeleteEpisode(contextMenu.episodeId!),
-                    danger: true,
-                  },
-                ]
-              : contextMenu.type === 'folder'
-                ? [
-                    { label: 'New Subfolder', action: () => handleNewFolder(contextMenu.folderId!) },
-                    { label: 'Rename', action: () => handleRenameFolder(contextMenu.folderId!) },
-                    { label: 'Delete', action: () => handleDeleteFolder(contextMenu.folderId!), danger: true },
-                  ]
-                : [{ label: 'New Folder', action: () => handleNewFolder(null) }]
-          }
+          items={[
+            { type: 'action', label: 'New Subfolder', action: () => handleNewFolder(contextMenu.folderId!) },
+            { type: 'action', label: 'Rename', action: () => handleRenameFolder(contextMenu.folderId!) },
+            { type: 'separator' },
+            { type: 'action', label: 'Delete', action: () => handleDeleteFolder(contextMenu.folderId!), danger: true },
+          ]}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+      {contextMenu && contextMenu.type === 'folders-header' && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[{ type: 'action', label: 'New Folder', action: () => handleNewFolder(null) }]}
+          onClose={() => setContextMenu(null)}
         />
       )}
     </div>
   )
 }
+
+// --- Context Menu with flyout submenu ---
+
+type MenuItemAction = { type: 'action'; label: string; action: () => void; danger?: boolean }
+type MenuItemSeparator = { type: 'separator' }
+
+type SubmenuChild = {
+  label: string
+  action: () => void
+  disabled?: boolean
+  depth: number
+}
+
+function ContextMenu({
+  x,
+  y,
+  items,
+  onClose,
+}: {
+  x: number
+  y: number
+  items: (MenuItemAction | MenuItemSeparator)[]
+  onClose: () => void
+}): React.JSX.Element {
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [focusedIndex, setFocusedIndex] = useState(0)
+
+  const actionableItems = items.filter((i) => i.type !== 'separator')
+
+  useEffect(() => {
+    menuRef.current?.focus()
+  }, [])
+
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.key === 'ArrowDown') {
+      setFocusedIndex((prev) => (prev + 1) % actionableItems.length)
+    } else if (e.key === 'ArrowUp') {
+      setFocusedIndex((prev) => (prev - 1 + actionableItems.length) % actionableItems.length)
+    } else if (e.key === 'Enter') {
+      const item = actionableItems[focusedIndex]
+      if (item && item.type === 'action') {
+        item.action()
+      }
+    } else if (e.key === 'Escape') {
+      onClose()
+    }
+  }
+
+  let actionIdx = -1
+  return (
+    <div
+      ref={menuRef}
+      tabIndex={-1}
+      className="fixed z-50 bg-[var(--surface)] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] py-1.5 min-w-[160px] outline-none"
+      style={{ left: x, top: y }}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={handleKeyDown}
+    >
+      {items.map((item, i) => {
+        if (item.type === 'separator') {
+          return <div key={i} className="my-1.5 mx-2 border-t border-white/[0.06]" />
+        }
+        actionIdx++
+        const idx = actionIdx
+        const isFocused = idx === focusedIndex
+        return (
+          <button
+            key={i}
+            className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] rounded-md transition-[background-color] duration-150 ${
+              item.danger ? 'text-red-400' : 'text-[var(--text)]'
+            } ${isFocused ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+            style={{ width: 'calc(100% - 12px)' }}
+            onClick={item.action}
+            onMouseEnter={() => setFocusedIndex(idx)}
+          >
+            {item.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function EpisodeContextMenu({
+  x,
+  y,
+  episodeId,
+  episodes,
+  getChildFolders,
+  onRename,
+  onMove,
+  onDelete,
+  onClose,
+}: {
+  x: number
+  y: number
+  episodeId: string
+  episodes: Episode[]
+  getChildFolders: (parentId: string | null) => Folder[]
+  onRename: (id: string) => void
+  onMove: (episodeId: string, folderId: string | null) => void
+  onDelete: (id: string) => void
+  onClose: () => void
+}): React.JSX.Element {
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [focusedIndex, setFocusedIndex] = useState(0)
+  const [flyoutOpen, setFlyoutOpen] = useState(false)
+  const [flyoutFocusedIndex, setFlyoutFocusedIndex] = useState(0)
+  const flyoutTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const episode = episodes.find((e) => e.id === episodeId)
+  const currentFolderId = episode?.folder_id ?? null
+
+  const actionLabels = ['Rename', 'Move to...', 'Delete']
+
+  useEffect(() => {
+    menuRef.current?.focus()
+  }, [])
+
+  const buildFolderList = (): SubmenuChild[] => {
+    const result: SubmenuChild[] = []
+    const walk = (parentId: string | null, depth: number): void => {
+      const children = getChildFolders(parentId)
+      for (const f of children) {
+        result.push({
+          label: f.name + (f.id === currentFolderId ? ' (current)' : ''),
+          action: () => onMove(episodeId, f.id),
+          disabled: f.id === currentFolderId,
+          depth,
+        })
+        walk(f.id, depth + 1)
+      }
+    }
+    walk(null, 0)
+    result.push({
+      label: 'Inbox' + (currentFolderId === null ? ' (current)' : ''),
+      action: () => onMove(episodeId, null),
+      disabled: currentFolderId === null,
+      depth: 0,
+    })
+    return result
+  }
+
+  const folderList = buildFolderList()
+
+  const openFlyout = (): void => {
+    if (flyoutTimeout.current) clearTimeout(flyoutTimeout.current)
+    flyoutTimeout.current = setTimeout(() => setFlyoutOpen(true), 150)
+  }
+
+  const closeFlyout = (): void => {
+    if (flyoutTimeout.current) clearTimeout(flyoutTimeout.current)
+    flyoutTimeout.current = setTimeout(() => setFlyoutOpen(false), 150)
+  }
+
+  const cancelClose = (): void => {
+    if (flyoutTimeout.current) clearTimeout(flyoutTimeout.current)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (flyoutOpen) {
+      if (e.key === 'ArrowDown') {
+        setFlyoutFocusedIndex((prev) => (prev + 1) % folderList.length)
+      } else if (e.key === 'ArrowUp') {
+        setFlyoutFocusedIndex((prev) => (prev - 1 + folderList.length) % folderList.length)
+      } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
+        setFlyoutOpen(false)
+      } else if (e.key === 'Enter') {
+        const item = folderList[flyoutFocusedIndex]
+        if (item && !item.disabled) item.action()
+      }
+      return
+    }
+
+    if (e.key === 'ArrowDown') {
+      setFocusedIndex((prev) => (prev + 1) % actionLabels.length)
+    } else if (e.key === 'ArrowUp') {
+      setFocusedIndex((prev) => (prev - 1 + actionLabels.length) % actionLabels.length)
+    } else if (e.key === 'ArrowRight' && focusedIndex === 1) {
+      setFlyoutOpen(true)
+      setFlyoutFocusedIndex(0)
+    } else if (e.key === 'Enter') {
+      if (focusedIndex === 0) onRename(episodeId)
+      else if (focusedIndex === 1) {
+        setFlyoutOpen(true)
+        setFlyoutFocusedIndex(0)
+      } else if (focusedIndex === 2) onDelete(episodeId)
+    } else if (e.key === 'Escape') {
+      onClose()
+    }
+  }
+
+  return (
+    <div
+      ref={menuRef}
+      tabIndex={-1}
+      className="fixed z-50 bg-[var(--surface)] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] py-1.5 min-w-[160px] outline-none"
+      style={{ left: x, top: y }}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={handleKeyDown}
+    >
+      {/* Rename */}
+      <button
+        className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-[var(--text)] rounded-md transition-[background-color] duration-150 ${focusedIndex === 0 ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+        style={{ width: 'calc(100% - 12px)' }}
+        onClick={() => onRename(episodeId)}
+        onMouseEnter={() => setFocusedIndex(0)}
+      >
+        Rename
+      </button>
+
+      {/* Move to... with flyout */}
+      <div
+        className="relative"
+        onMouseEnter={() => {
+          setFocusedIndex(1)
+          openFlyout()
+        }}
+        onMouseLeave={closeFlyout}
+      >
+        <button
+          className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-[var(--text)] flex items-center justify-between rounded-md transition-[background-color] duration-150 ${focusedIndex === 1 ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+          style={{ width: 'calc(100% - 12px)' }}
+        >
+          <span>Move to...</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </button>
+
+        {/* Flyout submenu */}
+        {flyoutOpen && (
+          <div
+            className="absolute left-full top-0 ml-1 bg-[var(--surface)] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] py-1.5 min-w-[160px] max-h-[300px] overflow-y-auto"
+            onMouseEnter={cancelClose}
+            onMouseLeave={closeFlyout}
+          >
+            {folderList.map((item, i) => (
+              <button
+                key={i}
+                className={`text-left mx-1.5 py-1 text-[13px] text-[var(--text)] rounded-md transition-[background-color] duration-150 ${
+                  item.disabled ? 'opacity-50 cursor-default' : 'cursor-pointer'
+                } ${i === flyoutFocusedIndex ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+                style={{ paddingLeft: `${8 + item.depth * 14}px`, paddingRight: '8px', width: 'calc(100% - 12px)' }}
+                onClick={() => { if (!item.disabled) item.action() }}
+                onMouseEnter={() => setFlyoutFocusedIndex(i)}
+                disabled={item.disabled}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Separator */}
+      <div className="my-1.5 mx-2 border-t border-white/[0.06]" />
+
+      {/* Delete */}
+      <button
+        className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-red-400 rounded-md transition-[background-color] duration-150 ${focusedIndex === 2 ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+        style={{ width: 'calc(100% - 12px)' }}
+        onClick={() => onDelete(episodeId)}
+        onMouseEnter={() => setFocusedIndex(2)}
+      >
+        Delete
+      </button>
+    </div>
+  )
+}
+
+// --- Folder Node ---
 
 function FolderNode({
   folder,
@@ -294,6 +655,7 @@ function FolderNode({
   activeTabId,
   settingsOpen,
   editingFolderId,
+  editingEpisodeId,
   creatingFolder,
   folderEpisodes,
   getChildFolders,
@@ -306,6 +668,8 @@ function FolderNode({
   onRenameCancel,
   onCreateSubmit,
   onCreateCancel,
+  onEpisodeRenameSubmit,
+  onEpisodeRenameCancel,
 }: {
   folder: Folder
   folders: Folder[]
@@ -314,6 +678,7 @@ function FolderNode({
   activeTabId: string | null
   settingsOpen: boolean
   editingFolderId: string | null
+  editingEpisodeId: string | null
   creatingFolder: { parentId: string | null } | null
   folderEpisodes: (folderId: string) => Episode[]
   getChildFolders: (parentId: string | null) => Folder[]
@@ -326,6 +691,8 @@ function FolderNode({
   onRenameCancel: () => void
   onCreateSubmit: (name: string, parentId: string | null) => Promise<void>
   onCreateCancel: () => void
+  onEpisodeRenameSubmit: (id: string, name: string) => Promise<void>
+  onEpisodeRenameCancel: () => void
 }): React.JSX.Element {
   const children = folderEpisodes(folder.id)
   const childFolders = getChildFolders(folder.id)
@@ -338,12 +705,7 @@ function FolderNode({
         className="sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text)] cursor-pointer"
         onClick={() => toggleFolder(folder.id)}
         onContextMenu={(e) => onContextMenu(e, folder.id)}
-        onDoubleClick={(e) => {
-          e.stopPropagation()
-          if (!isEditing) {
-            // start editing on double-click instead of toggling
-          }
-        }}
+        tabIndex={0}
       >
         <svg
           width="12"
@@ -352,7 +714,7 @@ function FolderNode({
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className={`transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
+          className={`transition-[transform] duration-200 shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
         >
           <path d="m9 18 6-6-6-6" />
         </svg>
@@ -373,7 +735,7 @@ function FolderNode({
         )}
       </div>
       <div
-        className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-[2000px]' : 'max-h-0'}`}
+        className={`overflow-hidden transition-[max-height] duration-200 ${isExpanded ? 'max-h-[2000px]' : 'max-h-0'}`}
       >
         {/* New folder input as subfolder */}
         {creatingFolder && creatingFolder.parentId === folder.id && (
@@ -396,6 +758,7 @@ function FolderNode({
             activeTabId={activeTabId}
             settingsOpen={settingsOpen}
             editingFolderId={editingFolderId}
+            editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
             folderEpisodes={folderEpisodes}
             getChildFolders={getChildFolders}
@@ -408,6 +771,8 @@ function FolderNode({
             onRenameCancel={onRenameCancel}
             onCreateSubmit={onCreateSubmit}
             onCreateCancel={onCreateCancel}
+            onEpisodeRenameSubmit={onEpisodeRenameSubmit}
+            onEpisodeRenameCancel={onEpisodeRenameCancel}
           />
         ))}
 
@@ -417,21 +782,30 @@ function FolderNode({
             <SidebarEpisode
               episode={ep}
               isActive={activeTabId === ep.id && !settingsOpen}
+              isEditing={editingEpisodeId === ep.id}
               onSelect={selectEpisode}
               onPin={pinEpisode}
               onContextMenu={onEpisodeContextMenu}
+              onRenameSubmit={onEpisodeRenameSubmit}
+              onRenameCancel={onEpisodeRenameCancel}
             />
           </div>
         ))}
         {children.length === 0 && childFolders.length === 0 && isExpanded && (
-          <div className="px-3 py-2 text-xs text-[var(--secondary)]" style={{ paddingLeft: `${(depth + 1) * 16 + 12}px` }}>
-            No episodes
+          <div className="flex items-center gap-2 px-3 py-2 text-xs text-[var(--secondary)]" style={{ paddingLeft: `${(depth + 1) * 16 + 12}px` }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0 opacity-60">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              <path d="M12 11v6M9 14h6" />
+            </svg>
+            <span>Move episodes here to organize them</span>
           </div>
         )}
       </div>
     </div>
   )
 }
+
+// --- Inline Edit ---
 
 function InlineEdit({
   initialValue,
@@ -474,6 +848,8 @@ function InlineEdit({
     />
   )
 }
+
+// --- New Folder Input ---
 
 function NewFolderInput({
   onSubmit,
@@ -519,84 +895,84 @@ function NewFolderInput({
   )
 }
 
-function ContextMenu({
-  x,
-  y,
-  items,
-}: {
-  x: number
-  y: number
-  items: { label: string; action: () => void; danger?: boolean }[]
-}): React.JSX.Element {
-  return (
-    <div
-      className="fixed z-50 bg-[var(--surface)] border border-[var(--secondary)]/20 rounded-lg shadow-xl py-1 min-w-[140px]"
-      style={{ left: x, top: y }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {items.map((item) => (
-        <button
-          key={item.label}
-          className={`w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--bg)] transition-colors ${
-            item.danger ? 'text-red-400' : 'text-[var(--text)]'
-          }`}
-          onClick={item.action}
-        >
-          {item.label}
-        </button>
-      ))}
-    </div>
-  )
-}
+// --- Sidebar Episode (two-line) ---
 
 function SidebarEpisode({
   episode,
   isActive,
+  isEditing,
   onSelect,
   onPin,
   onContextMenu,
+  onRenameSubmit,
+  onRenameCancel,
 }: {
   episode: Episode
   isActive: boolean
+  isEditing: boolean
   onSelect: (id: string) => void
   onPin: (id: string) => void
   onContextMenu: (e: React.MouseEvent, episodeId: string) => void
+  onRenameSubmit: (id: string, name: string) => Promise<void>
+  onRenameCancel: () => void
 }): React.JSX.Element {
   const fileName = episode.file_path.split('/').pop() || episode.file_path
   const title = episode.title || fileName
 
-  let statusIcon: React.ReactNode = null
+  const isProcessing = episode.status !== 'complete' && episode.status !== 'error'
+
+  let statusLine: React.ReactNode = null
   if (episode.status === 'transcribing') {
-    statusIcon = (
+    statusLine = (
       <div className="flex gap-0.5 items-center">
         <span className="processing-dot w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
         <span className="text-[10px] text-[var(--accent)] ml-1">Transcribing</span>
       </div>
     )
   } else if (episode.status === 'queued') {
-    statusIcon = <span className="text-[10px] text-[var(--secondary)]">Queued</span>
+    statusLine = <span className="text-[10px] text-[var(--secondary)]">Queued</span>
   } else if (episode.status === 'summarizing') {
-    statusIcon = (
+    statusLine = (
       <div className="flex gap-0.5 items-center">
         <span className="processing-dot w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
         <span className="text-[10px] text-[var(--accent)] ml-1">Summarizing</span>
       </div>
     )
   } else if (episode.status === 'error') {
-    statusIcon = <span className="text-[10px] text-red-400">Error</span>
+    statusLine = <span className="text-[10px] text-red-400">Error</span>
+  } else {
+    const parts: string[] = []
+    if (episode.duration_sec) parts.push(formatDurationShort(episode.duration_sec))
+    if (episode.created_at) parts.push(formatRelativeDate(episode.created_at))
+    if (parts.length > 0) {
+      statusLine = <span className="text-[10px] text-[var(--secondary)]">{parts.join(' · ')}</span>
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <div className="px-3 py-1.5">
+        <InlineEdit
+          initialValue={episode.title || fileName}
+          onSubmit={(name) => onRenameSubmit(episode.id, name)}
+          onCancel={onRenameCancel}
+        />
+      </div>
+    )
   }
 
   return (
     <div
-      className={`sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm cursor-pointer ${isActive ? 'active' : ''}`}
+      className={`sidebar-item flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''}`}
       onClick={() => onSelect(episode.id)}
       onDoubleClick={() => onPin(episode.id)}
       onContextMenu={(e) => onContextMenu(e, episode.id)}
+      tabIndex={0}
     >
-      <span className={`truncate flex-1 ${episode.status !== 'complete' ? 'text-[var(--secondary)]' : 'text-[var(--text)]'}`}>
+      <span className={`truncate text-sm ${isProcessing ? 'text-[var(--secondary)]' : 'text-[var(--text)]'}`}>
         {title}
       </span>
-      {statusIcon}
+      {statusLine}
     </div>
   )
 }

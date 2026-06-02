@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppStore, Episode } from '../store/app-store'
+import Markdown from 'react-markdown'
 
 export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Element {
   if (episode.status !== 'complete') {
@@ -54,7 +55,7 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
         {episode.status === 'error' && (
           <button
             onClick={handleRetry}
-            className="px-4 py-2 rounded-[12px] bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            className="px-4 py-2 rounded-[12px] bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-[opacity] duration-150"
           >
             {episode.transcript ? 'Generate Summary' : 'Retry'}
           </button>
@@ -144,14 +145,37 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
           <span>{formatDate(episode.created_at)}</span>
         </div>
 
-        {/* Summary */}
+        {/* Summary with markdown rendering */}
         {episode.summary && (
           <div className="mb-8">
             <h2 className="font-heading text-sm font-semibold text-[var(--accent)] uppercase tracking-wide mb-3">
               Summary
             </h2>
-            <div className="text-[var(--text)] leading-relaxed text-[15px] whitespace-pre-wrap">
-              {episode.summary}
+            <div className="border-l-[3px] border-[var(--accent)] pl-4">
+              <Markdown
+                components={{
+                  p: ({ children }) => (
+                    <p className="text-[var(--text)] leading-relaxed text-[15px] mb-3 last:mb-0">{children}</p>
+                  ),
+                  strong: ({ children }) => (
+                    <strong className="font-semibold text-[var(--text)]">{children}</strong>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="list-disc pl-5 mb-3 last:mb-0 space-y-1">{children}</ul>
+                  ),
+                  li: ({ children }) => (
+                    <li className="text-[var(--text)] leading-relaxed text-[15px]">{children}</li>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="font-heading text-base font-semibold text-[var(--text)] mb-2 mt-4 first:mt-0">{children}</h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="font-heading text-sm font-semibold text-[var(--text)] mb-2 mt-3 first:mt-0">{children}</h3>
+                  ),
+                }}
+              >
+                {episode.summary}
+              </Markdown>
             </div>
           </div>
         )}
@@ -171,14 +195,14 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
-                className={`text-[var(--secondary)] transition-transform ${transcriptExpanded ? 'rotate-90' : ''}`}
+                className={`text-[var(--secondary)] transition-[transform] duration-200 ${transcriptExpanded ? 'rotate-90' : ''}`}
               >
                 <path d="m9 18 6-6-6-6" />
               </svg>
               <h2 className="font-heading text-sm font-semibold text-[var(--secondary)]">Transcript</h2>
             </div>
             <div
-              className={`mt-3 pl-5 overflow-hidden transition-all duration-300 ${transcriptExpanded ? 'max-h-[600px] overflow-y-auto' : 'max-h-0'}`}
+              className={`mt-3 pl-5 overflow-hidden transition-[max-height] duration-200 ${transcriptExpanded ? 'max-h-[600px] overflow-y-auto' : 'max-h-0'}`}
             >
               <p className="text-sm text-[var(--text)] whitespace-pre-wrap leading-relaxed">
                 {episode.transcript}

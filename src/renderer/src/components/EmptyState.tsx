@@ -4,18 +4,22 @@ export function EmptyLibraryState(): React.JSX.Element {
       <div className="text-center max-w-sm">
         <div className="w-16 h-16 rounded-[12px] bg-[var(--surface)] flex items-center justify-center mx-auto mb-6">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--accent)]">
-            <path d="M9 18V5l12-2v13" />
-            <circle cx="6" cy="18" r="3" />
-            <circle cx="18" cy="16" r="3" />
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
           </svg>
         </div>
         <h2 className="font-heading text-xl font-semibold text-[var(--text)] mb-2">Your knowledge base is empty</h2>
         <p className="text-sm text-[var(--secondary)] mb-6">
-          Add an audio file to get started. It will be transcribed and summarized automatically.
+          Drop audio files here or click Add to get started.
         </p>
         <button
-          onClick={() => alert('Native file dialog would open here.\nSelected files go to Inbox and start processing.')}
-          className="px-5 py-2.5 rounded-[12px] bg-[var(--accent)] text-white font-heading text-sm font-medium hover:opacity-90 transition-opacity"
+          onClick={async () => {
+            const filePaths = await window.api.selectFiles()
+            if (filePaths && filePaths.length > 0) {
+              await window.api.addFiles(filePaths)
+            }
+          }}
+          className="px-5 py-2.5 rounded-[12px] bg-[var(--accent)] text-white font-heading text-sm font-medium hover:opacity-90 transition-[opacity] duration-150"
         >
           Add Your First Audio File
         </button>
@@ -31,11 +35,12 @@ export function EmptyFolderState(): React.JSX.Element {
         <div className="w-16 h-16 rounded-[12px] bg-[var(--surface)] flex items-center justify-center mx-auto mb-6">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--secondary)]">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            <path d="M12 11v6M9 14h6" />
           </svg>
         </div>
         <h2 className="font-heading text-xl font-semibold text-[var(--text)] mb-2">This folder is empty</h2>
         <p className="text-sm text-[var(--secondary)]">
-          Move episodes here from the Inbox or other folders to organize your library.
+          Move episodes here to organize them.
         </p>
       </div>
     </div>
@@ -54,7 +59,7 @@ export function EmptyInboxState(): React.JSX.Element {
         </div>
         <h2 className="font-heading text-xl font-semibold text-[var(--text)] mb-2">Inbox is empty</h2>
         <p className="text-sm text-[var(--secondary)]">
-          All caught up! New audio files will appear here for processing.
+          Add audio files to start building your knowledge base.
         </p>
       </div>
     </div>

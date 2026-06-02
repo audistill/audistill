@@ -41,7 +41,7 @@
 
 @layer components {
   .sidebar-item {
-    transition: background 0.1s;
+    transition: background-color 150ms;
   }
   .sidebar-item:hover {
     background: color-mix(in srgb, var(--surface) 60%, transparent);
@@ -49,10 +49,19 @@
   .sidebar-item.active {
     background: color-mix(in srgb, var(--surface) 80%, transparent);
   }
+  .sidebar-item:focus-visible {
+    background-color: var(--surface);
+    outline: none;
+  }
+
+  button:focus-visible {
+    background-color: var(--surface);
+    outline: none;
+  }
 
   .editable-title .pencil-icon {
     opacity: 0;
-    transition: opacity 0.15s;
+    transition: opacity 150ms;
   }
   .editable-title:hover .pencil-icon {
     opacity: 1;
