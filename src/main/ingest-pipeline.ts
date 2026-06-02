@@ -126,7 +126,7 @@ export class IngestPipeline {
       const workerPath = join(__dirname, 'transcription-worker.js')
       const worker = new Worker(workerPath)
 
-      const segments: string[] = []
+      const segments: { start: number; end: number; text: string }[] = []
 
       worker.on('message', (msg: { type: string; percent?: number; start?: number; end?: number; text?: string; message?: string }) => {
         switch (msg.type) {
@@ -134,11 +134,11 @@ export class IngestPipeline {
             this.broadcastProgress(episodeId, 'transcribing', msg.percent ?? 0)
             break
           case 'segment':
-            if (msg.text) segments.push(msg.text)
+            if (msg.text) segments.push({ start: msg.start ?? 0, end: msg.end ?? 0, text: msg.text })
             break
           case 'done':
             worker.terminate()
-            resolve(segments.join(' '))
+            resolve(JSON.stringify(segments))
             break
           case 'error':
             worker.terminate()

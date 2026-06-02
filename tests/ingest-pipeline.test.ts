@@ -67,13 +67,20 @@ function createMockSummarizationService(
   } as unknown as SummarizationService
 }
 
-function setupMockWorker(transcript = 'This is the transcribed text'): void {
+function setupMockWorker(segments?: { start: number; end: number; text: string }[]): void {
+  const defaultSegments = [
+    { start: 0, end: 30.5, text: 'This is the transcribed text' }
+  ]
+  const segs = segments ?? defaultSegments
+
   workerFactory = () => ({
     postMessage(msg: { type: string }, emit: (event: string, ...args: any[]) => void) {
       if (msg.type === 'start') {
         Promise.resolve().then(() => {
           emit('message', { type: 'progress', percent: 50 })
-          emit('message', { type: 'segment', text: transcript })
+          for (const seg of segs) {
+            emit('message', { type: 'segment', start: seg.start, end: seg.end, text: seg.text })
+          }
           emit('message', { type: 'done' })
         })
       }
@@ -136,7 +143,8 @@ describe('IngestPipeline', () => {
       expect(episode!.status).toBe('complete')
       expect(episode!.title).toBe('Generated Title')
       expect(episode!.summary).toContain('The Rundown')
-      expect(episode!.transcript).toBe('This is the transcribed text')
+      const segments = JSON.parse(episode!.transcript!)
+      expect(segments).toEqual([{ start: 0, end: 30.5, text: 'This is the transcribed text' }])
     })
   })
 
@@ -184,7 +192,8 @@ describe('IngestPipeline', () => {
       const episode = db.getEpisode(epId)
       expect(episode!.status).toBe('error')
       expect(episode!.error_message).toContain('rate limit')
-      expect(episode!.transcript).toBe('This is the transcribed text')
+      const segments = JSON.parse(episode!.transcript!)
+      expect(segments).toEqual([{ start: 0, end: 30.5, text: 'This is the transcribed text' }])
     })
   })
 
@@ -196,13 +205,14 @@ describe('IngestPipeline', () => {
 
       expect(db.getEpisode(epId)!.status).toBe('error')
 
-      setupMockWorker('Retry transcript')
+      setupMockWorker([{ start: 0, end: 15, text: 'Retry transcript' }])
       db.updateEpisode(epId, { status: 'queued', error_message: null })
       await (pipeline as any).processEpisode(epId)
 
       const episode = db.getEpisode(epId)
       expect(episode!.status).toBe('complete')
-      expect(episode!.transcript).toBe('Retry transcript')
+      const segments = JSON.parse(episode!.transcript!)
+      expect(segments[0].text).toBe('Retry transcript')
     })
 
     it('retry after summarization error skips transcription, re-runs summarization only', async () => {
@@ -215,7 +225,8 @@ describe('IngestPipeline', () => {
       await (pipeline as any).processEpisode(epId)
 
       expect(db.getEpisode(epId)!.status).toBe('error')
-      expect(db.getEpisode(epId)!.transcript).toBe('This is the transcribed text')
+      const transcriptJson = JSON.parse(db.getEpisode(epId)!.transcript!)
+      expect(transcriptJson[0].text).toBe('This is the transcribed text')
 
       // Retry: transcript exists so transcription is skipped
       ;(mockSummarizationService.summarize as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -283,6 +294,34 @@ describe('IngestPipeline', () => {
       const episode = db.getEpisode(epId)
       expect(episode!.status).toBe('error')
       expect(episode!.error_message).toContain('Unsupported format')
+    })
+  })
+
+  describe('transcript format', () => {
+    it('stores transcript as JSON array of timestamped segments', async () => {
+      setupMockWorker([
+        { start: 0, end: 30.5, text: 'First segment of speech.' },
+        { start: 30.5, end: 62.1, text: 'Second segment continues here.' },
+        { start: 62.1, end: 90.0, text: 'Third and final segment.' },
+      ])
+
+      const epId = db.createEpisode({ file_path: '/test.mp3', title: 'Test', status: 'queued' })
+      await (pipeline as any).processEpisode(epId)
+
+      const episode = db.getEpisode(epId)
+      const transcript = episode!.transcript!
+      const segments = JSON.parse(transcript)
+
+      expect(Array.isArray(segments)).toBe(true)
+      expect(segments).toHaveLength(3)
+      for (const seg of segments) {
+        expect(typeof seg.start).toBe('number')
+        expect(typeof seg.end).toBe('number')
+        expect(typeof seg.text).toBe('string')
+        expect(seg.end).toBeGreaterThan(seg.start)
+      }
+      expect(segments[0]).toEqual({ start: 0, end: 30.5, text: 'First segment of speech.' })
+      expect(segments[2]).toEqual({ start: 62.1, end: 90.0, text: 'Third and final segment.' })
     })
   })
 })

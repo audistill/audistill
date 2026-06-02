@@ -1,14 +1,85 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
 import { ContentPane } from './components/ContentPane'
 import { OnboardingView } from './components/OnboardingView'
+import { DropOverlay } from './components/DropOverlay'
 import { useAppStore, Episode } from './store/app-store'
+
+const SUPPORTED_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.flac', '.mp4'])
+
+function getExtension(filename: string): string {
+  const dot = filename.lastIndexOf('.')
+  return dot >= 0 ? filename.slice(dot).toLowerCase() : ''
+}
 
 function App(): React.JSX.Element {
   const hydrate = useAppStore((s) => s.hydrate)
   const hydrated = useAppStore((s) => s.hydrated)
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null)
+  const [dropActive, setDropActive] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const dragCounter = useRef(0)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showToast = useCallback((message: string) => {
+    setToast(message)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3000)
+  }, [])
+
+  const handleDragEnter = useCallback((e: DragEvent) => {
+    e.preventDefault()
+    dragCounter.current++
+    if (dragCounter.current === 1) setDropActive(true)
+  }, [])
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault()
+  }, [])
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault()
+    dragCounter.current--
+    if (dragCounter.current === 0) setDropActive(false)
+  }, [])
+
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault()
+    dragCounter.current = 0
+    setDropActive(false)
+
+    const files = e.dataTransfer?.files
+    if (!files || files.length === 0) return
+
+    const validPaths: string[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (SUPPORTED_EXTENSIONS.has(getExtension(file.name))) {
+        validPaths.push(file.path)
+      }
+    }
+
+    if (validPaths.length === 0) {
+      showToast('No supported audio files found')
+      return
+    }
+
+    window.api.addFiles(validPaths)
+  }, [showToast])
+
+  useEffect(() => {
+    document.addEventListener('dragenter', handleDragEnter)
+    document.addEventListener('dragover', handleDragOver)
+    document.addEventListener('dragleave', handleDragLeave)
+    document.addEventListener('drop', handleDrop)
+    return () => {
+      document.removeEventListener('dragenter', handleDragEnter)
+      document.removeEventListener('dragover', handleDragOver)
+      document.removeEventListener('dragleave', handleDragLeave)
+      document.removeEventListener('drop', handleDrop)
+    }
+  }, [handleDragEnter, handleDragOver, handleDragLeave, handleDrop])
 
   useEffect(() => {
     hydrate()
@@ -48,6 +119,8 @@ function App(): React.JSX.Element {
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         />
         <OnboardingView onComplete={() => setNeedsOnboarding(false)} />
+        <DropOverlay visible={dropActive} />
+        {toast && <Toast message={toast} />}
       </div>
     )
   }
@@ -68,6 +141,17 @@ function App(): React.JSX.Element {
         <Sidebar />
         <ContentPane />
       </div>
+
+      <DropOverlay visible={dropActive} />
+      {toast && <Toast message={toast} />}
+    </div>
+  )
+}
+
+function Toast({ message }: { message: string }): React.JSX.Element {
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-4 py-2 rounded-[12px] bg-[var(--surface)] text-[var(--text)] text-sm shadow-[0_4px_16px_rgba(0,0,0,0.3)] animate-[fadeIn_150ms_ease-out]">
+      {message}
     </div>
   )
 }

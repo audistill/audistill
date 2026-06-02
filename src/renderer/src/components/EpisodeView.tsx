@@ -65,6 +65,33 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
   )
 }
 
+interface TranscriptSegment {
+  start: number
+  end: number
+  text: string
+}
+
+function parseTranscript(transcript: string): TranscriptSegment[] | null {
+  try {
+    const parsed = JSON.parse(transcript)
+    if (Array.isArray(parsed) && parsed.length > 0 && 'start' in parsed[0]) {
+      return parsed
+    }
+  } catch {
+    // not JSON — legacy plain text
+  }
+  return null
+}
+
+function formatTimestamp(seconds: number): string {
+  const totalSec = Math.floor(seconds)
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 function formatDuration(seconds: number | null): string {
   if (!seconds) return ''
   const h = Math.floor(seconds / 3600)
@@ -204,9 +231,28 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
             <div
               className={`mt-3 pl-5 overflow-hidden transition-[max-height] duration-200 ${transcriptExpanded ? 'max-h-[600px] overflow-y-auto' : 'max-h-0'}`}
             >
-              <p className="text-sm text-[var(--text)] whitespace-pre-wrap leading-relaxed">
-                {episode.transcript}
-              </p>
+              {(() => {
+                const segments = parseTranscript(episode.transcript!)
+                if (segments) {
+                  return (
+                    <div className="space-y-3">
+                      {segments.map((seg, i) => (
+                        <div key={i} className="flex gap-3">
+                          <span className="shrink-0 text-xs text-[var(--secondary)] font-mono pt-0.5 w-12 text-right">
+                            {formatTimestamp(seg.start)}
+                          </span>
+                          <p className="text-sm text-[var(--text)] leading-relaxed">{seg.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
+                return (
+                  <p className="text-sm text-[var(--text)] whitespace-pre-wrap leading-relaxed">
+                    {episode.transcript}
+                  </p>
+                )
+              })()}
             </div>
           </div>
         )}
