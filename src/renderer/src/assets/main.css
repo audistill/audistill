@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #faf9f5;
+    --text: #141413;
+    --secondary: #b0aea5;
+    --surface: #e8e6dc;
+    --accent: #d97757;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413;
+      --text: #faf9f5;
+      --secondary: #b0aea5;
+      --surface: #1e1e1c;
+      --accent: #d97757;
+    }
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app-drag-region {
+    -webkit-app-region: drag;
+  }
+}
