@@ -1,21 +1,42 @@
 import { useState } from 'react'
 
-export function OnboardingView(): React.JSX.Element {
+interface OnboardingViewProps {
+  onComplete: () => void
+}
+
+export function OnboardingView({ onComplete }: OnboardingViewProps): React.JSX.Element {
   const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState('')
   const [validating, setValidating] = useState(false)
 
-  const handleValidate = () => {
-    if (!apiKey.trim()) {
+  const handleValidate = async (): Promise<void> => {
+    const trimmedKey = apiKey.trim()
+    if (!trimmedKey) {
       setError('Please enter an API key.')
       return
     }
     setValidating(true)
     setError('')
-    setTimeout(() => {
+
+    try {
+      const valid = await window.api.validateApiKey(trimmedKey)
+      if (valid) {
+        await window.api.setSetting('openrouter_api_key', trimmedKey)
+        onComplete()
+      } else {
+        setError('Invalid API key. Please check your key and try again.')
+      }
+    } catch {
+      setError('Could not reach OpenRouter. Check your internet connection and try again.')
+    } finally {
       setValidating(false)
-      setError('Validation is not wired yet — this is a mock view.')
-    }, 1500)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    if (e.key === 'Enter' && !validating) {
+      handleValidate()
+    }
   }
 
   return (
@@ -40,6 +61,7 @@ export function OnboardingView(): React.JSX.Element {
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="w-full px-4 py-2.5 rounded-[12px] bg-[var(--surface)] border border-[var(--surface)] text-[var(--text)] text-sm outline-none focus:border-[var(--accent)] transition-colors"
             placeholder="sk-or-v1-..."
           />

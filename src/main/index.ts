@@ -4,10 +4,12 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ModelManager } from './model-manager'
 import { registerTranscriptionService } from './transcription-service'
 import { DatabaseService } from './database-service'
+import { SummarizationService } from './summarization-service'
 
 nativeTheme.themeSource = 'system'
 
 let db: DatabaseService
+let summarizationService: SummarizationService
 
 function registerDatabaseHandlers(): void {
   ipcMain.handle('db:get-episodes', (_event, folderId?: string | null) => {
@@ -40,6 +42,10 @@ function registerDatabaseHandlers(): void {
 
   ipcMain.handle('db:search-episodes', (_event, query: string) => {
     return db.searchEpisodes(query)
+  })
+
+  ipcMain.handle('validate-api-key', (_event, key: string) => {
+    return summarizationService.validateApiKey(key)
   })
 }
 
@@ -82,6 +88,7 @@ app.whenReady().then(() => {
   })
 
   db = new DatabaseService()
+  summarizationService = new SummarizationService(db)
   registerDatabaseHandlers()
 
   const modelManager = new ModelManager()

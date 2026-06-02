@@ -47,6 +47,7 @@ interface PodCaptureApi {
   getSetting: (key: string) => Promise<string | null>
   setSetting: (key: string, value: string) => Promise<void>
   searchEpisodes: (query: string) => Promise<DbEpisode[]>
+  validateApiKey: (key: string) => Promise<boolean>
 
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
 }

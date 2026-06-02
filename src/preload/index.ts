@@ -42,6 +42,7 @@ const api = {
   getSetting: (key: string) => ipcRenderer.invoke('db:get-setting', key),
   setSetting: (key: string, value: string) => ipcRenderer.invoke('db:set-setting', key, value),
   searchEpisodes: (query: string) => ipcRenderer.invoke('db:search-episodes', query),
+  validateApiKey: (key: string): Promise<boolean> => ipcRenderer.invoke('validate-api-key', key),
 
   // Episode updated event from main process
   onEpisodeUpdated: (callback: (episode: unknown) => void) => {
