@@ -1,6 +1,6 @@
 ---
 title: "PRD: PodCapture — Minimum Prototype"
-status: ready-for-agent
+status: done
 created: 2026-06-02
 ---
 
