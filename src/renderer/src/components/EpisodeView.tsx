@@ -11,6 +11,7 @@ export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Elemen
 
 function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
   const fileName = episode.file_path.split('/').pop() || episode.file_path
+  const progressEntry = useAppStore((s) => s.progress[episode.id])
   const statusText =
     episode.status === 'queued'
       ? 'Waiting in queue...'
@@ -22,6 +23,28 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
 
   const handleRetry = async (): Promise<void> => {
     await window.api.retryEpisode(episode.id)
+  }
+
+  const showRichProgress = episode.status === 'transcribing' && progressEntry
+
+  let speedText: string | null = null
+  let etaText: string | null = null
+
+  if (showRichProgress && episode.duration_sec && progressEntry.percent > 0) {
+    const elapsedSeconds = (Date.now() - progressEntry.startedAt) / 1000
+    if (elapsedSeconds > 0) {
+      const processedAudioSec = (episode.duration_sec * progressEntry.percent) / 100
+      const speed = processedAudioSec / elapsedSeconds
+      speedText = `${Math.round(speed)}x listening speed`
+
+      if (speed > 0) {
+        const remainingAudioSec = episode.duration_sec - processedAudioSec
+        const etaSec = Math.max(0, Math.round(remainingAudioSec / speed))
+        etaText = etaSec >= 60
+          ? `~${Math.ceil(etaSec / 60)} min remaining`
+          : `~${etaSec} sec remaining`
+      }
+    }
   }
 
   return (
@@ -49,6 +72,30 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
         </div>
         <p className="font-heading text-sm font-medium text-[var(--text)] mb-2">{fileName}</p>
         <p className="text-sm text-[var(--secondary)] mb-4">{statusText}</p>
+
+        {showRichProgress && (
+          <div className="w-full mt-2 space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 rounded-full bg-[var(--surface)] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
+                  style={{ width: `${progressEntry.percent}%` }}
+                />
+              </div>
+              <span className="text-xs text-[var(--text)] font-medium w-10 text-right">
+                {Math.round(progressEntry.percent)}%
+              </span>
+            </div>
+            {(speedText || etaText) && (
+              <div className="flex items-center justify-center gap-3 text-xs text-[var(--secondary)]">
+                {speedText && <span>{speedText}</span>}
+                {speedText && etaText && <span className="w-1 h-1 rounded-full bg-[var(--secondary)]" />}
+                {etaText && <span>{etaText}</span>}
+              </div>
+            )}
+          </div>
+        )}
+
         {episode.error_message && (
           <p className="text-sm text-red-400 mb-4">{episode.error_message}</p>
         )}

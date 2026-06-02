@@ -104,6 +104,7 @@ export class IngestPipeline {
 
       const durationSec = Math.round(pcmBuffer.byteLength / 4 / 16000)
       this.db.updateEpisode(episodeId, { duration_sec: durationSec })
+      this.broadcastEpisodeUpdate(episodeId)
 
       const transcript = await this.runTranscriptionWorker(pcmBuffer, modelPath, episodeId)
 
