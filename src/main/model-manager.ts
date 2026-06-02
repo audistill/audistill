@@ -10,6 +10,7 @@ const MODEL_REPO = 'https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/r
 const MODEL_FILES = [
   'encoder-model.int8.onnx',
   'decoder_joint-model.int8.onnx',
+  'nemo128.onnx',
   'vocab.txt',
   'config.json'
 ]

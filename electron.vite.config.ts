@@ -3,7 +3,17 @@ import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  main: {},
+  main: {
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/main/index.ts'),
+          'transcription-worker': resolve('src/main/transcription-worker.ts')
+        },
+        external: ['onnxruntime-node']
+      }
+    }
+  },
   preload: {},
   renderer: {
     resolve: {
