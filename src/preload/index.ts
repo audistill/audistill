@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 const api = {
@@ -53,6 +53,9 @@ const api = {
     ipcRenderer.invoke('db:move-episode', id, folderId),
   deleteEpisode: (id: string): Promise<void> => ipcRenderer.invoke('db:delete-episode', id),
   validateApiKey: (key: string): Promise<boolean> => ipcRenderer.invoke('validate-api-key', key),
+
+  // File utilities
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
   // Ingest pipeline
   selectFiles: (): Promise<string[] | null> => ipcRenderer.invoke('ingest:select-files'),

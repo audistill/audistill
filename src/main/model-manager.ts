@@ -6,10 +6,10 @@ import http from 'node:http'
 import { join } from 'node:path'
 import { app } from 'electron'
 
-const MODEL_REPO = 'https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main'
+const MODEL_REPO = 'https://huggingface.co/grikdotnet/parakeet-tdt-0.6b-fp16/resolve/main'
 const MODEL_FILES = [
-  'encoder-model.int8.onnx',
-  'decoder_joint-model.int8.onnx',
+  'encoder-model.fp16.onnx',
+  'decoder_joint-model.fp16.onnx',
   'nemo128.onnx',
   'vocab.txt',
   'config.json'

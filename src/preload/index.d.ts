@@ -55,6 +55,9 @@ interface PodCaptureApi {
   deleteFolder: (id: string) => Promise<void>
   validateApiKey: (key: string) => Promise<boolean>
 
+  // File utilities
+  getPathForFile: (file: File) => string
+
   // Ingest pipeline
   selectFiles: () => Promise<string[] | null>
   addFiles: (filePaths: string[]) => Promise<string[]>

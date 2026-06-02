@@ -27,6 +27,7 @@ export class IngestPipeline {
     ipcMain.handle('ingest:add-files', async (_event, filePaths: string[]) => {
       const ids: string[] = []
       for (const filePath of filePaths) {
+        if (!filePath) continue
         const id = this.db.createEpisode({
           title: basename(filePath),
           file_path: filePath,

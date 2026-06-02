@@ -1,7 +1,10 @@
 import { parentPort } from 'node:worker_threads'
 import { join } from 'node:path'
+import { cpus } from 'node:os'
 import { InferenceSession, Tensor } from 'onnxruntime-node'
 import { readFileSync } from 'node:fs'
+
+const INTRA_OP_THREADS = Math.max(1, Math.floor(cpus().length / 2))
 
 interface StartMessage {
   type: 'start'
@@ -234,19 +237,21 @@ async function transcribe(audioBuffer: SharedArrayBuffer, modelPath: string): Pr
 
   post({ type: 'progress', percent: 0 })
 
+  const coreml = { name: 'coreml' as const, coreMlFlags: 0x010 | 0x008 | 0x020 }
+
   const preprocessorSession = await InferenceSession.create(
     join(modelPath, 'nemo128.onnx'),
-    { executionProviders: ['cpu'] }
+    { executionProviders: [coreml, 'cpu'], intraOpNumThreads: INTRA_OP_THREADS }
   )
 
   const encoderSession = await InferenceSession.create(
-    join(modelPath, 'encoder-model.int8.onnx'),
-    { executionProviders: ['cpu'], graphOptimizationLevel: 'all' }
+    join(modelPath, 'encoder-model.fp16.onnx'),
+    { executionProviders: [coreml, 'cpu'], graphOptimizationLevel: 'all', intraOpNumThreads: INTRA_OP_THREADS }
   )
 
   const decoderSession = await InferenceSession.create(
-    join(modelPath, 'decoder_joint-model.int8.onnx'),
-    { executionProviders: ['cpu'], graphOptimizationLevel: 'all' }
+    join(modelPath, 'decoder_joint-model.fp16.onnx'),
+    { executionProviders: [coreml, 'cpu'], graphOptimizationLevel: 'all', intraOpNumThreads: INTRA_OP_THREADS }
   )
 
   post({ type: 'progress', percent: 5 })
