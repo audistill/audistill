@@ -81,13 +81,14 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
   const [transcriptExpanded, setTranscriptExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(episode.title || '')
-  const updateEpisode = useAppStore((s) => s.updateEpisode)
+  const renameEpisode = useAppStore((s) => s.renameEpisode)
 
   const fileName = episode.file_path.split('/').pop() || episode.file_path
 
   const handleSaveTitle = () => {
-    if (editTitle.trim()) {
-      updateEpisode(episode.id, { title: editTitle.trim() })
+    const trimmed = editTitle.trim()
+    if (trimmed && trimmed !== episode.title) {
+      renameEpisode(episode.id, trimmed)
     }
     setEditing(false)
   }

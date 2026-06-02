@@ -51,6 +51,9 @@ interface AppState {
   setEpisodes: (episodes: Episode[]) => void
   setFolders: (folders: Folder[]) => void
   persistTabs: () => void
+  renameEpisode: (id: string, title: string) => Promise<void>
+  moveEpisode: (id: string, folderId: string | null) => Promise<void>
+  deleteEpisode: (id: string) => Promise<void>
   createFolder: (name: string, parentId?: string | null) => Promise<string>
   renameFolder: (id: string, name: string) => Promise<void>
   deleteFolder: (id: string) => Promise<void>
@@ -215,6 +218,31 @@ export const useAppStore = create<AppState>((set, get) => ({
       is_preview: t.preview,
     }))
     window.api.saveOpenTabs(toSave)
+  },
+
+  renameEpisode: async (id, title) => {
+    await window.api.renameEpisode(id, title)
+    const { episodes } = get()
+    set({ episodes: episodes.map((ep) => (ep.id === id ? { ...ep, title } : ep)) })
+  },
+
+  moveEpisode: async (id, folderId) => {
+    await window.api.moveEpisode(id, folderId)
+    const { episodes } = get()
+    set({ episodes: episodes.map((ep) => (ep.id === id ? { ...ep, folder_id: folderId } : ep)) })
+  },
+
+  deleteEpisode: async (id) => {
+    await window.api.deleteEpisode(id)
+    const { episodes, tabs, activeTabId } = get()
+    const newEpisodes = episodes.filter((ep) => ep.id !== id)
+    const newTabs = tabs.filter((t) => t.episodeId !== id)
+    let newActive = activeTabId
+    if (activeTabId === id) {
+      newActive = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null
+    }
+    set({ episodes: newEpisodes, tabs: newTabs, activeTabId: newActive })
+    get().persistTabs()
   },
 
   createFolder: async (name, parentId) => {

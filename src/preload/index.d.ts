@@ -47,6 +47,9 @@ interface PodCaptureApi {
   getSetting: (key: string) => Promise<string | null>
   setSetting: (key: string, value: string) => Promise<void>
   searchEpisodes: (query: string) => Promise<DbEpisode[]>
+  renameEpisode: (id: string, title: string) => Promise<void>
+  moveEpisode: (id: string, folderId: string | null) => Promise<void>
+  deleteEpisode: (id: string) => Promise<void>
   createFolder: (name: string, parentId?: string | null) => Promise<string>
   renameFolder: (id: string, name: string) => Promise<void>
   deleteFolder: (id: string) => Promise<void>

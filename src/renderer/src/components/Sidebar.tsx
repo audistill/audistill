@@ -17,12 +17,16 @@ export function Sidebar(): React.JSX.Element {
   const renameFolder = useAppStore((s) => s.renameFolder)
   const deleteFolder = useAppStore((s) => s.deleteFolder)
 
+  const moveEpisode = useAppStore((s) => s.moveEpisode)
+  const deleteEpisode = useAppStore((s) => s.deleteEpisode)
+
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
-    type: 'folder' | 'folders-header'
+    type: 'folder' | 'folders-header' | 'episode'
     folderId?: string
     parentId?: string | null
+    episodeId?: string
   } | null>(null)
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
   const [creatingFolder, setCreatingFolder] = useState<{ parentId: string | null } | null>(null)
@@ -76,6 +80,26 @@ export function Sidebar(): React.JSX.Element {
     if (!folder) return
     if (window.confirm(`Delete folder "${folder.name}"? Episodes will be moved to Inbox.`)) {
       deleteFolder(id)
+    }
+  }
+
+  const handleEpisodeContextMenu = (e: React.MouseEvent, episodeId: string): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, type: 'episode', episodeId })
+  }
+
+  const handleMoveEpisode = (episodeId: string, folderId: string | null): void => {
+    setContextMenu(null)
+    moveEpisode(episodeId, folderId)
+  }
+
+  const handleDeleteEpisode = (episodeId: string): void => {
+    setContextMenu(null)
+    const ep = episodes.find((e) => e.id === episodeId)
+    const title = ep?.title || ep?.file_path.split('/').pop() || 'this episode'
+    if (window.confirm(`Delete "${title}"? This cannot be undone.`)) {
+      deleteEpisode(episodeId)
     }
   }
 
@@ -152,6 +176,7 @@ export function Sidebar(): React.JSX.Element {
               isActive={activeTabId === ep.id && !settingsOpen}
               onSelect={selectEpisode}
               onPin={pinEpisode}
+              onContextMenu={handleEpisodeContextMenu}
             />
           ))}
           {inboxItems.length === 0 && !searchQuery && (
@@ -206,6 +231,7 @@ export function Sidebar(): React.JSX.Element {
             selectEpisode={selectEpisode}
             pinEpisode={pinEpisode}
             onContextMenu={handleFolderContextMenu}
+            onEpisodeContextMenu={handleEpisodeContextMenu}
             onRenameSubmit={async (id, name) => {
               await renameFolder(id, name)
               setEditingFolderId(null)
@@ -230,13 +256,29 @@ export function Sidebar(): React.JSX.Element {
           x={contextMenu.x}
           y={contextMenu.y}
           items={
-            contextMenu.type === 'folder'
+            contextMenu.type === 'episode'
               ? [
-                  { label: 'New Subfolder', action: () => handleNewFolder(contextMenu.folderId!) },
-                  { label: 'Rename', action: () => handleRenameFolder(contextMenu.folderId!) },
-                  { label: 'Delete', action: () => handleDeleteFolder(contextMenu.folderId!), danger: true },
+                  ...folders.map((f) => ({
+                    label: `Move to ${f.name}`,
+                    action: () => handleMoveEpisode(contextMenu.episodeId!, f.id),
+                  })),
+                  {
+                    label: 'Move to Inbox',
+                    action: () => handleMoveEpisode(contextMenu.episodeId!, null),
+                  },
+                  {
+                    label: 'Delete',
+                    action: () => handleDeleteEpisode(contextMenu.episodeId!),
+                    danger: true,
+                  },
                 ]
-              : [{ label: 'New Folder', action: () => handleNewFolder(null) }]
+              : contextMenu.type === 'folder'
+                ? [
+                    { label: 'New Subfolder', action: () => handleNewFolder(contextMenu.folderId!) },
+                    { label: 'Rename', action: () => handleRenameFolder(contextMenu.folderId!) },
+                    { label: 'Delete', action: () => handleDeleteFolder(contextMenu.folderId!), danger: true },
+                  ]
+                : [{ label: 'New Folder', action: () => handleNewFolder(null) }]
           }
         />
       )}
@@ -259,6 +301,7 @@ function FolderNode({
   selectEpisode,
   pinEpisode,
   onContextMenu,
+  onEpisodeContextMenu,
   onRenameSubmit,
   onRenameCancel,
   onCreateSubmit,
@@ -278,6 +321,7 @@ function FolderNode({
   selectEpisode: (id: string) => void
   pinEpisode: (id: string) => void
   onContextMenu: (e: React.MouseEvent, folderId: string) => void
+  onEpisodeContextMenu: (e: React.MouseEvent, episodeId: string) => void
   onRenameSubmit: (id: string, name: string) => Promise<void>
   onRenameCancel: () => void
   onCreateSubmit: (name: string, parentId: string | null) => Promise<void>
@@ -359,6 +403,7 @@ function FolderNode({
             selectEpisode={selectEpisode}
             pinEpisode={pinEpisode}
             onContextMenu={onContextMenu}
+            onEpisodeContextMenu={onEpisodeContextMenu}
             onRenameSubmit={onRenameSubmit}
             onRenameCancel={onRenameCancel}
             onCreateSubmit={onCreateSubmit}
@@ -374,6 +419,7 @@ function FolderNode({
               isActive={activeTabId === ep.id && !settingsOpen}
               onSelect={selectEpisode}
               onPin={pinEpisode}
+              onContextMenu={onEpisodeContextMenu}
             />
           </div>
         ))}
@@ -508,11 +554,13 @@ function SidebarEpisode({
   isActive,
   onSelect,
   onPin,
+  onContextMenu,
 }: {
   episode: Episode
   isActive: boolean
   onSelect: (id: string) => void
   onPin: (id: string) => void
+  onContextMenu: (e: React.MouseEvent, episodeId: string) => void
 }): React.JSX.Element {
   const fileName = episode.file_path.split('/').pop() || episode.file_path
   const title = episode.title || fileName
@@ -543,6 +591,7 @@ function SidebarEpisode({
       className={`sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm cursor-pointer ${isActive ? 'active' : ''}`}
       onClick={() => onSelect(episode.id)}
       onDoubleClick={() => onPin(episode.id)}
+      onContextMenu={(e) => onContextMenu(e, episode.id)}
     >
       <span className={`truncate flex-1 ${episode.status !== 'complete' ? 'text-[var(--secondary)]' : 'text-[var(--text)]'}`}>
         {title}

@@ -45,6 +45,18 @@ function registerDatabaseHandlers(): void {
     return db.searchEpisodes(query)
   })
 
+  ipcMain.handle('db:rename-episode', (_event, id: string, title: string) => {
+    db.updateEpisode(id, { title })
+  })
+
+  ipcMain.handle('db:move-episode', (_event, id: string, folderId: string | null) => {
+    db.updateEpisode(id, { folder_id: folderId })
+  })
+
+  ipcMain.handle('db:delete-episode', (_event, id: string) => {
+    db.deleteEpisode(id)
+  })
+
   ipcMain.handle('db:create-folder', (_event, name: string, parentId?: string | null) => {
     return db.createFolder(name, parentId)
   })

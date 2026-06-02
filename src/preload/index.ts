@@ -47,6 +47,11 @@ const api = {
   renameFolder: (id: string, name: string): Promise<void> =>
     ipcRenderer.invoke('db:rename-folder', id, name),
   deleteFolder: (id: string): Promise<void> => ipcRenderer.invoke('db:delete-folder', id),
+  renameEpisode: (id: string, title: string): Promise<void> =>
+    ipcRenderer.invoke('db:rename-episode', id, title),
+  moveEpisode: (id: string, folderId: string | null): Promise<void> =>
+    ipcRenderer.invoke('db:move-episode', id, folderId),
+  deleteEpisode: (id: string): Promise<void> => ipcRenderer.invoke('db:delete-episode', id),
   validateApiKey: (key: string): Promise<boolean> => ipcRenderer.invoke('validate-api-key', key),
 
   // Ingest pipeline
