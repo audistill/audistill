@@ -28,6 +28,11 @@ export interface Tab {
   preview: boolean
 }
 
+export interface ProgressEntry {
+  percent: number
+  startedAt: number
+}
+
 interface AppState {
   episodes: Episode[]
   folders: Folder[]
@@ -37,6 +42,7 @@ interface AppState {
   settingsOpen: boolean
   searchQuery: string
   hydrated: boolean
+  progress: Record<string, ProgressEntry>
 
   hydrate: () => Promise<void>
   selectEpisode: (id: string) => void
@@ -57,6 +63,8 @@ interface AppState {
   createFolder: (name: string, parentId?: string | null) => Promise<string>
   renameFolder: (id: string, name: string) => Promise<void>
   deleteFolder: (id: string) => Promise<void>
+  setProgress: (episodeId: string, percent: number) => void
+  clearProgress: (episodeId: string) => void
 }
 
 function dbEpisodeToEpisode(row: DbEpisode): Episode {
@@ -93,6 +101,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   settingsOpen: false,
   searchQuery: '',
   hydrated: false,
+  progress: {},
 
   hydrate: async () => {
     const [dbEpisodes, dbFolders, dbTabs] = await Promise.all([
@@ -204,6 +213,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       set({ episodes: [newEpisode, ...episodes] })
     }
+    if (updates.status === 'complete' || updates.status === 'error') {
+      get().clearProgress(id)
+    }
   },
 
   setEpisodes: (episodes) => set({ episodes }),
@@ -292,5 +304,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       tabs: newTabs,
       activeTabId: newActive,
     })
+  },
+
+  setProgress: (episodeId, percent) => {
+    const { progress } = get()
+    const existing = progress[episodeId]
+    set({
+      progress: {
+        ...progress,
+        [episodeId]: {
+          percent,
+          startedAt: existing ? existing.startedAt : Date.now(),
+        },
+      },
+    })
+  },
+
+  clearProgress: (episodeId) => {
+    const { progress } = get()
+    if (!(episodeId in progress)) return
+    const { [episodeId]: _, ...rest } = progress
+    set({ progress: rest })
   },
 }))

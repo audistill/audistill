@@ -56,7 +56,8 @@ function App(): React.JSX.Element {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       if (SUPPORTED_EXTENSIONS.has(getExtension(file.name))) {
-        validPaths.push(file.path)
+        const filePath = window.api.getPathForFile(file)
+        if (filePath) validPaths.push(filePath)
       }
     }
 
@@ -99,6 +100,14 @@ function App(): React.JSX.Element {
         ...episode,
         status: episode.status as Episode['status'],
       })
+    })
+    return unsubscribe
+  }, [hydrated])
+
+  useEffect(() => {
+    if (!hydrated) return
+    const unsubscribe = window.api.onIngestProgress((data) => {
+      useAppStore.getState().setProgress(data.episodeId, data.percent)
     })
     return unsubscribe
   }, [hydrated])
