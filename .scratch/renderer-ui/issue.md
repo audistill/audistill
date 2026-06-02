@@ -1,6 +1,6 @@
 ---
 title: "Renderer UI: three-state interface with file picker"
-status: ready-for-agent
+status: done
 created: 2026-06-02
 ---
 
