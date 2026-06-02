@@ -104,8 +104,8 @@ describe('ModelManager', () => {
     const modelPath = await mgr.ensureModel()
     const files = await readdir(modelPath)
 
-    expect(files).toContain('encoder-model.int8.onnx')
-    expect(files).toContain('decoder_joint-model.int8.onnx')
+    expect(files).toContain('encoder-model.fp16.onnx')
+    expect(files).toContain('decoder_joint-model.fp16.onnx')
     expect(files).toContain('nemo128.onnx')
     expect(files).toContain('vocab.txt')
     expect(files).toContain('config.json')
