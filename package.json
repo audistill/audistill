@@ -12,7 +12,9 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
+    "pretest": "pnpm rebuild better-sqlite3",
     "test": "vitest run",
+    "posttest": "electron-rebuild -f -w better-sqlite3 --build-from-source",
     "postinstall": "electron-rebuild -f -w better-sqlite3 --build-from-source",
     "build:mac": "pnpm run build && electron-builder --mac"
   },
