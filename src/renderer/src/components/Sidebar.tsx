@@ -43,7 +43,12 @@ export function Sidebar(): React.JSX.Element {
             </svg>
           </button>
           <button
-            onClick={() => alert('Native file dialog would open here.\nSelected files go to Inbox and start processing.')}
+            onClick={async () => {
+              const filePaths = await window.api.selectFiles()
+              if (filePaths && filePaths.length > 0) {
+                await window.api.addFiles(filePaths)
+              }
+            }}
             className="flex items-center gap-1 px-2 py-1 rounded-[12px] text-xs font-medium text-[var(--accent)] hover:bg-[var(--surface)] transition-colors"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

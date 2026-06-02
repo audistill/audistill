@@ -19,26 +19,45 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
           ? 'Generating summary...'
           : 'Error'
 
+  const handleRetry = async (): Promise<void> => {
+    await window.api.retryEpisode(episode.id)
+  }
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-12">
       <div className="w-full max-w-md text-center">
         <div className="w-12 h-12 rounded-[12px] bg-[var(--surface)] flex items-center justify-center mx-auto mb-4">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-[var(--accent)] processing-dot"
-          >
-            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-          </svg>
+          {episode.status === 'error' ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-400">
+              <circle cx="12" cy="12" r="10" />
+              <path d="m15 9-6 6M9 9l6 6" />
+            </svg>
+          ) : (
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-[var(--accent)] processing-dot"
+            >
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+          )}
         </div>
         <p className="font-heading text-sm font-medium text-[var(--text)] mb-2">{fileName}</p>
         <p className="text-sm text-[var(--secondary)] mb-4">{statusText}</p>
         {episode.error_message && (
           <p className="text-sm text-red-400 mb-4">{episode.error_message}</p>
+        )}
+        {episode.status === 'error' && (
+          <button
+            onClick={handleRetry}
+            className="px-4 py-2 rounded-[12px] bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            {episode.transcript ? 'Generate Summary' : 'Retry'}
+          </button>
         )}
       </div>
     </div>

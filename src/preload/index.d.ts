@@ -49,7 +49,13 @@ interface PodCaptureApi {
   searchEpisodes: (query: string) => Promise<DbEpisode[]>
   validateApiKey: (key: string) => Promise<boolean>
 
+  // Ingest pipeline
+  selectFiles: () => Promise<string[] | null>
+  addFiles: (filePaths: string[]) => Promise<string[]>
+  retryEpisode: (id: string) => Promise<void>
+
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
+  onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => () => void
 }
 
 declare global {

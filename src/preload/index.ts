@@ -44,11 +44,23 @@ const api = {
   searchEpisodes: (query: string) => ipcRenderer.invoke('db:search-episodes', query),
   validateApiKey: (key: string): Promise<boolean> => ipcRenderer.invoke('validate-api-key', key),
 
+  // Ingest pipeline
+  selectFiles: (): Promise<string[] | null> => ipcRenderer.invoke('ingest:select-files'),
+  addFiles: (filePaths: string[]): Promise<string[]> => ipcRenderer.invoke('ingest:add-files', filePaths),
+  retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
+
   // Episode updated event from main process
   onEpisodeUpdated: (callback: (episode: unknown) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, episode: unknown): void => callback(episode)
     ipcRenderer.on('episode-updated', handler)
     return () => ipcRenderer.removeListener('episode-updated', handler)
+  },
+
+  // Ingest progress event
+  onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; stage: string; percent: number }): void => callback(data)
+    ipcRenderer.on('ingest-progress', handler)
+    return () => ipcRenderer.removeListener('ingest-progress', handler)
   },
 }
 

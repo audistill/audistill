@@ -5,6 +5,7 @@ import { ModelManager } from './model-manager'
 import { registerTranscriptionService } from './transcription-service'
 import { DatabaseService } from './database-service'
 import { SummarizationService } from './summarization-service'
+import { IngestPipeline } from './ingest-pipeline'
 
 nativeTheme.themeSource = 'system'
 
@@ -98,6 +99,9 @@ app.whenReady().then(() => {
       win.webContents.send('model-download-progress', percent)
     }
   })
+
+  const ingestPipeline = new IngestPipeline(db, modelManager, summarizationService)
+  ingestPipeline.registerIPC()
 
   registerTranscriptionService(modelManager)
 

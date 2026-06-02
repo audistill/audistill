@@ -178,7 +178,26 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   updateEpisode: (id, updates) => {
     const { episodes } = get()
-    set({ episodes: episodes.map((ep) => (ep.id === id ? { ...ep, ...updates } : ep)) })
+    const exists = episodes.some((ep) => ep.id === id)
+    if (exists) {
+      set({ episodes: episodes.map((ep) => (ep.id === id ? { ...ep, ...updates } : ep)) })
+    } else {
+      const newEpisode: Episode = {
+        id,
+        title: null,
+        file_path: '',
+        folder_id: null,
+        duration_sec: null,
+        transcript: null,
+        summary: null,
+        status: 'queued',
+        error_message: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        ...updates,
+      }
+      set({ episodes: [newEpisode, ...episodes] })
+    }
   },
 
   setEpisodes: (episodes) => set({ episodes }),
