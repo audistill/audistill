@@ -6,7 +6,7 @@
   :root {
     --bg: #faf9f5;
     --text: #141413;
-    --secondary: #b0aea5;
+    --secondary: #7a7870;
     --surface: #e8e6dc;
     --accent: #d97757;
   }
@@ -15,7 +15,7 @@
     :root {
       --bg: #141413;
       --text: #faf9f5;
-      --secondary: #b0aea5;
+      --secondary: #c2c0b8;
       --surface: #1e1e1c;
       --accent: #d97757;
     }
@@ -28,9 +28,43 @@
     background-color: var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    height: 100vh;
   }
 
-  .app-drag-region {
-    -webkit-app-region: drag;
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #3a3a38; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #5a5a58; }
+}
+
+@layer components {
+  .sidebar-item {
+    transition: background 0.1s;
+  }
+  .sidebar-item:hover {
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
+  }
+  .sidebar-item.active {
+    background: color-mix(in srgb, var(--surface) 80%, transparent);
+  }
+
+  .editable-title .pencil-icon {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .editable-title:hover .pencil-icon {
+    opacity: 1;
+  }
+}
+
+@layer utilities {
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  .processing-dot {
+    animation: pulse-dot 1.5s infinite;
   }
 }
