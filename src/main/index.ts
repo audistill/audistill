@@ -45,6 +45,18 @@ function registerDatabaseHandlers(): void {
     return db.searchEpisodes(query)
   })
 
+  ipcMain.handle('db:create-folder', (_event, name: string, parentId?: string | null) => {
+    return db.createFolder(name, parentId)
+  })
+
+  ipcMain.handle('db:rename-folder', (_event, id: string, name: string) => {
+    db.updateFolder(id, { name })
+  })
+
+  ipcMain.handle('db:delete-folder', (_event, id: string) => {
+    db.deleteFolder(id)
+  })
+
   ipcMain.handle('validate-api-key', (_event, key: string) => {
     return summarizationService.validateApiKey(key)
   })

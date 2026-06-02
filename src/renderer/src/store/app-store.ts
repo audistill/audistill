@@ -51,6 +51,9 @@ interface AppState {
   setEpisodes: (episodes: Episode[]) => void
   setFolders: (folders: Folder[]) => void
   persistTabs: () => void
+  createFolder: (name: string, parentId?: string | null) => Promise<string>
+  renameFolder: (id: string, name: string) => Promise<void>
+  deleteFolder: (id: string) => Promise<void>
 }
 
 function dbEpisodeToEpisode(row: DbEpisode): Episode {
@@ -212,5 +215,54 @@ export const useAppStore = create<AppState>((set, get) => ({
       is_preview: t.preview,
     }))
     window.api.saveOpenTabs(toSave)
+  },
+
+  createFolder: async (name, parentId) => {
+    const id = await window.api.createFolder(name, parentId ?? null)
+    const { folders, expandedFolders } = get()
+    const newFolder: Folder = {
+      id,
+      name,
+      parent_id: parentId ?? null,
+      sort_order: folders.length,
+    }
+    const next = new Set(expandedFolders)
+    if (parentId) next.add(parentId)
+    set({ folders: [...folders, newFolder], expandedFolders: next })
+    return id
+  },
+
+  renameFolder: async (id, name) => {
+    await window.api.renameFolder(id, name)
+    const { folders } = get()
+    set({ folders: folders.map((f) => (f.id === id ? { ...f, name } : f)) })
+  },
+
+  deleteFolder: async (id) => {
+    await window.api.deleteFolder(id)
+    const { folders, episodes, tabs, activeTabId } = get()
+    const removedIds = new Set<string>()
+    const collectChildren = (parentId: string): void => {
+      removedIds.add(parentId)
+      folders.filter((f) => f.parent_id === parentId).forEach((f) => collectChildren(f.id))
+    }
+    collectChildren(id)
+    const updatedEpisodes = episodes.map((ep) =>
+      ep.folder_id && removedIds.has(ep.folder_id) ? { ...ep, folder_id: null } : ep
+    )
+    const closedEpisodeIds = new Set(
+      updatedEpisodes.filter((ep) => ep.folder_id === null && episodes.find((e) => e.id === ep.id)?.folder_id !== null).map((ep) => ep.id)
+    )
+    const newTabs = tabs
+    let newActive = activeTabId
+    if (newActive && closedEpisodeIds.has(newActive)) {
+      newActive = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null
+    }
+    set({
+      folders: folders.filter((f) => !removedIds.has(f.id)),
+      episodes: updatedEpisodes,
+      tabs: newTabs,
+      activeTabId: newActive,
+    })
   },
 }))

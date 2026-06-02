@@ -42,6 +42,11 @@ const api = {
   getSetting: (key: string) => ipcRenderer.invoke('db:get-setting', key),
   setSetting: (key: string, value: string) => ipcRenderer.invoke('db:set-setting', key, value),
   searchEpisodes: (query: string) => ipcRenderer.invoke('db:search-episodes', query),
+  createFolder: (name: string, parentId?: string | null): Promise<string> =>
+    ipcRenderer.invoke('db:create-folder', name, parentId),
+  renameFolder: (id: string, name: string): Promise<void> =>
+    ipcRenderer.invoke('db:rename-folder', id, name),
+  deleteFolder: (id: string): Promise<void> => ipcRenderer.invoke('db:delete-folder', id),
   validateApiKey: (key: string): Promise<boolean> => ipcRenderer.invoke('validate-api-key', key),
 
   // Ingest pipeline
