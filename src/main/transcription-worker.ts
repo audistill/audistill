@@ -162,8 +162,8 @@ async function decodeChunk(
 
     const encoderOutputTensor = new Tensor('float32', encoderFrame, [1, encodedDim, 1])
     const targetToken = tokens.length > 0 ? tokens[tokens.length - 1] : blankIdx
-    const targetsTensor = new Tensor('int64', BigInt64Array.from([BigInt(targetToken)]), [1, 1])
-    const targetLengthTensor = new Tensor('int64', BigInt64Array.from([BigInt(1)]), [1])
+    const targetsTensor = new Tensor('int32', Int32Array.from([targetToken]), [1, 1])
+    const targetLengthTensor = new Tensor('int32', Int32Array.from([1]), [1])
     const state1Tensor = new Tensor('float32', state1, state1Shape)
     const state2Tensor = new Tensor('float32', state2, state2Shape)
 
