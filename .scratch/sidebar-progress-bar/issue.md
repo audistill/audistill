@@ -1,6 +1,6 @@
 ---
 title: Sidebar inline progress bar
-status: ready-for-agent
+status: done
 created: 2026-06-03
 ---
 

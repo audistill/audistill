@@ -918,6 +918,7 @@ function SidebarEpisode({
 }): React.JSX.Element {
   const fileName = episode.file_path.split('/').pop() || episode.file_path
   const title = episode.title || fileName
+  const progressEntry = useAppStore((s) => s.progress[episode.id])
 
   const isProcessing = episode.status !== 'complete' && episode.status !== 'error'
 
@@ -973,6 +974,14 @@ function SidebarEpisode({
         {title}
       </span>
       {statusLine}
+      {progressEntry && (
+        <div className="h-[3px] rounded-full bg-white/[0.08] mt-0.5 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300 ease-out"
+            style={{ width: `${progressEntry.percent}%` }}
+          />
+        </div>
+      )}
     </div>
   )
 }
