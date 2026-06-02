@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { access } from 'node:fs/promises'
 import { extname } from 'node:path'
 import ffmpegPath from 'ffmpeg-static'
@@ -26,15 +26,31 @@ export async function preprocess(inputPath: string): Promise<Buffer> {
 
   return new Promise((resolve, reject) => {
     const args = ['-i', inputPath, '-ar', '16000', '-ac', '1', '-f', 'f32le', 'pipe:1']
+    const proc = spawn(bin, args, { stdio: ['pipe', 'pipe', 'pipe'] })
 
-    const proc = execFile(bin, args, { encoding: 'buffer', maxBuffer: 500 * 1024 * 1024 }, (error, stdout) => {
-      if (error) {
-        reject(new Error(`FFmpeg failed: ${error.message}`))
-        return
-      }
-      resolve(stdout)
+    const chunks: Buffer[] = []
+    let stderr = ''
+
+    proc.stdout.on('data', (chunk: Buffer) => {
+      chunks.push(chunk)
     })
 
-    proc.stdin?.end()
+    proc.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
+
+    proc.on('error', (err) => {
+      reject(new Error(`FFmpeg failed: ${err.message}`))
+    })
+
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`FFmpeg failed (exit ${code}): ${stderr.slice(-500)}`))
+        return
+      }
+      resolve(Buffer.concat(chunks))
+    })
+
+    proc.stdin.end()
   })
 }
