@@ -28,6 +28,24 @@ export interface DbOpenTab {
   is_preview: number
 }
 
+export interface DbEpisodeSummary {
+  id: string
+  episode_id: string
+  view_type: 'brief' | 'detailed' | 'full'
+  content: string
+  status: 'generating' | 'complete' | 'error'
+  error_message: string | null
+  created_at: string
+}
+
+export interface SummaryUpdatedPayload {
+  episodeId: string
+  viewType: string
+  status: string
+  content?: string
+  errorMessage?: string
+}
+
 interface PodCaptureApi {
   selectFile: () => Promise<string | null>
   startTranscription: (filePath: string) => void
@@ -53,6 +71,12 @@ interface PodCaptureApi {
   renameFolder: (id: string, name: string) => Promise<void>
   deleteFolder: (id: string) => Promise<void>
   validateApiKey: (key: string) => Promise<boolean>
+
+  // Summary API
+  getSummaries: (episodeId: string) => Promise<DbEpisodeSummary[]>
+  generateSummary: (episodeId: string, viewType: string) => Promise<void>
+  regenerateSummary: (episodeId: string, viewType: string) => Promise<void>
+  onSummaryUpdated: (callback: (data: SummaryUpdatedPayload) => void) => () => void
 
   // File utilities
   getPathForFile: (file: File) => string

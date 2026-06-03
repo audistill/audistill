@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ModelManager } from './model-manager'
 import { registerTranscriptionService } from './transcription-service'
 import { DatabaseService } from './database-service'
-import { SummarizationService } from './summarization-service'
+import { SummarizationService, ViewType } from './summarization-service'
 import { IngestPipeline } from './ingest-pipeline'
 
 nativeTheme.themeSource = 'system'
@@ -12,6 +12,14 @@ nativeTheme.themeSource = 'system'
 let db: DatabaseService
 let summarizationService: SummarizationService
 let ingestPipeline: IngestPipeline
+
+function broadcastSummaryUpdated(payload: { episodeId: string; viewType: string; status: string; content?: string; errorMessage?: string }): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send('summary-updated', payload)
+    }
+  }
+}
 
 function registerDatabaseHandlers(): void {
   ipcMain.handle('db:get-episodes', (_event, folderId?: string | null) => {
@@ -73,6 +81,60 @@ function registerDatabaseHandlers(): void {
 
   ipcMain.handle('validate-api-key', (_event, key: string) => {
     return summarizationService.validateApiKey(key)
+  })
+
+  ipcMain.handle('summary:get-all', (_event, episodeId: string) => {
+    return db.getSummaries(episodeId)
+  })
+
+  ipcMain.handle('summary:generate', (_event, episodeId: string, viewType: ViewType) => {
+    const existing = db.getSummary(episodeId, viewType)
+    if (existing) return
+
+    db.createSummary(episodeId, viewType, 'generating')
+    broadcastSummaryUpdated({ episodeId, viewType, status: 'generating' })
+
+    const episode = db.getEpisode(episodeId)
+    if (!episode?.transcript) {
+      db.updateSummary(episodeId, viewType, { status: 'error', error_message: 'No transcript available' })
+      broadcastSummaryUpdated({ episodeId, viewType, status: 'error', errorMessage: 'No transcript available' })
+      return
+    }
+
+    summarizationService.summarize(episode.transcript, viewType).then(({ summary }) => {
+      db.updateSummary(episodeId, viewType, { content: summary, status: 'complete' })
+      broadcastSummaryUpdated({ episodeId, viewType, status: 'complete', content: summary })
+    }).catch((err) => {
+      const message = err instanceof Error ? err.message : String(err)
+      db.updateSummary(episodeId, viewType, { status: 'error', error_message: message })
+      broadcastSummaryUpdated({ episodeId, viewType, status: 'error', errorMessage: message })
+    })
+  })
+
+  ipcMain.handle('summary:regenerate', (_event, episodeId: string, viewType: ViewType) => {
+    const existing = db.getSummary(episodeId, viewType)
+    if (existing) {
+      db.updateSummary(episodeId, viewType, { status: 'generating', content: '', error_message: null })
+    } else {
+      db.createSummary(episodeId, viewType, 'generating')
+    }
+    broadcastSummaryUpdated({ episodeId, viewType, status: 'generating' })
+
+    const episode = db.getEpisode(episodeId)
+    if (!episode?.transcript) {
+      db.updateSummary(episodeId, viewType, { status: 'error', error_message: 'No transcript available' })
+      broadcastSummaryUpdated({ episodeId, viewType, status: 'error', errorMessage: 'No transcript available' })
+      return
+    }
+
+    summarizationService.summarize(episode.transcript, viewType).then(({ summary }) => {
+      db.updateSummary(episodeId, viewType, { content: summary, status: 'complete' })
+      broadcastSummaryUpdated({ episodeId, viewType, status: 'complete', content: summary })
+    }).catch((err) => {
+      const message = err instanceof Error ? err.message : String(err)
+      db.updateSummary(episodeId, viewType, { status: 'error', error_message: message })
+      broadcastSummaryUpdated({ episodeId, viewType, status: 'error', errorMessage: message })
+    })
   })
 }
 

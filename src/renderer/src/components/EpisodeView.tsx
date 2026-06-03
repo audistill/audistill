@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useAppStore, Episode } from '../store/app-store'
+import { useState, useEffect } from 'react'
+import { useAppStore, Episode, SummaryEntry } from '../store/app-store'
 
 export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Element {
   if (episode.status === 'cancelled') {
@@ -196,11 +196,28 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+const VIEW_TYPES = ['brief', 'detailed', 'full'] as const
+const VIEW_LABELS: Record<string, string> = { brief: 'Brief', detailed: 'Detailed', full: 'Full' }
+
 function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
   const [transcriptExpanded, setTranscriptExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(episode.title || '')
+  const [activeView, setActiveView] = useState<string>('brief')
   const renameEpisode = useAppStore((s) => s.renameEpisode)
+  const loadSummaries = useAppStore((s) => s.loadSummaries)
+  const episodeSummaries = useAppStore((s) => s.summaries[episode.id])
+
+  useEffect(() => {
+    loadSummaries(episode.id)
+  }, [episode.id, loadSummaries])
+
+  useEffect(() => {
+    if (episodeSummaries) {
+      const generated = VIEW_TYPES.find((v) => episodeSummaries[v]?.status === 'complete')
+      if (generated) setActiveView(generated)
+    }
+  }, [!!episodeSummaries])
 
   const fileName = episode.file_path.split('/').pop() || episode.file_path
 
@@ -211,6 +228,20 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
     }
     setEditing(false)
   }
+
+  const handleViewSwitch = (viewType: string) => {
+    setActiveView(viewType)
+    const entry = episodeSummaries?.[viewType]
+    if (!entry) {
+      window.api.generateSummary(episode.id, viewType)
+    }
+  }
+
+  const handleRegenerate = () => {
+    window.api.regenerateSummary(episode.id, activeView)
+  }
+
+  const currentSummary: SummaryEntry | undefined = episodeSummaries?.[activeView]
 
   return (
     <>
@@ -263,7 +294,45 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
           <span>{formatDate(episode.created_at)}</span>
         </div>
 
-        {/* Summary section — will be populated by the on-demand UI issue */}
+        {/* Summary section with segmented control */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="inline-flex rounded-[12px] bg-[var(--surface)] p-1">
+              {VIEW_TYPES.map((v) => {
+                const hasContent = episodeSummaries?.[v]?.status === 'complete'
+                return (
+                  <button
+                    key={v}
+                    onClick={() => handleViewSwitch(v)}
+                    className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-colors ${
+                      activeView === v
+                        ? 'bg-[var(--accent)] text-white'
+                        : hasContent
+                          ? 'text-[var(--secondary)] hover:text-[var(--text)]'
+                          : 'text-[var(--secondary)] opacity-50 hover:opacity-80'
+                    }`}
+                  >
+                    {VIEW_LABELS[v]}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={handleRegenerate}
+              className="p-1.5 rounded-[8px] text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors"
+              title="Regenerate summary"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 16h5v5" />
+              </svg>
+            </button>
+          </div>
+
+          <SummaryContent summary={currentSummary} onRetry={() => handleViewSwitch(activeView)} />
+        </div>
 
         {/* Transcript */}
         {episode.transcript && (
@@ -326,5 +395,47 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
         </div>
       </div>
     </>
+  )
+}
+
+function SummaryContent({ summary, onRetry }: { summary: SummaryEntry | undefined; onRetry: () => void }): React.JSX.Element {
+  if (!summary) {
+    return (
+      <div className="text-sm text-[var(--secondary)] italic">
+        No summary generated. Click a tab to generate.
+      </div>
+    )
+  }
+
+  if (summary.status === 'generating') {
+    return (
+      <div className="space-y-3 animate-pulse">
+        <div className="h-4 bg-[var(--surface)] rounded w-3/4" />
+        <div className="h-4 bg-[var(--surface)] rounded w-full" />
+        <div className="h-4 bg-[var(--surface)] rounded w-5/6" />
+        <div className="h-4 bg-[var(--surface)] rounded w-2/3" />
+        <div className="h-4 bg-[var(--surface)] rounded w-4/5" />
+      </div>
+    )
+  }
+
+  if (summary.status === 'error') {
+    return (
+      <div className="text-center py-6">
+        <p className="text-sm text-red-400 mb-3">{summary.errorMessage || 'Generation failed'}</p>
+        <button
+          onClick={onRetry}
+          className="px-4 py-2 rounded-[12px] bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-[opacity] duration-150"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">
+      {summary.content}
+    </div>
   )
 }

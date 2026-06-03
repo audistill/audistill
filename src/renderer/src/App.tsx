@@ -112,6 +112,14 @@ function App(): React.JSX.Element {
     return unsubscribe
   }, [hydrated])
 
+  useEffect(() => {
+    if (!hydrated) return
+    const unsubscribe = window.api.onSummaryUpdated((data) => {
+      useAppStore.getState().handleSummaryUpdated(data)
+    })
+    return unsubscribe
+  }, [hydrated])
+
   if (!hydrated || needsOnboarding === null) {
     return (
       <div className="flex items-center justify-center h-screen bg-[var(--bg)]">

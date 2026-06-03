@@ -1,6 +1,6 @@
 ---
 title: "On-demand generation: IPC + store + segmented control UI"
-status: ready-for-agent
+status: done
 created: 2026-06-03
 ---
 

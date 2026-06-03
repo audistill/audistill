@@ -63,6 +63,17 @@ const api = {
   retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
   cancelEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:cancel', id),
 
+  // Summary API
+  getSummaries: (episodeId: string) => ipcRenderer.invoke('summary:get-all', episodeId),
+  generateSummary: (episodeId: string, viewType: string) => ipcRenderer.invoke('summary:generate', episodeId, viewType),
+  regenerateSummary: (episodeId: string, viewType: string) => ipcRenderer.invoke('summary:regenerate', episodeId, viewType),
+
+  onSummaryUpdated: (callback: (data: { episodeId: string; viewType: string; status: string; content?: string; errorMessage?: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; viewType: string; status: string; content?: string; errorMessage?: string }): void => callback(data)
+    ipcRenderer.on('summary-updated', handler)
+    return () => ipcRenderer.removeListener('summary-updated', handler)
+  },
+
   // Episode updated event from main process
   onEpisodeUpdated: (callback: (episode: unknown) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, episode: unknown): void => callback(episode)
