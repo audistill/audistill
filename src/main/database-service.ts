@@ -45,7 +45,7 @@ export class DatabaseService {
   private db: Database.Database
 
   constructor(dbPath?: string) {
-    const path = dbPath ?? join(app.getPath('userData'), 'podcapture.db')
+    const path = dbPath ?? join(app.getPath('userData'), 'audistill.db')
     this.db = new Database(path)
     this.db.pragma('journal_mode = WAL')
     this.db.pragma('foreign_keys = ON')

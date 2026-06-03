@@ -146,6 +146,7 @@ function createWindow(): void {
     minHeight: 500,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
+    icon: join(__dirname, '../../build/icon.icns'),
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -170,7 +171,11 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.podcapture.app')
+  electronApp.setAppUserModelId('com.audistill.app')
+
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(join(__dirname, '../../build/icon.png'))
+  }
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

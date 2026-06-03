@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 160" width="140" height="160" role="img" aria-labelledby="c1v-title">
+  <title id="c1v-title">Audistill Logo Vertical - Distillation Drop</title>
+  <defs>
+    <linearGradient id="drop-grad-v" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e89b7f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97757;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Mark centered -->
+  <g transform="translate(30, 5) scale(0.8)">
+    <path d="M50,8 C50,8 80,45 80,62 C80,78.5 66.5,92 50,92 C33.5,92 20,78.5 20,62 C20,45 50,8 50,8 Z" fill="url(#drop-grad-v)" />
+    <line x1="38" y1="55" x2="38" y2="69" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+    <line x1="46" y1="50" x2="46" y2="74" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+    <line x1="54" y1="48" x2="54" y2="76" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+    <line x1="62" y1="52" x2="62" y2="72" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/>
+  </g>
+  <!-- Wordmark below -->
+  <text x="70" y="140" font-family="Poppins, Arial, sans-serif" font-size="24" font-weight="600" fill="#141413" letter-spacing="-0.3" text-anchor="middle">Audistill</text>
+</svg>

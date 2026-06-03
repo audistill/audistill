@@ -46,7 +46,7 @@ export interface SummaryUpdatedPayload {
   errorMessage?: string
 }
 
-interface PodCaptureApi {
+interface AudistillApi {
   selectFile: () => Promise<string | null>
   startTranscription: (filePath: string) => void
   onTranscriptionProgress: (callback: (percent: number) => void) => () => void
@@ -94,6 +94,6 @@ interface PodCaptureApi {
 declare global {
   interface Window {
     electron: ElectronAPI
-    api: PodCaptureApi
+    api: AudistillApi
   }
 }

@@ -1,5 +1,5 @@
-appId: com.podcapture.app
-productName: PodCapture
+appId: com.audistill.app
+productName: Audistill
 directories:
   buildResources: build
 files:

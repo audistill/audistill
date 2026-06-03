@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">Audistill Logo Mark - Distillation Drop</title>
+  <defs>
+    <linearGradient id="drop-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e89b7f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d97757;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Droplet shape — distillation metaphor -->
+  <path d="M50,8 C50,8 80,45 80,62 C80,78.5 66.5,92 50,92 C33.5,92 20,78.5 20,62 C20,45 50,8 50,8 Z" fill="url(#drop-grad)" />
+  <!-- Sound waves inside the drop — audio origin -->
+  <path d="M38,58 C38,58 38,52 38,58" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.9">
+    <animate attributeName="d" values="M38,55 Q38,62 38,69;M38,58 Q38,62 38,66;M38,55 Q38,62 38,69" dur="2s" repeatCount="indefinite"/>
+  </path>
+  <path d="M46,50 C46,50 46,44 46,50" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.9">
+    <animate attributeName="d" values="M46,50 Q46,62 46,74;M46,54 Q46,62 46,70;M46,50 Q46,62 46,74" dur="1.6s" repeatCount="indefinite"/>
+  </path>
+  <path d="M54,48 C54,48 54,42 54,48" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.9">
+    <animate attributeName="d" values="M54,48 Q54,62 54,76;M54,53 Q54,62 54,71;M54,48 Q54,62 54,76" dur="1.8s" repeatCount="indefinite"/>
+  </path>
+  <path d="M62,52 C62,52 62,46 62,52" stroke="#faf9f5" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.9">
+    <animate attributeName="d" values="M62,52 Q62,62 62,72;M62,56 Q62,62 62,68;M62,52 Q62,62 62,72" dur="2.2s" repeatCount="indefinite"/>
+  </path>
+</svg>

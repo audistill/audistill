@@ -160,7 +160,22 @@ export function Sidebar(): React.JSX.Element {
     <div className="w-[280px] shrink-0 bg-[var(--bg)] border-r border-[var(--surface)] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-3 flex items-center justify-between shrink-0">
-        <span className="font-heading text-sm font-semibold text-[var(--text)]">PodCapture</span>
+        <div className="flex items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 100 100" className="shrink-0">
+            <defs>
+              <linearGradient id="sidebar-drop-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{stopColor:'#e89b7f'}} />
+                <stop offset="100%" style={{stopColor:'#d97757'}} />
+              </linearGradient>
+            </defs>
+            <path d="M50,8 C50,8 80,45 80,62 C80,78.5 66.5,92 50,92 C33.5,92 20,78.5 20,62 C20,45 50,8 50,8 Z" fill="url(#sidebar-drop-grad)" />
+            <line x1="38" y1="55" x2="38" y2="69" stroke="var(--bg)" strokeWidth="2.5" strokeLinecap="round" opacity="0.9"/>
+            <line x1="46" y1="50" x2="46" y2="74" stroke="var(--bg)" strokeWidth="2.5" strokeLinecap="round" opacity="0.9"/>
+            <line x1="54" y1="48" x2="54" y2="76" stroke="var(--bg)" strokeWidth="2.5" strokeLinecap="round" opacity="0.9"/>
+            <line x1="62" y1="52" x2="62" y2="72" stroke="var(--bg)" strokeWidth="2.5" strokeLinecap="round" opacity="0.9"/>
+          </svg>
+          <span className="font-heading text-sm font-semibold text-[var(--text)]">Audistill</span>
+        </div>
         <div className="flex items-center gap-1">
           <button
             onClick={openSettings}

@@ -1,10 +1,10 @@
 {
-  "name": "podcapture",
+  "name": "audistill",
   "version": "0.1.0",
-  "description": "Local-first podcast transcription for macOS",
+  "description": "Distill knowledge from every conversation — local-first for macOS",
   "type": "module",
   "main": "./out/main/index.js",
-  "author": "PodCapture",
+  "author": "Audistill",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

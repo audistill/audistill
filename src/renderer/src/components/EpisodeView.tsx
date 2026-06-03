@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Markdown from 'react-markdown'
 import { useAppStore, Episode, SummaryEntry } from '../store/app-store'
 
 export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Element {
@@ -434,8 +435,8 @@ function SummaryContent({ summary, onRetry }: { summary: SummaryEntry | undefine
   }
 
   return (
-    <div className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">
-      {summary.content}
+    <div className="markdown-content text-sm text-[var(--text)] leading-relaxed">
+      <Markdown>{summary.content ?? ''}</Markdown>
     </div>
   )
 }

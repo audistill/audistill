@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audistill — Sound Drop Logo System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #faf9f5;
+      color: #141413;
+      padding: 48px;
+      line-height: 1.6;
+    }
+
+    h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #7a7870;
+      font-size: 16px;
+      margin-bottom: 48px;
+    }
+
+    section {
+      margin-bottom: 56px;
+    }
+
+    section h2 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #141413;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      border-radius: 12px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 180px;
+      position: relative;
+    }
+
+    .card.light {
+      background: #ffffff;
+      border: 1px solid #e8e6dc;
+    }
+
+    .card.dark {
+      background: #141413;
+      border: 1px solid #2a2a28;
+    }
+
+    .card img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .card-label {
+      position: absolute;
+      bottom: 10px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #b0aea5;
+    }
+
+    .card.dark .card-label {
+      color: #5a5a58;
+    }
+
+    .app-icons {
+      display: flex;
+      gap: 32px;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+
+    .app-icon-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .app-icon {
+      border-radius: 22%;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .app-icon img {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .app-icon-label {
+      font-size: 12px;
+      color: #7a7870;
+    }
+
+    .color-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .swatch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch-color {
+      width: 56px;
+      height: 56px;
+      border-radius: 10px;
+      border: 1px solid #e8e6dc;
+    }
+
+    .swatch-name {
+      font-size: 11px;
+      color: #141413;
+      font-weight: 500;
+    }
+
+    .swatch-hex {
+      font-size: 10px;
+      color: #7a7870;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    .usage-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .usage-table th {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 2px solid #e8e6dc;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #7a7870;
+    }
+
+    .usage-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e8e6dc;
+    }
+
+    .file-link {
+      color: #d97757;
+      text-decoration: none;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+    }
+
+    .file-link:hover {
+      text-decoration: underline;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #e8e6dc;
+      margin: 48px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Audistill</h1>
+  <p class="subtitle">Sound Drop Logo System — Final Deliverables</p>
+
+  <!-- Mark Variations -->
+  <section>
+    <h2>Logo Mark</h2>
+    <div class="grid">
+      <div class="card light">
+        <img src="sounddrop-mark-color.svg" alt="Color mark" style="width: 72px;">
+        <span class="card-label">Full color</span>
+      </div>
+      <div class="card dark">
+        <img src="sounddrop-mark-color.svg" alt="Color mark on dark" style="width: 72px;">
+        <span class="card-label">Color on dark</span>
+      </div>
+      <div class="card light">
+        <img src="sounddrop-mark-mono-dark.svg" alt="Mono dark" style="width: 72px;">
+        <span class="card-label">Mono dark</span>
+      </div>
+      <div class="card dark">
+        <img src="sounddrop-mark-mono-light.svg" alt="Mono light" style="width: 72px;">
+        <span class="card-label">Mono light</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Horizontal Lockups -->
+  <section>
+    <h2>Horizontal Lockup</h2>
+    <div class="grid">
+      <div class="card light">
+        <img src="sounddrop-horizontal-light.svg" alt="Horizontal light" style="width: 240px;">
+        <span class="card-label">Light background</span>
+      </div>
+      <div class="card dark">
+        <img src="sounddrop-horizontal-dark.svg" alt="Horizontal dark" style="width: 240px;">
+        <span class="card-label">Dark background</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Vertical Lockups -->
+  <section>
+    <h2>Vertical Lockup</h2>
+    <div class="grid">
+      <div class="card light">
+        <img src="sounddrop-vertical-light.svg" alt="Vertical light" style="width: 100px;">
+        <span class="card-label">Light background</span>
+      </div>
+      <div class="card dark">
+        <img src="sounddrop-vertical-dark.svg" alt="Vertical dark" style="width: 100px;">
+        <span class="card-label">Dark background</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Wordmark -->
+  <section>
+    <h2>Wordmark Only</h2>
+    <div class="grid">
+      <div class="card light">
+        <img src="sounddrop-wordmark-light.svg" alt="Wordmark light" style="width: 180px;">
+        <span class="card-label">Light background</span>
+      </div>
+      <div class="card dark">
+        <img src="sounddrop-wordmark-dark.svg" alt="Wordmark dark" style="width: 180px;">
+        <span class="card-label">Dark background</span>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- App Icon -->
+  <section>
+    <h2>macOS App Icon</h2>
+    <div class="app-icons">
+      <div class="app-icon-wrapper">
+        <div class="app-icon" style="width: 128px; height: 128px;">
+          <img src="sounddrop-appicon.svg" alt="App Icon 128">
+        </div>
+        <span class="app-icon-label">128px</span>
+      </div>
+      <div class="app-icon-wrapper">
+        <div class="app-icon" style="width: 64px; height: 64px;">
+          <img src="sounddrop-appicon.svg" alt="App Icon 64">
+        </div>
+        <span class="app-icon-label">64px</span>
+      </div>
+      <div class="app-icon-wrapper">
+        <div class="app-icon" style="width: 48px; height: 48px;">
+          <img src="sounddrop-appicon.svg" alt="App Icon 48">
+        </div>
+        <span class="app-icon-label">48px</span>
+      </div>
+      <div class="app-icon-wrapper">
+        <div class="app-icon" style="width: 32px; height: 32px;">
+          <img src="sounddrop-appicon.svg" alt="App Icon 32">
+        </div>
+        <span class="app-icon-label">32px</span>
+      </div>
+      <div class="app-icon-wrapper">
+        <div class="app-icon" style="width: 16px; height: 16px;">
+          <img src="sounddrop-appicon.svg" alt="App Icon 16">
+        </div>
+        <span class="app-icon-label">16px</span>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- Color Palette -->
+  <section>
+    <h2>Color Palette</h2>
+    <div class="color-row">
+      <div class="swatch">
+        <div class="swatch-color" style="background: #d97757;"></div>
+        <span class="swatch-name">Terracotta</span>
+        <span class="swatch-hex">#d97757</span>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #e89b7f;"></div>
+        <span class="swatch-name">Terracotta Lt</span>
+        <span class="swatch-hex">#e89b7f</span>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #b85e3f;"></div>
+        <span class="swatch-name">Terracotta Dk</span>
+        <span class="swatch-hex">#b85e3f</span>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #141413; border-color: #3a3a38;"></div>
+        <span class="swatch-name">Charcoal</span>
+        <span class="swatch-hex">#141413</span>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #1e1e1c; border-color: #3a3a38;"></div>
+        <span class="swatch-name">Surface Dk</span>
+        <span class="swatch-hex">#1e1e1c</span>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #faf9f5;"></div>
+        <span class="swatch-name">Warm White</span>
+        <span class="swatch-hex">#faf9f5</span>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #e8e6dc;"></div>
+        <span class="swatch-name">Sand</span>
+        <span class="swatch-hex">#e8e6dc</span>
+      </div>
+      <div class="swatch">
+        <div class="swatch-color" style="background: #b0aea5;"></div>
+        <span class="swatch-name">Stone</span>
+        <span class="swatch-hex">#b0aea5</span>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- File Reference -->
+  <section>
+    <h2>File Reference</h2>
+    <table class="usage-table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Type</th>
+          <th>Usage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="sounddrop-mark-color.svg" class="file-link">sounddrop-mark-color.svg</a></td>
+          <td>Mark</td>
+          <td>Primary icon, favicons, small contexts</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-mark-mono-dark.svg" class="file-link">sounddrop-mark-mono-dark.svg</a></td>
+          <td>Mark</td>
+          <td>Light backgrounds, print (B&W)</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-mark-mono-light.svg" class="file-link">sounddrop-mark-mono-light.svg</a></td>
+          <td>Mark</td>
+          <td>Dark backgrounds, reversed</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-horizontal-light.svg" class="file-link">sounddrop-horizontal-light.svg</a></td>
+          <td>Lockup</td>
+          <td>Website header, email signature, docs</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-horizontal-dark.svg" class="file-link">sounddrop-horizontal-dark.svg</a></td>
+          <td>Lockup</td>
+          <td>Dark mode header, dark hero sections</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-vertical-light.svg" class="file-link">sounddrop-vertical-light.svg</a></td>
+          <td>Lockup</td>
+          <td>Social media profile, stacked layouts</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-vertical-dark.svg" class="file-link">sounddrop-vertical-dark.svg</a></td>
+          <td>Lockup</td>
+          <td>Dark social profiles, presentations</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-wordmark-light.svg" class="file-link">sounddrop-wordmark-light.svg</a></td>
+          <td>Wordmark</td>
+          <td>Inline text contexts, minimal layouts</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-wordmark-dark.svg" class="file-link">sounddrop-wordmark-dark.svg</a></td>
+          <td>Wordmark</td>
+          <td>Dark inline text, footer on dark</td>
+        </tr>
+        <tr>
+          <td><a href="sounddrop-appicon.svg" class="file-link">sounddrop-appicon.svg</a></td>
+          <td>App Icon</td>
+          <td>macOS app icon (1024px source)</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</body>
+</html>

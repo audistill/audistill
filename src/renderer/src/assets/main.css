@@ -68,6 +68,45 @@
   }
 }
 
+@layer components {
+  .markdown-content h1,
+  .markdown-content h2,
+  .markdown-content h3 {
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 1.25em;
+    margin-bottom: 0.5em;
+  }
+  .markdown-content h1 { font-size: 1.25rem; }
+  .markdown-content h2 { font-size: 1.1rem; }
+  .markdown-content h3 { font-size: 1rem; }
+  .markdown-content h1:first-child,
+  .markdown-content h2:first-child,
+  .markdown-content h3:first-child { margin-top: 0; }
+  .markdown-content p { margin: 0.5em 0; }
+  .markdown-content ul,
+  .markdown-content ol {
+    padding-left: 1.5em;
+    margin: 0.5em 0;
+  }
+  .markdown-content li { margin: 0.25em 0; }
+  .markdown-content ul li { list-style-type: disc; }
+  .markdown-content ol li { list-style-type: decimal; }
+  .markdown-content strong { font-weight: 600; color: var(--text); }
+  .markdown-content blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 0.75em;
+    margin: 0.75em 0;
+    color: var(--secondary);
+  }
+  .markdown-content code {
+    background: var(--surface);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+}
+
 @layer utilities {
   @keyframes pulse-dot {
     0%, 100% { opacity: 0.4; }
