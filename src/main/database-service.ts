@@ -214,11 +214,12 @@ export class DatabaseService {
     const pattern = `%${query}%`
     return this.db
       .prepare(
-        `SELECT * FROM episodes
-         WHERE title LIKE ?
-         ORDER BY created_at DESC`
+        `SELECT DISTINCT e.* FROM episodes e
+         LEFT JOIN episode_summaries es ON es.episode_id = e.id
+         WHERE e.title LIKE ? OR es.content LIKE ?
+         ORDER BY e.created_at DESC`
       )
-      .all(pattern) as Episode[]
+      .all(pattern, pattern) as Episode[]
   }
 
   createSummary(episodeId: string, viewType: 'brief' | 'detailed' | 'full', status: 'generating' | 'complete' | 'error' = 'generating'): string {

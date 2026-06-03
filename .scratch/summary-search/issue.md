@@ -1,6 +1,6 @@
 ---
 title: "Search across all summary views"
-status: ready-for-agent
+status: done
 created: 2026-06-03
 ---
 
