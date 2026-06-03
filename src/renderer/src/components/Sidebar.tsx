@@ -74,9 +74,8 @@ export function Sidebar(): React.JSX.Element {
   const filteredEpisodes = searchQuery
     ? episodes.filter((ep) => {
         const title = (ep.title || ep.file_path).toLowerCase()
-        const summary = ep.summary?.toLowerCase() || ''
         const q = searchQuery.toLowerCase()
-        return title.includes(q) || summary.includes(q)
+        return title.includes(q)
       })
     : episodes
 

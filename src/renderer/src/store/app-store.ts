@@ -8,7 +8,6 @@ export interface Episode {
   folder_id: string | null
   duration_sec: number | null
   transcript: string | null
-  summary: string | null
   status: 'queued' | 'transcribing' | 'summarizing' | 'complete' | 'error' | 'cancelled'
   error_message: string | null
   created_at: string
@@ -75,7 +74,6 @@ function dbEpisodeToEpisode(row: DbEpisode): Episode {
     folder_id: row.folder_id,
     duration_sec: row.duration_sec,
     transcript: row.transcript,
-    summary: row.summary,
     status: row.status as Episode['status'],
     error_message: row.error_message,
     created_at: row.created_at,
@@ -204,7 +202,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         folder_id: null,
         duration_sec: null,
         transcript: null,
-        summary: null,
         status: 'queued',
         error_message: null,
         created_at: new Date().toISOString(),

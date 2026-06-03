@@ -229,7 +229,9 @@ export class IngestPipeline {
 
     try {
       const { title, summary } = await this.summarizationService.summarize(episode.transcript)
-      this.db.updateEpisode(episodeId, { title, summary, status: 'complete', error_message: null })
+      this.db.updateEpisode(episodeId, { title, status: 'complete', error_message: null })
+      this.db.createSummary(episodeId, 'brief', 'complete')
+      this.db.updateSummary(episodeId, 'brief', { content: summary, status: 'complete' })
       this.broadcastEpisodeUpdate(episodeId)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

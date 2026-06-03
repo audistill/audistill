@@ -7,7 +7,6 @@ export interface DbEpisode {
   folder_id: string | null
   duration_sec: number | null
   transcript: string | null
-  summary: string | null
   status: string
   error_message: string | null
   created_at: string

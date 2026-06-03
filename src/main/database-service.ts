@@ -10,11 +10,20 @@ export interface Episode {
   folder_id: string | null
   duration_sec: number | null
   transcript: string | null
-  summary: string | null
   status: string
   error_message: string | null
   created_at: string
   updated_at: string
+}
+
+export interface EpisodeSummary {
+  id: string
+  episode_id: string
+  view_type: 'brief' | 'detailed' | 'full'
+  content: string
+  status: 'generating' | 'complete' | 'error'
+  error_message: string | null
+  created_at: string
 }
 
 export interface Folder {
@@ -60,11 +69,21 @@ export class DatabaseService {
         folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
         duration_sec INTEGER,
         transcript TEXT,
-        summary TEXT,
         status TEXT NOT NULL DEFAULT 'queued',
         error_message TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS episode_summaries (
+        id TEXT PRIMARY KEY,
+        episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+        view_type TEXT NOT NULL CHECK (view_type IN ('brief', 'detailed', 'full')),
+        content TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'generating' CHECK (status IN ('generating', 'complete', 'error')),
+        error_message TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(episode_id, view_type)
       );
 
       CREATE TABLE IF NOT EXISTS open_tabs (
@@ -117,7 +136,7 @@ export class DatabaseService {
   }
 
   updateEpisode(id: string, fields: Partial<Omit<Episode, 'id' | 'created_at'>>): void {
-    const allowed = ['title', 'file_path', 'folder_id', 'duration_sec', 'transcript', 'summary', 'status', 'error_message']
+    const allowed = ['title', 'file_path', 'folder_id', 'duration_sec', 'transcript', 'status', 'error_message']
     const entries = Object.entries(fields).filter(([key]) => allowed.includes(key))
     if (entries.length === 0) return
 
@@ -196,10 +215,45 @@ export class DatabaseService {
     return this.db
       .prepare(
         `SELECT * FROM episodes
-         WHERE title LIKE ? OR summary LIKE ?
+         WHERE title LIKE ?
          ORDER BY created_at DESC`
       )
-      .all(pattern, pattern) as Episode[]
+      .all(pattern) as Episode[]
+  }
+
+  createSummary(episodeId: string, viewType: 'brief' | 'detailed' | 'full', status: 'generating' | 'complete' | 'error' = 'generating'): string {
+    const id = randomUUID()
+    this.db
+      .prepare(
+        `INSERT INTO episode_summaries (id, episode_id, view_type, content, status)
+         VALUES (?, ?, ?, '', ?)`
+      )
+      .run(id, episodeId, viewType, status)
+    return id
+  }
+
+  updateSummary(episodeId: string, viewType: 'brief' | 'detailed' | 'full', fields: { content?: string; status?: 'generating' | 'complete' | 'error'; error_message?: string | null }): void {
+    const allowed = ['content', 'status', 'error_message']
+    const entries = Object.entries(fields).filter(([key]) => allowed.includes(key))
+    if (entries.length === 0) return
+
+    const sets = entries.map(([key]) => `${key} = ?`).join(', ')
+    const values = entries.map(([, val]) => val ?? null)
+    this.db
+      .prepare(`UPDATE episode_summaries SET ${sets} WHERE episode_id = ? AND view_type = ?`)
+      .run(...values, episodeId, viewType)
+  }
+
+  getSummaries(episodeId: string): EpisodeSummary[] {
+    return this.db
+      .prepare('SELECT * FROM episode_summaries WHERE episode_id = ?')
+      .all(episodeId) as EpisodeSummary[]
+  }
+
+  getSummary(episodeId: string, viewType: 'brief' | 'detailed' | 'full'): EpisodeSummary | undefined {
+    return this.db
+      .prepare('SELECT * FROM episode_summaries WHERE episode_id = ? AND view_type = ?')
+      .get(episodeId, viewType) as EpisodeSummary | undefined
   }
 
   close(): void {

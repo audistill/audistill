@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useAppStore, Episode } from '../store/app-store'
-import Markdown from 'react-markdown'
 
 export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Element {
   if (episode.status === 'cancelled') {
@@ -264,40 +263,7 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
           <span>{formatDate(episode.created_at)}</span>
         </div>
 
-        {/* Summary with markdown rendering */}
-        {episode.summary && (
-          <div className="mb-8">
-            <h2 className="font-heading text-sm font-semibold text-[var(--accent)] uppercase tracking-wide mb-3">
-              Summary
-            </h2>
-            <div className="border-l-[3px] border-[var(--accent)] pl-4">
-              <Markdown
-                components={{
-                  p: ({ children }) => (
-                    <p className="text-[var(--text)] leading-relaxed text-[15px] mb-3 last:mb-0">{children}</p>
-                  ),
-                  strong: ({ children }) => (
-                    <strong className="font-semibold text-[var(--text)]">{children}</strong>
-                  ),
-                  ul: ({ children }) => (
-                    <ul className="list-disc pl-5 mb-3 last:mb-0 space-y-1">{children}</ul>
-                  ),
-                  li: ({ children }) => (
-                    <li className="text-[var(--text)] leading-relaxed text-[15px]">{children}</li>
-                  ),
-                  h2: ({ children }) => (
-                    <h2 className="font-heading text-base font-semibold text-[var(--text)] mb-2 mt-4 first:mt-0">{children}</h2>
-                  ),
-                  h3: ({ children }) => (
-                    <h3 className="font-heading text-sm font-semibold text-[var(--text)] mb-2 mt-3 first:mt-0">{children}</h3>
-                  ),
-                }}
-              >
-                {episode.summary}
-              </Markdown>
-            </div>
-          </div>
-        )}
+        {/* Summary section — will be populated by the on-demand UI issue */}
 
         {/* Transcript */}
         {episode.transcript && (

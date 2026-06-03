@@ -45,12 +45,11 @@ describe('DatabaseService', () => {
 
     it('updates episode fields', () => {
       const id = db.createEpisode({ file_path: '/audio/test.mp3' })
-      db.updateEpisode(id, { title: 'Updated', status: 'complete', summary: 'A summary' })
+      db.updateEpisode(id, { title: 'Updated', status: 'complete' })
 
       const episode = db.getEpisode(id)
       expect(episode!.title).toBe('Updated')
       expect(episode!.status).toBe('complete')
-      expect(episode!.summary).toBe('A summary')
     })
 
     it('deletes an episode', () => {
@@ -202,14 +201,6 @@ describe('DatabaseService', () => {
       expect(results[0].title).toBe('Interview with Alice')
     })
 
-    it('matches on summary', () => {
-      const id = db.createEpisode({ file_path: '/a.mp3', title: 'Ep 1' })
-      db.updateEpisode(id, { summary: 'Discussion about quantum physics' })
-
-      const results = db.searchEpisodes('quantum')
-      expect(results).toHaveLength(1)
-    })
-
     it('empty search returns all episodes', () => {
       db.createEpisode({ file_path: '/a.mp3', title: 'Ep 1' })
       db.createEpisode({ file_path: '/b.mp3', title: 'Ep 2' })
@@ -221,6 +212,106 @@ describe('DatabaseService', () => {
     it('no match returns empty array', () => {
       db.createEpisode({ file_path: '/a.mp3', title: 'Ep 1' })
       expect(db.searchEpisodes('nonexistent')).toHaveLength(0)
+    })
+  })
+
+  describe('episode_summaries CRUD', () => {
+    it('creates a summary row', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      const sumId = db.createSummary(epId, 'brief')
+
+      expect(sumId).toBeDefined()
+      const summary = db.getSummary(epId, 'brief')
+      expect(summary).toBeDefined()
+      expect(summary!.episode_id).toBe(epId)
+      expect(summary!.view_type).toBe('brief')
+      expect(summary!.status).toBe('generating')
+      expect(summary!.content).toBe('')
+    })
+
+    it('updates summary content and status', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      db.createSummary(epId, 'detailed')
+      db.updateSummary(epId, 'detailed', { content: 'Some detailed content', status: 'complete' })
+
+      const summary = db.getSummary(epId, 'detailed')
+      expect(summary!.content).toBe('Some detailed content')
+      expect(summary!.status).toBe('complete')
+    })
+
+    it('updates summary to error status', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      db.createSummary(epId, 'full')
+      db.updateSummary(epId, 'full', { status: 'error', error_message: 'API failed' })
+
+      const summary = db.getSummary(epId, 'full')
+      expect(summary!.status).toBe('error')
+      expect(summary!.error_message).toBe('API failed')
+    })
+
+    it('getSummaries returns all views for an episode', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      db.createSummary(epId, 'brief', 'complete')
+      db.updateSummary(epId, 'brief', { content: 'Brief content', status: 'complete' })
+      db.createSummary(epId, 'detailed', 'complete')
+      db.updateSummary(epId, 'detailed', { content: 'Detailed content', status: 'complete' })
+
+      const summaries = db.getSummaries(epId)
+      expect(summaries).toHaveLength(2)
+      expect(summaries.map((s) => s.view_type).sort()).toEqual(['brief', 'detailed'])
+    })
+
+    it('getSummary returns undefined for non-existent view', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      expect(db.getSummary(epId, 'full')).toBeUndefined()
+    })
+
+    it('enforces UNIQUE constraint on (episode_id, view_type)', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      db.createSummary(epId, 'brief')
+
+      expect(() => db.createSummary(epId, 'brief')).toThrow()
+    })
+
+    it('cascading delete removes summaries when episode is deleted', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      db.createSummary(epId, 'brief')
+      db.createSummary(epId, 'detailed')
+
+      db.deleteEpisode(epId)
+
+      expect(db.getSummaries(epId)).toHaveLength(0)
+    })
+
+    it('status transitions: generating → complete', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      db.createSummary(epId, 'brief')
+
+      let summary = db.getSummary(epId, 'brief')
+      expect(summary!.status).toBe('generating')
+
+      db.updateSummary(epId, 'brief', { content: 'Done', status: 'complete' })
+      summary = db.getSummary(epId, 'brief')
+      expect(summary!.status).toBe('complete')
+    })
+
+    it('status transitions: generating → error', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      db.createSummary(epId, 'brief')
+
+      db.updateSummary(epId, 'brief', { status: 'error', error_message: 'Timeout' })
+      const summary = db.getSummary(epId, 'brief')
+      expect(summary!.status).toBe('error')
+      expect(summary!.error_message).toBe('Timeout')
+    })
+
+    it('allows different view types for the same episode', () => {
+      const epId = db.createEpisode({ file_path: '/a.mp3' })
+      db.createSummary(epId, 'brief')
+      db.createSummary(epId, 'detailed')
+      db.createSummary(epId, 'full')
+
+      expect(db.getSummaries(epId)).toHaveLength(3)
     })
   })
 })
