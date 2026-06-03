@@ -1,25 +1,24 @@
 import { net } from 'electron'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { DatabaseService } from './database-service'
 
-const BASE_PROMPT = `You are a knowledge assistant. Given the transcript below, return a JSON object with:
-- "title": short descriptive title (under 80 characters)
-- "summary": structured summary in this format:
-  **The Rundown:** 1-2 sentence lead...
-  **The Details:**
-  * bullet 1
-  * bullet 2...
-  **Why It Matters:** 1-3 sentences...
+export type ViewType = 'brief' | 'detailed' | 'full'
 
-Rules:
-- Match the language of the transcript
-- Be specific (names, numbers, comparisons)
-- Summary should be 200-500 words`
+const PROMPTS_DIR = join(__dirname, '..', '..', 'src', 'main', 'prompts')
 
 export class SummarizationService {
   private db: DatabaseService
+  private prompts: Record<ViewType, string>
 
-  constructor(db: DatabaseService) {
+  constructor(db: DatabaseService, promptsDir?: string) {
     this.db = db
+    const dir = promptsDir ?? PROMPTS_DIR
+    this.prompts = {
+      brief: readFileSync(join(dir, 'brief.txt'), 'utf-8'),
+      detailed: readFileSync(join(dir, 'detailed.txt'), 'utf-8'),
+      full: readFileSync(join(dir, 'full.txt'), 'utf-8'),
+    }
   }
 
   async validateApiKey(key: string): Promise<boolean> {
@@ -36,7 +35,10 @@ export class SummarizationService {
     }
   }
 
-  async summarize(transcript: string): Promise<{ title: string; summary: string }> {
+  async summarize(
+    transcript: string,
+    viewType: ViewType
+  ): Promise<{ title: string; summary: string }> {
     const apiKey = this.db.getSetting('openrouter_api_key')
     if (!apiKey) {
       throw new Error('No API key configured. Please set your OpenRouter API key in Settings.')
@@ -45,7 +47,7 @@ export class SummarizationService {
     const model = this.db.getSetting('summarization_model') ?? 'google/gemini-3.5-flash'
     const customInstructions = this.db.getSetting('custom_instructions') ?? ''
 
-    const prompt = this.buildPrompt(transcript, customInstructions)
+    const prompt = this.buildPrompt(transcript, viewType, customInstructions)
 
     const response = await net.fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -77,12 +79,13 @@ export class SummarizationService {
     return this.parseResponse(content)
   }
 
-  buildPrompt(transcript: string, customInstructions: string): string {
-    const instructionsBlock = customInstructions.trim()
-      ? `${BASE_PROMPT}\n\n${customInstructions.trim()}`
-      : BASE_PROMPT
+  buildPrompt(transcript: string, viewType: ViewType, customInstructions?: string): string {
+    const template = this.prompts[viewType]
+    const instructions = customInstructions?.trim()
+      ? `${template}\n\nAdditional instructions:\n${customInstructions.trim()}`
+      : template
 
-    return `<instructions>\n${instructionsBlock}\n</instructions>\n\n<transcript>\n${transcript}\n</transcript>`
+    return `<instructions>\n${instructions}\n</instructions>\n\n<transcript>\n${transcript}\n</transcript>`
   }
 
   private parseResponse(content: string): { title: string; summary: string } {
