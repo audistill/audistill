@@ -16,11 +16,30 @@ export class IngestPipeline {
   private summarizationService: SummarizationService
   private processing = false
   private queue: string[] = []
+  private activeWorkers = new Map<string, Worker>()
 
   constructor(db: DatabaseService, modelManager: ModelManager, summarizationService: SummarizationService) {
     this.db = db
     this.modelManager = modelManager
     this.summarizationService = summarizationService
+  }
+
+  recoverOrphanedEpisodes(): void {
+    const allEpisodes = this.db.getEpisodes()
+    for (const ep of allEpisodes) {
+      if (ep.status === 'transcribing' || ep.status === 'queued') {
+        this.db.updateEpisode(ep.id, { status: 'cancelled', error_message: null })
+      }
+    }
+  }
+
+  terminateWorkerForEpisode(episodeId: string): void {
+    const worker = this.activeWorkers.get(episodeId)
+    if (worker) {
+      worker.terminate()
+      this.activeWorkers.delete(episodeId)
+    }
+    this.queue = this.queue.filter((id) => id !== episodeId)
   }
 
   registerIPC(): void {
@@ -56,12 +75,26 @@ export class IngestPipeline {
 
     ipcMain.handle('ingest:retry', async (_event, episodeId: string) => {
       const episode = this.db.getEpisode(episodeId)
-      if (!episode || episode.status !== 'error') return
+      if (!episode || (episode.status !== 'error' && episode.status !== 'cancelled')) return
 
       this.db.updateEpisode(episodeId, { status: 'queued', error_message: null })
       this.queue.push(episodeId)
       this.broadcastEpisodeUpdate(episodeId)
       this.processQueue()
+    })
+
+    ipcMain.handle('ingest:cancel', async (_event, episodeId: string) => {
+      const episode = this.db.getEpisode(episodeId)
+      if (!episode || episode.status !== 'transcribing') return
+
+      const worker = this.activeWorkers.get(episodeId)
+      if (worker) {
+        await worker.terminate()
+        this.activeWorkers.delete(episodeId)
+      }
+
+      this.db.updateEpisode(episodeId, { status: 'cancelled', error_message: null })
+      this.broadcastEpisodeUpdate(episodeId)
     })
   }
 
@@ -112,6 +145,9 @@ export class IngestPipeline {
       this.broadcastEpisodeUpdate(episodeId)
       return true
     } catch (err) {
+      const current = this.db.getEpisode(episodeId)
+      if (current?.status === 'cancelled') return false
+
       const message = err instanceof Error ? err.message : String(err)
       this.db.updateEpisode(episodeId, { status: 'error', error_message: message })
       this.broadcastEpisodeUpdate(episodeId)
@@ -128,6 +164,9 @@ export class IngestPipeline {
       const workerPath = join(__dirname, 'transcription-worker.js')
       const worker = new Worker(workerPath)
 
+      this.activeWorkers.set(episodeId, worker)
+      let settled = false
+
       const segments: { start: number; end: number; text: string }[] = []
 
       worker.on('message', (msg: { type: string; percent?: number; start?: number; end?: number; text?: string; message?: string }) => {
@@ -139,10 +178,16 @@ export class IngestPipeline {
             if (msg.text) segments.push({ start: msg.start ?? 0, end: msg.end ?? 0, text: msg.text })
             break
           case 'done':
+            if (settled) break
+            settled = true
+            this.activeWorkers.delete(episodeId)
             worker.terminate()
             resolve(JSON.stringify(segments))
             break
           case 'error':
+            if (settled) break
+            settled = true
+            this.activeWorkers.delete(episodeId)
             worker.terminate()
             reject(new Error(msg.message || 'Transcription failed'))
             break
@@ -150,7 +195,21 @@ export class IngestPipeline {
       })
 
       worker.on('error', (err) => {
+        if (settled) return
+        settled = true
+        this.activeWorkers.delete(episodeId)
         reject(err)
+      })
+
+      worker.on('exit', (code) => {
+        this.activeWorkers.delete(episodeId)
+        if (settled) return
+        settled = true
+        if (code === 1) {
+          reject(new Error('Worker was terminated'))
+        } else if (code !== 0) {
+          reject(new Error(`Worker exited with code ${code}`))
+        }
       })
 
       worker.postMessage({ type: 'start', audioBuffer: sharedBuffer, modelPath })

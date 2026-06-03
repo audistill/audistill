@@ -9,7 +9,7 @@ export interface Episode {
   duration_sec: number | null
   transcript: string | null
   summary: string | null
-  status: 'queued' | 'transcribing' | 'summarizing' | 'complete' | 'error'
+  status: 'queued' | 'transcribing' | 'summarizing' | 'complete' | 'error' | 'cancelled'
   error_message: string | null
   created_at: string
   updated_at: string
@@ -213,7 +213,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       set({ episodes: [newEpisode, ...episodes] })
     }
-    if (updates.status === 'complete' || updates.status === 'error') {
+    if (updates.status === 'complete' || updates.status === 'error' || updates.status === 'cancelled') {
       get().clearProgress(id)
     }
   },

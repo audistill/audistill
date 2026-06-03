@@ -62,6 +62,7 @@ interface PodCaptureApi {
   selectFiles: () => Promise<string[] | null>
   addFiles: (filePaths: string[]) => Promise<string[]>
   retryEpisode: (id: string) => Promise<void>
+  cancelEpisode: (id: string) => Promise<void>
 
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
   onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => () => void

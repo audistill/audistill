@@ -142,6 +142,16 @@ export function Sidebar(): React.JSX.Element {
     setEditingEpisodeId(episodeId)
   }
 
+  const handleCancelEpisode = (episodeId: string): void => {
+    setContextMenu(null)
+    window.api.cancelEpisode(episodeId)
+  }
+
+  const handleRetryEpisode = (episodeId: string): void => {
+    setContextMenu(null)
+    window.api.retryEpisode(episodeId)
+  }
+
   const handleClearSearch = (): void => {
     setSearchQuery('')
     searchInputRef.current?.focus()
@@ -342,6 +352,8 @@ export function Sidebar(): React.JSX.Element {
           onRename={handleRenameEpisode}
           onMove={handleMoveEpisode}
           onDelete={handleDeleteEpisode}
+          onCancel={handleCancelEpisode}
+          onRetry={handleRetryEpisode}
           onClose={() => setContextMenu(null)}
         />
       )}
@@ -463,6 +475,8 @@ function EpisodeContextMenu({
   onRename,
   onMove,
   onDelete,
+  onCancel,
+  onRetry,
   onClose,
 }: {
   x: number
@@ -473,6 +487,8 @@ function EpisodeContextMenu({
   onRename: (id: string) => void
   onMove: (episodeId: string, folderId: string | null) => void
   onDelete: (id: string) => void
+  onCancel: (id: string) => void
+  onRetry: (id: string) => void
   onClose: () => void
 }): React.JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null)
@@ -483,8 +499,28 @@ function EpisodeContextMenu({
 
   const episode = episodes.find((e) => e.id === episodeId)
   const currentFolderId = episode?.folder_id ?? null
+  const isTranscribing = episode?.status === 'transcribing'
+  const isCancelled = episode?.status === 'cancelled'
+  const isError = episode?.status === 'error'
 
-  const actionLabels = ['Rename', 'Move to...', 'Delete']
+  type ActionItem = { key: string; label: string; action: () => void; danger?: boolean; hasFlyout?: boolean }
+  const actions: ActionItem[] = []
+
+  if (isTranscribing) {
+    actions.push({ key: 'cancel', label: 'Cancel Transcription', action: () => onCancel(episodeId) })
+  }
+  if (isCancelled) {
+    actions.push({ key: 'restart', label: 'Restart', action: () => onRetry(episodeId) })
+  }
+  if (isError) {
+    actions.push({ key: 'retry', label: 'Retry', action: () => onRetry(episodeId) })
+  }
+
+  actions.push({ key: 'rename', label: 'Rename', action: () => onRename(episodeId) })
+  actions.push({ key: 'move', label: 'Move to...', action: () => {}, hasFlyout: true })
+  actions.push({ key: 'delete', label: 'Delete', action: () => onDelete(episodeId), danger: true })
+
+  const moveIndex = actions.findIndex((a) => a.key === 'move')
 
   useEffect(() => {
     menuRef.current?.focus()
@@ -549,18 +585,20 @@ function EpisodeContextMenu({
     }
 
     if (e.key === 'ArrowDown') {
-      setFocusedIndex((prev) => (prev + 1) % actionLabels.length)
+      setFocusedIndex((prev) => (prev + 1) % actions.length)
     } else if (e.key === 'ArrowUp') {
-      setFocusedIndex((prev) => (prev - 1 + actionLabels.length) % actionLabels.length)
-    } else if (e.key === 'ArrowRight' && focusedIndex === 1) {
+      setFocusedIndex((prev) => (prev - 1 + actions.length) % actions.length)
+    } else if (e.key === 'ArrowRight' && focusedIndex === moveIndex) {
       setFlyoutOpen(true)
       setFlyoutFocusedIndex(0)
     } else if (e.key === 'Enter') {
-      if (focusedIndex === 0) onRename(episodeId)
-      else if (focusedIndex === 1) {
+      const action = actions[focusedIndex]
+      if (action?.hasFlyout) {
         setFlyoutOpen(true)
         setFlyoutFocusedIndex(0)
-      } else if (focusedIndex === 2) onDelete(episodeId)
+      } else if (action) {
+        action.action()
+      }
     } else if (e.key === 'Escape') {
       onClose()
     }
@@ -575,72 +613,82 @@ function EpisodeContextMenu({
       onClick={(e) => e.stopPropagation()}
       onKeyDown={handleKeyDown}
     >
-      {/* Rename */}
-      <button
-        className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-[var(--text)] rounded-md transition-[background-color] duration-150 ${focusedIndex === 0 ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
-        style={{ width: 'calc(100% - 12px)' }}
-        onClick={() => onRename(episodeId)}
-        onMouseEnter={() => setFocusedIndex(0)}
-      >
-        Rename
-      </button>
-
-      {/* Move to... with flyout */}
-      <div
-        className="relative"
-        onMouseEnter={() => {
-          setFocusedIndex(1)
-          openFlyout()
-        }}
-        onMouseLeave={closeFlyout}
-      >
-        <button
-          className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-[var(--text)] flex items-center justify-between rounded-md transition-[background-color] duration-150 ${focusedIndex === 1 ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
-          style={{ width: 'calc(100% - 12px)' }}
-        >
-          <span>Move to...</span>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </button>
-
-        {/* Flyout submenu */}
-        {flyoutOpen && (
-          <div
-            className="absolute left-full top-0 ml-1 bg-[var(--surface)] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] py-1.5 min-w-[160px] max-h-[300px] overflow-y-auto"
-            onMouseEnter={cancelClose}
-            onMouseLeave={closeFlyout}
-          >
-            {folderList.map((item, i) => (
+      {actions.map((action, i) => {
+        if (action.key === 'delete' && i > 0) {
+          return (
+            <div key={action.key}>
+              <div className="my-1.5 mx-2 border-t border-white/[0.06]" />
               <button
-                key={i}
-                className={`text-left mx-1.5 py-1 text-[13px] text-[var(--text)] rounded-md transition-[background-color] duration-150 ${
-                  item.disabled ? 'opacity-50 cursor-default' : 'cursor-pointer'
-                } ${i === flyoutFocusedIndex ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
-                style={{ paddingLeft: `${8 + item.depth * 14}px`, paddingRight: '8px', width: 'calc(100% - 12px)' }}
-                onClick={() => { if (!item.disabled) item.action() }}
-                onMouseEnter={() => setFlyoutFocusedIndex(i)}
-                disabled={item.disabled}
+                className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-red-400 rounded-md transition-[background-color] duration-150 ${focusedIndex === i ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+                style={{ width: 'calc(100% - 12px)' }}
+                onClick={action.action}
+                onMouseEnter={() => setFocusedIndex(i)}
               >
-                {item.label}
+                {action.label}
               </button>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          )
+        }
 
-      {/* Separator */}
-      <div className="my-1.5 mx-2 border-t border-white/[0.06]" />
+        if (action.hasFlyout) {
+          return (
+            <div
+              key={action.key}
+              className="relative"
+              onMouseEnter={() => {
+                setFocusedIndex(i)
+                openFlyout()
+              }}
+              onMouseLeave={closeFlyout}
+            >
+              <button
+                className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-[var(--text)] flex items-center justify-between rounded-md transition-[background-color] duration-150 ${focusedIndex === i ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+                style={{ width: 'calc(100% - 12px)' }}
+              >
+                <span>{action.label}</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
 
-      {/* Delete */}
-      <button
-        className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-red-400 rounded-md transition-[background-color] duration-150 ${focusedIndex === 2 ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
-        style={{ width: 'calc(100% - 12px)' }}
-        onClick={() => onDelete(episodeId)}
-        onMouseEnter={() => setFocusedIndex(2)}
-      >
-        Delete
-      </button>
+              {flyoutOpen && (
+                <div
+                  className="absolute left-full top-0 ml-1 bg-[var(--surface)] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] py-1.5 min-w-[160px] max-h-[300px] overflow-y-auto"
+                  onMouseEnter={cancelClose}
+                  onMouseLeave={closeFlyout}
+                >
+                  {folderList.map((item, fi) => (
+                    <button
+                      key={fi}
+                      className={`text-left mx-1.5 py-1 text-[13px] text-[var(--text)] rounded-md transition-[background-color] duration-150 ${
+                        item.disabled ? 'opacity-50 cursor-default' : 'cursor-pointer'
+                      } ${fi === flyoutFocusedIndex ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+                      style={{ paddingLeft: `${8 + item.depth * 14}px`, paddingRight: '8px', width: 'calc(100% - 12px)' }}
+                      onClick={() => { if (!item.disabled) item.action() }}
+                      onMouseEnter={() => setFlyoutFocusedIndex(fi)}
+                      disabled={item.disabled}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        return (
+          <button
+            key={action.key}
+            className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] ${action.danger ? 'text-red-400' : 'text-[var(--text)]'} rounded-md transition-[background-color] duration-150 ${focusedIndex === i ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
+            style={{ width: 'calc(100% - 12px)' }}
+            onClick={action.action}
+            onMouseEnter={() => setFocusedIndex(i)}
+          >
+            {action.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -920,7 +968,7 @@ function SidebarEpisode({
   const title = episode.title || fileName
   const progressEntry = useAppStore((s) => s.progress[episode.id])
 
-  const isProcessing = episode.status !== 'complete' && episode.status !== 'error'
+  const isProcessing = episode.status !== 'complete' && episode.status !== 'error' && episode.status !== 'cancelled'
 
   let statusLine: React.ReactNode = null
   if (episode.status === 'transcribing') {
@@ -941,6 +989,13 @@ function SidebarEpisode({
     )
   } else if (episode.status === 'error') {
     statusLine = <span className="text-[10px] text-red-400">Error</span>
+  } else if (episode.status === 'cancelled') {
+    statusLine = (
+      <div className="flex gap-0.5 items-center">
+        <span className="w-1.5 h-1.5 rounded-full bg-[var(--secondary)] opacity-60" />
+        <span className="text-[10px] text-[var(--secondary)] ml-1">Cancelled</span>
+      </div>
+    )
   } else {
     const parts: string[] = []
     if (episode.duration_sec) parts.push(formatDurationShort(episode.duration_sec))

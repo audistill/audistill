@@ -3,6 +3,9 @@ import { useAppStore, Episode } from '../store/app-store'
 import Markdown from 'react-markdown'
 
 export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Element {
+  if (episode.status === 'cancelled') {
+    return <CancelledState episode={episode} />
+  }
   if (episode.status !== 'complete') {
     return <ProcessingState episode={episode} />
   }
@@ -23,6 +26,10 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
 
   const handleRetry = async (): Promise<void> => {
     await window.api.retryEpisode(episode.id)
+  }
+
+  const handleCancel = async (): Promise<void> => {
+    await window.api.cancelEpisode(episode.id)
   }
 
   const showRichProgress = episode.status === 'transcribing' && progressEntry
@@ -96,6 +103,15 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
           </div>
         )}
 
+        {episode.status === 'transcribing' && (
+          <button
+            onClick={handleCancel}
+            className="mt-4 px-4 py-2 rounded-[12px] bg-[var(--surface)] text-[var(--secondary)] text-sm font-medium hover:text-[var(--text)] hover:bg-white/[0.08] transition-[background-color,color] duration-150"
+          >
+            Cancel
+          </button>
+        )}
+
         {episode.error_message && (
           <p className="text-sm text-red-400 mb-4">{episode.error_message}</p>
         )}
@@ -107,6 +123,35 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
             {episode.transcript ? 'Generate Summary' : 'Retry'}
           </button>
         )}
+      </div>
+    </div>
+  )
+}
+
+function CancelledState({ episode }: { episode: Episode }): React.JSX.Element {
+  const fileName = episode.file_path.split('/').pop() || episode.file_path
+
+  const handleRestart = async (): Promise<void> => {
+    await window.api.retryEpisode(episode.id)
+  }
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center px-12">
+      <div className="w-full max-w-md text-center">
+        <div className="w-12 h-12 rounded-[12px] bg-[var(--surface)] flex items-center justify-center mx-auto mb-4">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--secondary)]">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M8 12h8" />
+          </svg>
+        </div>
+        <p className="font-heading text-sm font-medium text-[var(--text)] mb-2">{fileName}</p>
+        <p className="text-sm text-[var(--secondary)] mb-4">Transcription cancelled</p>
+        <button
+          onClick={handleRestart}
+          className="px-4 py-2 rounded-[12px] bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-[opacity] duration-150"
+        >
+          Restart
+        </button>
       </div>
     </div>
   )

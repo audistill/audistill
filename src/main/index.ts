@@ -11,6 +11,7 @@ nativeTheme.themeSource = 'system'
 
 let db: DatabaseService
 let summarizationService: SummarizationService
+let ingestPipeline: IngestPipeline
 
 function registerDatabaseHandlers(): void {
   ipcMain.handle('db:get-episodes', (_event, folderId?: string | null) => {
@@ -54,6 +55,7 @@ function registerDatabaseHandlers(): void {
   })
 
   ipcMain.handle('db:delete-episode', (_event, id: string) => {
+    ingestPipeline.terminateWorkerForEpisode(id)
     db.deleteEpisode(id)
   })
 
@@ -124,7 +126,8 @@ app.whenReady().then(() => {
     }
   })
 
-  const ingestPipeline = new IngestPipeline(db, modelManager, summarizationService)
+  ingestPipeline = new IngestPipeline(db, modelManager, summarizationService)
+  ingestPipeline.recoverOrphanedEpisodes()
   ingestPipeline.registerIPC()
 
   registerTranscriptionService(modelManager)

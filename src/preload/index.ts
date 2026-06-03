@@ -61,6 +61,7 @@ const api = {
   selectFiles: (): Promise<string[] | null> => ipcRenderer.invoke('ingest:select-files'),
   addFiles: (filePaths: string[]): Promise<string[]> => ipcRenderer.invoke('ingest:add-files', filePaths),
   retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
+  cancelEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:cancel', id),
 
   // Episode updated event from main process
   onEpisodeUpdated: (callback: (episode: unknown) => void) => {
