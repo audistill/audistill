@@ -1,6 +1,6 @@
 ---
 title: "PRD: Multi-tier Summary Views (Brief / Detailed / Full)"
-status: ready-for-agent
+status: done
 created: 2026-06-03
 ---
 
