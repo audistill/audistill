@@ -7,9 +7,16 @@ const MODEL_OPTIONS = [
   'openai/gpt-4.1-mini',
 ]
 
+const VIEW_OPTIONS = [
+  { value: 'brief', label: 'Brief' },
+  { value: 'detailed', label: 'Detailed' },
+  { value: 'full', label: 'Full' },
+] as const
+
 export function SettingsView(): React.JSX.Element {
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState(MODEL_OPTIONS[0])
+  const [defaultView, setDefaultView] = useState<string>('brief')
   const [customInstructions, setCustomInstructions] = useState('')
   const [loaded, setLoaded] = useState(false)
 
@@ -17,10 +24,12 @@ export function SettingsView(): React.JSX.Element {
     Promise.all([
       window.api.getSetting('openrouter_api_key'),
       window.api.getSetting('summarization_model'),
+      window.api.getSetting('default_summary_view'),
       window.api.getSetting('custom_instructions'),
-    ]).then(([key, savedModel, instructions]) => {
+    ]).then(([key, savedModel, savedView, instructions]) => {
       if (key) setApiKey(key)
       if (savedModel) setModel(savedModel)
+      if (savedView) setDefaultView(savedView)
       if (instructions) setCustomInstructions(instructions)
       setLoaded(true)
     })
@@ -34,6 +43,11 @@ export function SettingsView(): React.JSX.Element {
   const saveModel = (value: string): void => {
     setModel(value)
     window.api.setSetting('summarization_model', value)
+  }
+
+  const saveDefaultView = (value: string): void => {
+    setDefaultView(value)
+    window.api.setSetting('default_summary_view', value)
   }
 
   const saveCustomInstructions = (value: string): void => {
@@ -74,6 +88,28 @@ export function SettingsView(): React.JSX.Element {
         </select>
         <p className="text-xs text-[var(--secondary)] mt-1.5">
           Used for generating titles and summaries. Gemini 3.5 Flash recommended for speed and cost.
+        </p>
+      </div>
+
+      <div className="mb-8">
+        <label className="block font-heading text-sm font-medium text-[var(--text)] mb-2">Default Summary View</label>
+        <div className="inline-flex rounded-[12px] bg-[var(--surface)] border border-[var(--surface)] p-1">
+          {VIEW_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => saveDefaultView(opt.value)}
+              className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-colors ${
+                defaultView === opt.value
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'text-[var(--secondary)] hover:text-[var(--text)]'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-[var(--secondary)] mt-1.5">
+          New episodes will be summarized at this detail level during import. Changing this only affects future episodes.
         </p>
       </div>
 

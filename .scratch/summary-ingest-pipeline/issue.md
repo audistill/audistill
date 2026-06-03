@@ -1,6 +1,6 @@
 ---
 title: "Ingest pipeline: use default summary view + settings UI"
-status: ready-for-agent
+status: done
 created: 2026-06-03
 ---
 
