@@ -1,4 +1,5 @@
 import { basename } from 'path'
+import { BrowserWindow } from 'electron'
 import { DatabaseService, Episode } from './database-service'
 
 export interface ToolContext {
@@ -42,6 +43,12 @@ export class ChatToolExecutor {
         return this.readSummary(args, context)
       case 'read_episode_metadata':
         return this.readEpisodeMetadata(args, context)
+      case 'write_canvas':
+        return this.writeCanvas(args, context)
+      case 'edit_canvas':
+        return this.editCanvas(args, context)
+      case 'navigate_view':
+        return this.navigateView(args)
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` })
     }
@@ -184,5 +191,54 @@ export class ChatToolExecutor {
       date: episode.created_at,
       folder: folder?.name || null,
     })
+  }
+
+  private writeCanvas(args: Record<string, unknown>, context: ToolContext): string {
+    const content = args.content as string
+    if (typeof content !== 'string') {
+      return JSON.stringify({ error: 'Missing required parameter: content' })
+    }
+
+    const episodeId = context.currentEpisodeId
+    this.db.saveCanvas(episodeId, content)
+    this.broadcast('canvas:stream-write', { episodeId, content })
+    return JSON.stringify({ success: true, message: 'Canvas content written successfully' })
+  }
+
+  private editCanvas(args: Record<string, unknown>, context: ToolContext): string {
+    const oldText = args.old_text as string
+    const newText = args.new_text as string
+    if (typeof oldText !== 'string' || typeof newText !== 'string') {
+      return JSON.stringify({ error: 'Missing required parameters: old_text and new_text' })
+    }
+
+    const episodeId = context.currentEpisodeId
+    const current = this.db.getCanvas(episodeId)
+    if (!current.includes(oldText)) {
+      return JSON.stringify({ error: `Could not find the specified text in the canvas. Make sure old_text matches exactly.` })
+    }
+
+    const updated = current.replace(oldText, newText)
+    this.db.saveCanvas(episodeId, updated)
+    this.broadcast('canvas:edit', { episodeId, content: updated, oldText, newText })
+    return JSON.stringify({ success: true, message: 'Canvas content edited successfully' })
+  }
+
+  private navigateView(args: Record<string, unknown>): string {
+    const view = args.view as string
+    if (view !== 'episode' && view !== 'canvas') {
+      return JSON.stringify({ error: 'Invalid parameter: view must be "episode" or "canvas"' })
+    }
+
+    this.broadcast('canvas:navigate', { view })
+    return JSON.stringify({ success: true, message: `Navigated to ${view} view` })
+  }
+
+  private broadcast(channel: string, ...args: unknown[]): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel, ...args)
+      }
+    }
   }
 }

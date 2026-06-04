@@ -84,6 +84,11 @@ interface AudistillApi {
   // Canvas API
   canvasGetContent: (episodeId: string) => Promise<string>
   canvasSaveContent: (episodeId: string, content: string) => Promise<void>
+  onCanvasStreamWrite: (callback: (data: { episodeId: string; content: string }) => void) => () => void
+  onCanvasStreamDelta: (callback: (data: { content: string }) => void) => () => void
+  onCanvasStreamStart: (callback: () => void) => () => void
+  onCanvasEdit: (callback: (data: { episodeId: string; content: string; oldText: string; newText: string }) => void) => () => void
+  onCanvasNavigate: (callback: (data: { view: 'episode' | 'canvas' }) => void) => () => void
 
   // Summary API
   getSummaries: (episodeId: string) => Promise<DbEpisodeSummary[]>

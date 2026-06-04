@@ -116,6 +116,49 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'write_canvas',
+      description: 'Write content to the Canvas workspace. The view will auto-switch to Canvas and display the content. Use this when the user asks you to write, draft, or create something (show notes, blog posts, summaries, etc.)',
+      parameters: {
+        type: 'object',
+        properties: {
+          content: { type: 'string', description: 'Full markdown content to write to the canvas' },
+        },
+        required: ['content'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'edit_canvas',
+      description: 'Make a targeted edit to the Canvas content by finding and replacing specific text. Use this when the user asks to change, update, or modify a specific part of the canvas.',
+      parameters: {
+        type: 'object',
+        properties: {
+          old_text: { type: 'string', description: 'The exact text to find in the canvas' },
+          new_text: { type: 'string', description: 'The replacement text' },
+        },
+        required: ['old_text', 'new_text'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'navigate_view',
+      description: 'Switch the main content area between Episode view and Canvas view',
+      parameters: {
+        type: 'object',
+        properties: {
+          view: { type: 'string', enum: ['episode', 'canvas'], description: 'The view to switch to' },
+        },
+        required: ['view'],
+      },
+    },
+  },
 ]
 
 function buildSystemPrompt(context: {
@@ -151,9 +194,11 @@ ${context.canvasContent}
 
   prompt += `
 ## Available Tools
-You have access to tools for reading transcripts, searching content, and accessing episode data. Use them when the user asks questions about episode content, wants to find specific information, or needs data from other episodes.
+You have access to tools for reading transcripts, searching content, accessing episode data, and writing to the Canvas.
 
 When answering questions about the episode content, prefer using the search_transcript tool to find relevant segments rather than relying only on the summary.
+
+When the user asks you to write, draft, or create something (show notes, blog posts, key takeaways, etc.), use the write_canvas tool to put the content in the Canvas workspace. When they ask for a targeted edit ("change X to Y", "update the third bullet"), use edit_canvas for surgical replacement. Use navigate_view to switch between episode and canvas views.
 
 Be concise and helpful. Format responses with markdown when appropriate.`
 
@@ -354,6 +399,8 @@ export function ChatSidebar(): React.JSX.Element {
 
     const model = selectedModel || (await window.api.getSetting('summarization_model')) || 'google/gemini-3.5-flash'
 
+    const canvasContent = await window.api.canvasGetContent(activeTabId)
+
     const allMessages = [...messages, newMessage]
     const chatMessages = allMessages
       .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -368,7 +415,7 @@ export function ChatSidebar(): React.JSX.Element {
       duration: episode.duration_sec ? formatDuration(episode.duration_sec) : null,
       date: episode.created_at,
       activeSummary,
-      canvasContent: null,
+      canvasContent: canvasContent || null,
     })
 
     setStreaming(true)
@@ -620,6 +667,8 @@ function ToolCallDisplay({ toolCall }: { toolCall: ToolCallBlock }): React.JSX.E
       const parsed = JSON.parse(toolCall.result)
       if (parsed.error) {
         resultSummary = `Error: ${parsed.error}`
+      } else if (parsed.success && parsed.message) {
+        resultSummary = parsed.message
       } else if (parsed.matches) {
         resultSummary = `${parsed.matches.length} match${parsed.matches.length !== 1 ? 'es' : ''} found`
       } else if (parsed.results) {

@@ -190,6 +190,7 @@ export class ChatService {
   ): Promise<{ content: string; toolCalls: ToolCall[] }> {
     let content = ''
     const toolCalls: Map<number, ToolCall> = new Map()
+    let canvasStreamBuffer = ''
 
     const reader = response.body?.getReader()
     if (!reader) throw new Error('No response body')
@@ -234,6 +235,10 @@ export class ChatService {
               if (existing) {
                 if (tc.function?.arguments) {
                   existing.function.arguments += tc.function.arguments
+                  if (existing.function.name === 'write_canvas') {
+                    canvasStreamBuffer = existing.function.arguments
+                    this.broadcastCanvasStreamDelta(canvasStreamBuffer)
+                  }
                 }
               } else {
                 toolCalls.set(tc.index, {
@@ -244,6 +249,9 @@ export class ChatService {
                     arguments: tc.function?.arguments || '',
                   },
                 })
+                if (tc.function?.name === 'write_canvas') {
+                  broadcast('canvas:stream-start', {})
+                }
               }
             }
           }
@@ -260,6 +268,23 @@ export class ChatService {
     return {
       content,
       toolCalls: Array.from(toolCalls.values()),
+    }
+  }
+
+  private broadcastCanvasStreamDelta(argsBuffer: string): void {
+    try {
+      const parsed = JSON.parse(argsBuffer)
+      if (typeof parsed.content === 'string') {
+        broadcast('canvas:stream-delta', { content: parsed.content })
+      }
+    } catch {
+      const match = argsBuffer.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)/)
+      if (match) {
+        try {
+          const partial = JSON.parse('"' + match[1] + '"')
+          broadcast('canvas:stream-delta', { content: partial })
+        } catch { /* incomplete escape sequence, skip */ }
+      }
     }
   }
 }

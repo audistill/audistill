@@ -126,6 +126,28 @@ function App(): React.JSX.Element {
   }, [hydrated])
 
   useEffect(() => {
+    if (!hydrated) return
+    const unsubStreamStart = window.api.onCanvasStreamStart(() => {
+      useAppStore.getState().setActiveContentView('canvas')
+    })
+    const unsubWrite = window.api.onCanvasStreamWrite(() => {
+      useAppStore.getState().setActiveContentView('canvas')
+    })
+    const unsubEdit = window.api.onCanvasEdit(() => {
+      useAppStore.getState().setActiveContentView('canvas')
+    })
+    const unsubNav = window.api.onCanvasNavigate((data) => {
+      useAppStore.getState().setActiveContentView(data.view)
+    })
+    return () => {
+      unsubStreamStart()
+      unsubWrite()
+      unsubEdit()
+      unsubNav()
+    }
+  }, [hydrated])
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (e.metaKey && e.key === 'b' && !e.shiftKey) {
         e.preventDefault()

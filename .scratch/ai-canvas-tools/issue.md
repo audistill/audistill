@@ -1,6 +1,6 @@
 ---
 title: "Canvas tools: write_canvas, edit_canvas, navigate_view"
-status: ready-for-agent
+status: done
 created: 2026-06-04
 ---
 

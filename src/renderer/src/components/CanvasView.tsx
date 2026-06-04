@@ -29,6 +29,30 @@ export function CanvasView({ episodeId }: { episodeId: string }): React.JSX.Elem
     }
   }, [episodeId])
 
+  useEffect(() => {
+    const unsubWrite = window.api.onCanvasStreamWrite((data) => {
+      if (data.episodeId === currentEpisodeRef.current) {
+        setContent(data.content)
+      }
+    })
+
+    const unsubDelta = window.api.onCanvasStreamDelta((data) => {
+      setContent(data.content)
+    })
+
+    const unsubEdit = window.api.onCanvasEdit((data) => {
+      if (data.episodeId === currentEpisodeRef.current) {
+        setContent(data.content)
+      }
+    })
+
+    return () => {
+      unsubWrite()
+      unsubDelta()
+      unsubEdit()
+    }
+  }, [])
+
   const handleChange = useCallback(
     (newContent: string) => {
       setContent(newContent)
