@@ -74,6 +74,35 @@ const api = {
     return () => ipcRenderer.removeListener('summary-updated', handler)
   },
 
+  // Chat API
+  chatSendMessage: (request: unknown) => ipcRenderer.invoke('chat:send-message', request),
+  chatAbort: () => ipcRenderer.invoke('chat:abort'),
+  onChatStreamToken: (callback: (token: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, token: string): void => callback(token)
+    ipcRenderer.on('chat:stream-token', handler)
+    return () => ipcRenderer.removeListener('chat:stream-token', handler)
+  },
+  onChatStreamEnd: (callback: (data: { content: string; aborted: boolean }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { content: string; aborted: boolean }): void => callback(data)
+    ipcRenderer.on('chat:stream-end', handler)
+    return () => ipcRenderer.removeListener('chat:stream-end', handler)
+  },
+  onChatError: (callback: (message: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, message: string): void => callback(message)
+    ipcRenderer.on('chat:error', handler)
+    return () => ipcRenderer.removeListener('chat:error', handler)
+  },
+  onChatToolCallStart: (callback: (data: { id: string; name: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { id: string; name: string }): void => callback(data)
+    ipcRenderer.on('chat:tool-call-start', handler)
+    return () => ipcRenderer.removeListener('chat:tool-call-start', handler)
+  },
+  onChatToolCallResult: (callback: (data: { id: string; name: string; result: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { id: string; name: string; result: string }): void => callback(data)
+    ipcRenderer.on('chat:tool-call-result', handler)
+    return () => ipcRenderer.removeListener('chat:tool-call-result', handler)
+  },
+
   // Episode updated event from main process
   onEpisodeUpdated: (callback: (episode: unknown) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, episode: unknown): void => callback(episode)

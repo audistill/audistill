@@ -6,12 +6,14 @@ import { registerTranscriptionService } from './transcription-service'
 import { DatabaseService } from './database-service'
 import { SummarizationService, ViewType } from './summarization-service'
 import { IngestPipeline } from './ingest-pipeline'
+import { ChatService } from './chat-service'
 
 nativeTheme.themeSource = 'system'
 
 let db: DatabaseService
 let summarizationService: SummarizationService
 let ingestPipeline: IngestPipeline
+let chatService: ChatService
 
 function broadcastSummaryUpdated(payload: { episodeId: string; viewType: string; status: string; content?: string; errorMessage?: string }): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -138,6 +140,16 @@ function registerDatabaseHandlers(): void {
   })
 }
 
+function registerChatHandlers(): void {
+  ipcMain.handle('chat:send-message', (_event, request) => {
+    return chatService.sendMessage(request)
+  })
+
+  ipcMain.handle('chat:abort', () => {
+    chatService.abort()
+  })
+}
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -183,7 +195,9 @@ app.whenReady().then(() => {
 
   db = new DatabaseService()
   summarizationService = new SummarizationService(db)
+  chatService = new ChatService(db)
   registerDatabaseHandlers()
+  registerChatHandlers()
 
   const modelManager = new ModelManager()
   modelManager.on('progress', (percent) => {
