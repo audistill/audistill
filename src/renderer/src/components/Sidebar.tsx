@@ -157,7 +157,7 @@ export function Sidebar(): React.JSX.Element {
   }
 
   return (
-    <div className="w-[280px] shrink-0 bg-[var(--bg)] border-r border-[var(--surface)] flex flex-col overflow-hidden">
+    <div className="w-full h-full bg-[var(--bg)] border-r border-[var(--surface)] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">

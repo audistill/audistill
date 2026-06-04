@@ -5,6 +5,13 @@ import { ContentPane } from './components/ContentPane'
 import { ChatSidebar } from './components/ChatSidebar'
 import { OnboardingView } from './components/OnboardingView'
 import { DropOverlay } from './components/DropOverlay'
+import {
+  ResizeHandle,
+  LEFT_SIDEBAR_MIN,
+  LEFT_SIDEBAR_MAX,
+  RIGHT_SIDEBAR_MIN,
+  RIGHT_SIDEBAR_MAX,
+} from './components/ResizeHandle'
 import { useAppStore, Episode } from './store/app-store'
 
 const SUPPORTED_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.flac', '.mp4'])
@@ -19,8 +26,12 @@ function App(): React.JSX.Element {
   const hydrated = useAppStore((s) => s.hydrated)
   const leftSidebarOpen = useAppStore((s) => s.leftSidebarOpen)
   const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
+  const leftSidebarWidth = useAppStore((s) => s.leftSidebarWidth)
+  const rightSidebarWidth = useAppStore((s) => s.rightSidebarWidth)
   const toggleLeftSidebar = useAppStore((s) => s.toggleLeftSidebar)
   const toggleRightSidebar = useAppStore((s) => s.toggleRightSidebar)
+  const setLeftSidebarWidth = useAppStore((s) => s.setLeftSidebarWidth)
+  const setRightSidebarWidth = useAppStore((s) => s.setRightSidebarWidth)
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null)
   const [dropActive, setDropActive] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -197,12 +208,36 @@ function App(): React.JSX.Element {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {leftSidebarOpen && <Sidebar />}
+        {leftSidebarOpen && (
+          <>
+            <div style={{ width: leftSidebarWidth }} className="shrink-0 overflow-hidden">
+              <Sidebar />
+            </div>
+            <ResizeHandle
+              side="left"
+              currentWidth={leftSidebarWidth}
+              min={LEFT_SIDEBAR_MIN}
+              max={LEFT_SIDEBAR_MAX}
+              onResize={setLeftSidebarWidth}
+              onSnap={toggleLeftSidebar}
+            />
+          </>
+        )}
         <ContentPane />
         {rightSidebarOpen && (
-          <div className="w-[360px] shrink-0 bg-[var(--bg)] border-l border-[var(--surface)] flex flex-col overflow-hidden">
-            <ChatSidebar />
-          </div>
+          <>
+            <ResizeHandle
+              side="right"
+              currentWidth={rightSidebarWidth}
+              min={RIGHT_SIDEBAR_MIN}
+              max={RIGHT_SIDEBAR_MAX}
+              onResize={setRightSidebarWidth}
+              onSnap={toggleRightSidebar}
+            />
+            <div style={{ width: rightSidebarWidth }} className="shrink-0 bg-[var(--bg)] border-l border-[var(--surface)] flex flex-col overflow-hidden">
+              <ChatSidebar />
+            </div>
+          </>
         )}
       </div>
 

@@ -51,6 +51,8 @@ interface AppState {
   summaries: Record<string, Record<string, SummaryEntry>>
   leftSidebarOpen: boolean
   rightSidebarOpen: boolean
+  leftSidebarWidth: number
+  rightSidebarWidth: number
   activeContentView: 'episode' | 'canvas'
 
   hydrate: () => Promise<void>
@@ -78,6 +80,8 @@ interface AppState {
   handleSummaryUpdated: (data: SummaryUpdatedPayload) => void
   toggleLeftSidebar: () => void
   toggleRightSidebar: () => void
+  setLeftSidebarWidth: (width: number) => void
+  setRightSidebarWidth: (width: number) => void
   setActiveContentView: (view: 'episode' | 'canvas') => void
 }
 
@@ -118,6 +122,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   summaries: {},
   leftSidebarOpen: true,
   rightSidebarOpen: false,
+  leftSidebarWidth: 280,
+  rightSidebarWidth: 360,
   activeContentView: 'episode',
 
   hydrate: async () => {
@@ -377,5 +383,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleLeftSidebar: () => set((s) => ({ leftSidebarOpen: !s.leftSidebarOpen })),
   toggleRightSidebar: () => set((s) => ({ rightSidebarOpen: !s.rightSidebarOpen })),
+  setLeftSidebarWidth: (width) => set({ leftSidebarWidth: width }),
+  setRightSidebarWidth: (width) => set({ rightSidebarWidth: width }),
   setActiveContentView: (view) => set({ activeContentView: view }),
 }))
