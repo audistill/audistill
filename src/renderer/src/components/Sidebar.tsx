@@ -157,7 +157,7 @@ export function Sidebar(): React.JSX.Element {
   }
 
   return (
-    <div className="w-full h-full bg-[var(--bg)] border-r border-[var(--surface)] flex flex-col overflow-hidden">
+    <div className="w-full h-full sidebar-vibrancy border-r border-[var(--sidebar-separator)] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -206,7 +206,7 @@ export function Sidebar(): React.JSX.Element {
 
       {/* Search */}
       <div className="px-3 pb-3 shrink-0">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-[12px] bg-[var(--surface)] text-[var(--secondary)] text-xs">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-[12px] sidebar-surface bg-[var(--surface)] text-[var(--secondary)] text-xs">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" />

@@ -40,6 +40,20 @@
 }
 
 @layer components {
+  .sidebar-vibrancy {
+    background: transparent;
+    --sidebar-separator: color-mix(in srgb, var(--text) 8%, transparent);
+  }
+  .sidebar-vibrancy .sidebar-item:hover {
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+  }
+  .sidebar-vibrancy .sidebar-item.active {
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+  }
+  .sidebar-vibrancy .sidebar-surface {
+    background: color-mix(in srgb, var(--text) 5%, transparent);
+  }
+
   .sidebar-item {
     transition: background-color 150ms;
   }

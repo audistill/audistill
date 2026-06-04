@@ -204,6 +204,8 @@ function createWindow(): void {
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 18 },
     icon: join(__dirname, '../../build/icon.icns'),
+    vibrancy: 'sidebar',
+    visualEffectState: 'active',
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
