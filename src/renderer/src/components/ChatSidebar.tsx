@@ -173,6 +173,7 @@ export function ChatSidebar(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const streamingStateRef = useRef<StreamingState | null>(null)
 
   const loadMessages = useCallback(async (episodeId: string) => {
     setLoading(true)
@@ -196,53 +197,61 @@ export function ChatSidebar(): React.JSX.Element {
   useEffect(() => {
     const unsubToken = window.api.onChatStreamToken((token) => {
       setStreamingState((prev) => {
-        if (!prev) return { content: token, toolCalls: [] }
-        return { ...prev, content: prev.content + token }
+        const next = prev
+          ? { ...prev, content: prev.content + token }
+          : { content: token, toolCalls: [] }
+        streamingStateRef.current = next
+        return next
       })
     })
 
     const unsubToolStart = window.api.onChatToolCallStart((data) => {
       setStreamingState((prev) => {
-        if (!prev) return { content: '', toolCalls: [{ id: data.id, name: data.name }] }
-        return { ...prev, toolCalls: [...prev.toolCalls, { id: data.id, name: data.name }] }
+        const next = prev
+          ? { ...prev, toolCalls: [...prev.toolCalls, { id: data.id, name: data.name }] }
+          : { content: '', toolCalls: [{ id: data.id, name: data.name }] }
+        streamingStateRef.current = next
+        return next
       })
     })
 
     const unsubToolResult = window.api.onChatToolCallResult((data) => {
       setStreamingState((prev) => {
         if (!prev) return prev
-        return {
+        const next = {
           ...prev,
           toolCalls: prev.toolCalls.map((tc) =>
             tc.id === data.id ? { ...tc, result: data.result } : tc
           ),
         }
+        streamingStateRef.current = next
+        return next
       })
     })
 
     const unsubEnd = window.api.onChatStreamEnd((data) => {
+      const prev = streamingStateRef.current
       setStreaming(false)
-      setStreamingState((prev) => {
-        if (!prev) return prev
-        const finalContent = data.content || prev.content
-        const toolCallsJson = prev.toolCalls.length > 0 ? JSON.stringify(prev.toolCalls) : null
+      setStreamingState(null)
+      streamingStateRef.current = null
 
-        const episodeId = useAppStore.getState().activeTabId
-        if (episodeId && finalContent) {
-          window.api.chatSaveMessage(episodeId, 'assistant', finalContent, toolCallsJson).then((id) => {
-            const msg: ChatMessage = {
-              id,
-              role: 'assistant',
-              content: finalContent,
-              toolCalls: toolCallsJson,
-              createdAt: new Date().toISOString(),
-            }
-            setMessages((prev) => [...prev, msg])
-          })
-        }
+      if (!prev) return
+      const finalContent = data.content || prev.content
+      const toolCallsJson = prev.toolCalls.length > 0 ? JSON.stringify(prev.toolCalls) : null
 
-        return null
-      })
+      const episodeId = useAppStore.getState().activeTabId
+      if (episodeId && finalContent) {
+        window.api.chatSaveMessage(episodeId, 'assistant', finalContent, toolCallsJson).then((id) => {
+          const msg: ChatMessage = {
+            id,
+            role: 'assistant',
+            content: finalContent,
+            toolCalls: toolCallsJson,
+            createdAt: new Date().toISOString(),
+          }
+          setMessages((msgs) => [...msgs, msg])
+        })
+      }
     })
 
     const unsubError = window.api.onChatError((message) => {
