@@ -115,6 +115,13 @@ export class DatabaseService {
         tool_calls TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS episode_canvas (
+        id TEXT PRIMARY KEY,
+        episode_id TEXT NOT NULL UNIQUE REFERENCES episodes(id) ON DELETE CASCADE,
+        content TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
     `)
   }
 
@@ -291,6 +298,23 @@ export class DatabaseService {
 
   clearChatMessages(episodeId: string): void {
     this.db.prepare('DELETE FROM episode_chat_messages WHERE episode_id = ?').run(episodeId)
+  }
+
+  getCanvas(episodeId: string): string {
+    const row = this.db
+      .prepare('SELECT content FROM episode_canvas WHERE episode_id = ?')
+      .get(episodeId) as { content: string } | undefined
+    return row?.content ?? ''
+  }
+
+  saveCanvas(episodeId: string, content: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO episode_canvas (id, episode_id, content, updated_at)
+         VALUES (?, ?, ?, datetime('now'))
+         ON CONFLICT(episode_id) DO UPDATE SET content = excluded.content, updated_at = datetime('now')`
+      )
+      .run(randomUUID(), episodeId, content)
   }
 
   close(): void {

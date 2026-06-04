@@ -74,6 +74,10 @@ const api = {
     return () => ipcRenderer.removeListener('summary-updated', handler)
   },
 
+  // Canvas API
+  canvasGetContent: (episodeId: string): Promise<string> => ipcRenderer.invoke('canvas:get-content', episodeId),
+  canvasSaveContent: (episodeId: string, content: string): Promise<void> => ipcRenderer.invoke('canvas:save-content', episodeId, content),
+
   // Chat API
   chatGetMessages: (episodeId: string) => ipcRenderer.invoke('chat:get-messages', episodeId),
   chatSaveMessage: (episodeId: string, role: string, content: string, toolCalls?: string | null) =>

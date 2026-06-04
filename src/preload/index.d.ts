@@ -81,6 +81,10 @@ interface AudistillApi {
   deleteFolder: (id: string) => Promise<void>
   validateApiKey: (key: string) => Promise<boolean>
 
+  // Canvas API
+  canvasGetContent: (episodeId: string) => Promise<string>
+  canvasSaveContent: (episodeId: string, content: string) => Promise<void>
+
   // Summary API
   getSummaries: (episodeId: string) => Promise<DbEpisodeSummary[]>
   generateSummary: (episodeId: string, viewType: string) => Promise<void>

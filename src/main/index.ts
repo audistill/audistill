@@ -82,6 +82,14 @@ function registerDatabaseHandlers(): void {
     db.deleteFolder(id)
   })
 
+  ipcMain.handle('canvas:get-content', (_event, episodeId: string) => {
+    return db.getCanvas(episodeId)
+  })
+
+  ipcMain.handle('canvas:save-content', (_event, episodeId: string, content: string) => {
+    db.saveCanvas(episodeId, content)
+  })
+
   ipcMain.handle('validate-api-key', (_event, key: string) => {
     return summarizationService.validateApiKey(key)
   })
