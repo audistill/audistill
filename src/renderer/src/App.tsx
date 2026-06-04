@@ -185,7 +185,7 @@ function App(): React.JSX.Element {
     return (
       <div className="flex flex-col h-screen bg-[var(--bg)]">
         <div
-          className="h-10 shrink-0"
+          className="h-12 shrink-0"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         />
         <OnboardingView onComplete={() => setNeedsOnboarding(false)} />
@@ -198,7 +198,7 @@ function App(): React.JSX.Element {
   return (
     <div className="flex flex-col h-screen">
       <div
-        className="flex items-center h-10 px-4 bg-[var(--bg)] border-b border-[var(--surface)] select-none shrink-0"
+        className="flex items-center h-12 px-4 bg-[var(--bg)] border-b border-[var(--surface)] select-none shrink-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         <div className="w-[70px] shrink-0" />
