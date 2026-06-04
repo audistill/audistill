@@ -1,6 +1,6 @@
 ---
 title: "ChatToolExecutor: read-only tools (transcript, summary, metadata, episodes)"
-status: ready-for-agent
+status: done
 created: 2026-06-04
 ---
 

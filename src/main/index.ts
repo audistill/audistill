@@ -7,6 +7,7 @@ import { DatabaseService } from './database-service'
 import { SummarizationService, ViewType } from './summarization-service'
 import { IngestPipeline } from './ingest-pipeline'
 import { ChatService } from './chat-service'
+import { ChatToolExecutor } from './chat-tool-executor'
 
 nativeTheme.themeSource = 'system'
 
@@ -141,7 +142,13 @@ function registerDatabaseHandlers(): void {
 }
 
 function registerChatHandlers(): void {
+  const chatToolExecutor = new ChatToolExecutor(db)
+
   ipcMain.handle('chat:send-message', (_event, request) => {
+    const episodeId = request.episodeId || ''
+    chatService.setToolExecutor((toolName, args) =>
+      chatToolExecutor.executeTool(toolName, args, { currentEpisodeId: episodeId })
+    )
     return chatService.sendMessage(request)
   })
 
