@@ -1,7 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
+const broadcasts: { channel: string; args: unknown[] }[] = []
+
 vi.mock('electron', () => ({
   app: { getPath: () => '/unused' },
+  BrowserWindow: {
+    getAllWindows: () => [
+      {
+        isDestroyed: () => false,
+        webContents: {
+          send: (channel: string, ...args: unknown[]) => {
+            broadcasts.push({ channel, args })
+          },
+        },
+      },
+    ],
+  },
 }))
 
 import { DatabaseService } from '../src/main/database-service'
@@ -14,6 +28,7 @@ describe('ChatToolExecutor', () => {
   let episodeId: string
 
   beforeEach(() => {
+    broadcasts.length = 0
     db = new DatabaseService(':memory:')
     executor = new ChatToolExecutor(db)
 
@@ -395,6 +410,165 @@ describe('ChatToolExecutor', () => {
       )
       const parsed = JSON.parse(result)
       expect(parsed.duration).toBe('unknown')
+    })
+  })
+
+  describe('write_canvas', () => {
+    it('persists content to database and returns success', async () => {
+      const result = await executor.executeTool(
+        'write_canvas',
+        { content: '# Show Notes\n\nGreat episode about ML.' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      expect(parsed.message).toContain('written successfully')
+
+      const saved = db.getCanvas(episodeId)
+      expect(saved).toBe('# Show Notes\n\nGreat episode about ML.')
+    })
+
+    it('broadcasts canvas:stream-write event', async () => {
+      await executor.executeTool(
+        'write_canvas',
+        { content: 'Hello canvas' },
+        context
+      )
+
+      const writes = broadcasts.filter((b) => b.channel === 'canvas:stream-write')
+      expect(writes).toHaveLength(1)
+      expect(writes[0].args[0]).toEqual({ episodeId, content: 'Hello canvas' })
+    })
+
+    it('returns error when content parameter is missing', async () => {
+      const result = await executor.executeTool('write_canvas', {}, context)
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameter: content')
+    })
+
+    it('overwrites existing canvas content', async () => {
+      db.saveCanvas(episodeId, 'old content')
+
+      await executor.executeTool(
+        'write_canvas',
+        { content: 'new content' },
+        context
+      )
+
+      const saved = db.getCanvas(episodeId)
+      expect(saved).toBe('new content')
+    })
+  })
+
+  describe('edit_canvas', () => {
+    beforeEach(() => {
+      db.saveCanvas(episodeId, '# Notes\n\n- First point\n- Second point\n- Third point')
+    })
+
+    it('applies find-and-replace correctly', async () => {
+      const result = await executor.executeTool(
+        'edit_canvas',
+        { old_text: 'Second point', new_text: 'Updated second point' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+
+      const saved = db.getCanvas(episodeId)
+      expect(saved).toContain('Updated second point')
+      expect(saved).not.toContain('Second point')
+      expect(saved).toContain('First point')
+      expect(saved).toContain('Third point')
+    })
+
+    it('broadcasts canvas:edit event with updated content', async () => {
+      await executor.executeTool(
+        'edit_canvas',
+        { old_text: 'First point', new_text: 'Modified first' },
+        context
+      )
+
+      const edits = broadcasts.filter((b) => b.channel === 'canvas:edit')
+      expect(edits).toHaveLength(1)
+      const payload = edits[0].args[0] as { episodeId: string; content: string; oldText: string; newText: string }
+      expect(payload.episodeId).toBe(episodeId)
+      expect(payload.oldText).toBe('First point')
+      expect(payload.newText).toBe('Modified first')
+      expect(payload.content).toContain('Modified first')
+    })
+
+    it('returns error when old_text is not found in canvas', async () => {
+      const result = await executor.executeTool(
+        'edit_canvas',
+        { old_text: 'nonexistent text', new_text: 'replacement' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Could not find the specified text')
+    })
+
+    it('returns error when parameters are missing', async () => {
+      const result = await executor.executeTool(
+        'edit_canvas',
+        { old_text: 'First point' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameters')
+    })
+
+    it('works on empty canvas (old_text not found)', async () => {
+      db.saveCanvas(episodeId, '')
+
+      const result = await executor.executeTool(
+        'edit_canvas',
+        { old_text: 'anything', new_text: 'replacement' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Could not find the specified text')
+    })
+  })
+
+  describe('navigate_view', () => {
+    it('broadcasts canvas:navigate with episode view', async () => {
+      const result = await executor.executeTool(
+        'navigate_view',
+        { view: 'episode' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      expect(parsed.message).toContain('episode')
+
+      const navs = broadcasts.filter((b) => b.channel === 'canvas:navigate')
+      expect(navs).toHaveLength(1)
+      expect(navs[0].args[0]).toEqual({ view: 'episode' })
+    })
+
+    it('broadcasts canvas:navigate with canvas view', async () => {
+      const result = await executor.executeTool(
+        'navigate_view',
+        { view: 'canvas' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      expect(parsed.message).toContain('canvas')
+
+      const navs = broadcasts.filter((b) => b.channel === 'canvas:navigate')
+      expect(navs).toHaveLength(1)
+      expect(navs[0].args[0]).toEqual({ view: 'canvas' })
+    })
+
+    it('returns error for invalid view value', async () => {
+      const result = await executor.executeTool(
+        'navigate_view',
+        { view: 'invalid' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Invalid parameter: view must be')
     })
   })
 })

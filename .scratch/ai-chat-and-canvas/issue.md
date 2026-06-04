@@ -1,6 +1,6 @@
 ---
 title: AI Chat & Canvas — conversational AI workspace per episode
-status: ready-for-agent
+status: done
 created: 2026-06-04
 ---
 
