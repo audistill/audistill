@@ -41,6 +41,15 @@ export interface OpenTab {
   is_preview: number
 }
 
+export interface ChatMessage {
+  id: string
+  episode_id: string
+  role: 'user' | 'assistant' | 'tool'
+  content: string
+  tool_calls: string | null
+  created_at: string
+}
+
 export class DatabaseService {
   private db: Database.Database
 
@@ -96,6 +105,15 @@ export class DatabaseService {
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS episode_chat_messages (
+        id TEXT PRIMARY KEY,
+        episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+        role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'tool')),
+        content TEXT NOT NULL,
+        tool_calls TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `)
   }
@@ -255,6 +273,24 @@ export class DatabaseService {
     return this.db
       .prepare('SELECT * FROM episode_summaries WHERE episode_id = ? AND view_type = ?')
       .get(episodeId, viewType) as EpisodeSummary | undefined
+  }
+
+  getChatMessages(episodeId: string): ChatMessage[] {
+    return this.db
+      .prepare('SELECT * FROM episode_chat_messages WHERE episode_id = ? ORDER BY created_at ASC')
+      .all(episodeId) as ChatMessage[]
+  }
+
+  saveChatMessage(episodeId: string, role: 'user' | 'assistant' | 'tool', content: string, toolCalls?: string | null): string {
+    const id = randomUUID()
+    this.db
+      .prepare('INSERT INTO episode_chat_messages (id, episode_id, role, content, tool_calls) VALUES (?, ?, ?, ?, ?)')
+      .run(id, episodeId, role, content, toolCalls ?? null)
+    return id
+  }
+
+  clearChatMessages(episodeId: string): void {
+    this.db.prepare('DELETE FROM episode_chat_messages WHERE episode_id = ?').run(episodeId)
   }
 
   close(): void {

@@ -46,6 +46,15 @@ export interface SummaryUpdatedPayload {
   errorMessage?: string
 }
 
+export interface DbChatMessage {
+  id: string
+  episode_id: string
+  role: 'user' | 'assistant' | 'tool'
+  content: string
+  tool_calls: string | null
+  created_at: string
+}
+
 interface AudistillApi {
   selectFile: () => Promise<string | null>
   startTranscription: (filePath: string) => void
@@ -77,6 +86,18 @@ interface AudistillApi {
   generateSummary: (episodeId: string, viewType: string) => Promise<void>
   regenerateSummary: (episodeId: string, viewType: string) => Promise<void>
   onSummaryUpdated: (callback: (data: SummaryUpdatedPayload) => void) => () => void
+
+  // Chat API
+  chatGetMessages: (episodeId: string) => Promise<DbChatMessage[]>
+  chatSaveMessage: (episodeId: string, role: string, content: string, toolCalls?: string | null) => Promise<string>
+  chatClearMessages: (episodeId: string) => Promise<void>
+  chatSendMessage: (request: unknown) => Promise<unknown>
+  chatAbort: () => Promise<void>
+  onChatStreamToken: (callback: (token: string) => void) => () => void
+  onChatStreamEnd: (callback: (data: { content: string; aborted: boolean }) => void) => () => void
+  onChatError: (callback: (message: string) => void) => () => void
+  onChatToolCallStart: (callback: (data: { id: string; name: string }) => void) => () => void
+  onChatToolCallResult: (callback: (data: { id: string; name: string; result: string }) => void) => () => void
 
   // File utilities
   getPathForFile: (file: File) => string

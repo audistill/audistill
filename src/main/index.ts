@@ -148,6 +148,18 @@ function registerChatHandlers(): void {
   ipcMain.handle('chat:abort', () => {
     chatService.abort()
   })
+
+  ipcMain.handle('chat:get-messages', (_event, episodeId: string) => {
+    return db.getChatMessages(episodeId)
+  })
+
+  ipcMain.handle('chat:save-message', (_event, episodeId: string, role: 'user' | 'assistant' | 'tool', content: string, toolCalls?: string | null) => {
+    return db.saveChatMessage(episodeId, role, content, toolCalls)
+  })
+
+  ipcMain.handle('chat:clear-messages', (_event, episodeId: string) => {
+    db.clearChatMessages(episodeId)
+  })
 }
 
 function createWindow(): void {

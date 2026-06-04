@@ -75,6 +75,10 @@ const api = {
   },
 
   // Chat API
+  chatGetMessages: (episodeId: string) => ipcRenderer.invoke('chat:get-messages', episodeId),
+  chatSaveMessage: (episodeId: string, role: string, content: string, toolCalls?: string | null) =>
+    ipcRenderer.invoke('chat:save-message', episodeId, role, content, toolCalls),
+  chatClearMessages: (episodeId: string) => ipcRenderer.invoke('chat:clear-messages', episodeId),
   chatSendMessage: (request: unknown) => ipcRenderer.invoke('chat:send-message', request),
   chatAbort: () => ipcRenderer.invoke('chat:abort'),
   onChatStreamToken: (callback: (token: string) => void) => {

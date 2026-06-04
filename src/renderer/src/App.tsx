@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
 import { ContentPane } from './components/ContentPane'
+import { ChatSidebar } from './components/ChatSidebar'
 import { OnboardingView } from './components/OnboardingView'
 import { DropOverlay } from './components/DropOverlay'
 import { useAppStore, Episode } from './store/app-store'
@@ -178,9 +179,7 @@ function App(): React.JSX.Element {
         <ContentPane />
         {rightSidebarOpen && (
           <div className="w-[360px] shrink-0 bg-[var(--bg)] border-l border-[var(--surface)] flex flex-col overflow-hidden">
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-sm text-[var(--secondary)]">Chat sidebar — coming soon</p>
-            </div>
+            <ChatSidebar />
           </div>
         )}
       </div>
