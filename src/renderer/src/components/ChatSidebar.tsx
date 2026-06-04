@@ -160,6 +160,15 @@ Be concise and helpful. Format responses with markdown when appropriate.`
   return prompt
 }
 
+interface ModelOption {
+  id: string
+  name: string
+}
+
+let cachedModels: ModelOption[] | null = null
+let lastFetchTime = 0
+const MODEL_CACHE_TTL = 10 * 60 * 1000
+
 export function ChatSidebar(): React.JSX.Element {
   const activeTabId = useAppStore((s) => s.activeTabId)
   const episodes = useAppStore((s) => s.episodes)
@@ -174,6 +183,43 @@ export function ChatSidebar(): React.JSX.Element {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const streamingStateRef = useRef<StreamingState | null>(null)
+  const [selectedModel, setSelectedModel] = useState<string | null>(null)
+  const [models, setModels] = useState<ModelOption[]>([])
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
+  const modelDropdownRef = useRef<HTMLDivElement>(null)
+  const [modelFilter, setModelFilter] = useState('')
+
+  useEffect(() => {
+    window.api.getSetting('summarization_model').then((m) => {
+      if (m && !selectedModel) setSelectedModel(m)
+    })
+  }, [])
+
+  useEffect(() => {
+    const now = Date.now()
+    if (cachedModels && now - lastFetchTime < MODEL_CACHE_TTL) {
+      setModels(cachedModels)
+      return
+    }
+    window.api.chatFetchModels().then((fetched) => {
+      if (fetched.length > 0) {
+        cachedModels = fetched
+        lastFetchTime = Date.now()
+        setModels(fetched)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent): void {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
+        setModelDropdownOpen(false)
+        setModelFilter('')
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const loadMessages = useCallback(async (episodeId: string) => {
     setLoading(true)
@@ -306,7 +352,7 @@ export function ChatSidebar(): React.JSX.Element {
       }
     }
 
-    const model = (await window.api.getSetting('summarization_model')) || 'google/gemini-3.5-flash'
+    const model = selectedModel || (await window.api.getSetting('summarization_model')) || 'google/gemini-3.5-flash'
 
     const allMessages = [...messages, newMessage]
     const chatMessages = allMessages
@@ -374,7 +420,53 @@ export function ChatSidebar(): React.JSX.Element {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--surface)]">
-        <span className="font-heading text-sm font-semibold text-[var(--text)]">Chat</span>
+        <div className="relative flex-1 min-w-0 mr-2" ref={modelDropdownRef}>
+          <button
+            onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+            className="flex items-center gap-1.5 max-w-full px-2 py-1 rounded-[8px] hover:bg-[var(--surface)] transition-colors"
+          >
+            <span className="text-xs text-[var(--text)] truncate">
+              {selectedModel ? getModelDisplayName(selectedModel, models) : 'Model'}
+            </span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-[var(--secondary)]">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+          {modelDropdownOpen && (
+            <div className="absolute top-full left-0 mt-1 w-72 max-h-64 overflow-hidden rounded-[10px] bg-[var(--bg)] border border-[var(--surface)] shadow-xl z-50 flex flex-col">
+              <div className="px-2 pt-2 pb-1">
+                <input
+                  type="text"
+                  value={modelFilter}
+                  onChange={(e) => setModelFilter(e.target.value)}
+                  placeholder="Search models..."
+                  autoFocus
+                  className="w-full px-2 py-1.5 text-xs bg-[var(--surface)] rounded-[6px] outline-none text-[var(--text)] placeholder-[var(--secondary)]"
+                />
+              </div>
+              <div className="overflow-y-auto flex-1">
+                {getFilteredModels(models, selectedModel, modelFilter).map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      setSelectedModel(m.id)
+                      setModelDropdownOpen(false)
+                      setModelFilter('')
+                    }}
+                    className={`w-full text-left px-3 py-1.5 text-xs truncate hover:bg-[var(--surface)] transition-colors ${
+                      m.id === selectedModel ? 'text-[var(--accent)]' : 'text-[var(--text)]'
+                    }`}
+                  >
+                    {m.name || m.id}
+                  </button>
+                ))}
+                {getFilteredModels(models, selectedModel, modelFilter).length === 0 && (
+                  <p className="px-3 py-2 text-xs text-[var(--secondary)]">No models found</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <button
           onClick={handleClear}
           disabled={streaming}
@@ -584,4 +676,21 @@ function formatDuration(seconds: number): string {
   const m = Math.floor((seconds % 3600) / 60)
   if (h > 0) return `${h}h ${m}m`
   return `${m}m`
+}
+
+function getModelDisplayName(modelId: string, models: ModelOption[]): string {
+  const found = models.find((m) => m.id === modelId)
+  if (found?.name) return found.name
+  const parts = modelId.split('/')
+  return parts.length > 1 ? parts[1] : modelId
+}
+
+function getFilteredModels(models: ModelOption[], selectedModel: string | null, filter: string): ModelOption[] {
+  const defaultModel = selectedModel || 'google/gemini-3.5-flash'
+  if (models.length === 0) {
+    return [{ id: defaultModel, name: getModelDisplayName(defaultModel, []) }]
+  }
+  if (!filter) return models
+  const lower = filter.toLowerCase()
+  return models.filter((m) => m.id.toLowerCase().includes(lower) || (m.name && m.name.toLowerCase().includes(lower)))
 }

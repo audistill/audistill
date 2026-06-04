@@ -152,6 +152,23 @@ function registerDatabaseHandlers(): void {
 function registerChatHandlers(): void {
   const chatToolExecutor = new ChatToolExecutor(db)
 
+  ipcMain.handle('chat:fetch-models', async () => {
+    const apiKey = db.getSetting('openrouter_api_key')
+    if (!apiKey) return []
+    try {
+      const { net } = await import('electron')
+      const response = await net.fetch('https://openrouter.ai/api/v1/models', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
+      if (!response.ok) return []
+      const data = await response.json() as { data?: { id: string; name: string }[] }
+      if (!data.data) return []
+      return data.data.map((m) => ({ id: m.id, name: m.name }))
+    } catch {
+      return []
+    }
+  })
+
   ipcMain.handle('chat:send-message', (_event, request) => {
     const episodeId = request.episodeId || ''
     chatService.setToolExecutor((toolName, args) =>

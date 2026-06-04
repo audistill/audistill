@@ -85,6 +85,7 @@ const api = {
   chatClearMessages: (episodeId: string) => ipcRenderer.invoke('chat:clear-messages', episodeId),
   chatSendMessage: (request: unknown) => ipcRenderer.invoke('chat:send-message', request),
   chatAbort: () => ipcRenderer.invoke('chat:abort'),
+  chatFetchModels: (): Promise<{ id: string; name: string }[]> => ipcRenderer.invoke('chat:fetch-models'),
   onChatStreamToken: (callback: (token: string) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, token: string): void => callback(token)
     ipcRenderer.on('chat:stream-token', handler)

@@ -1,6 +1,6 @@
 ---
 title: "Chat model picker: OpenRouter model list"
-status: ready-for-agent
+status: done
 created: 2026-06-04
 ---
 

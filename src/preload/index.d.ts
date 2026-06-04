@@ -97,6 +97,7 @@ interface AudistillApi {
   chatClearMessages: (episodeId: string) => Promise<void>
   chatSendMessage: (request: unknown) => Promise<unknown>
   chatAbort: () => Promise<void>
+  chatFetchModels: () => Promise<{ id: string; name: string }[]>
   onChatStreamToken: (callback: (token: string) => void) => () => void
   onChatStreamEnd: (callback: (data: { content: string; aborted: boolean }) => void) => () => void
   onChatError: (callback: (message: string) => void) => () => void
