@@ -205,7 +205,7 @@ function App(): React.JSX.Element {
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         <div className="w-[70px] shrink-0" />
-        <div className="flex-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <div className="flex-1">
           <TabBar />
         </div>
       </div>

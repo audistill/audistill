@@ -20,6 +20,7 @@ export function TabBar(): React.JSX.Element {
       <button
         onClick={toggleLeftSidebar}
         className="flex items-center justify-center w-[36px] h-[28px] shrink-0 rounded-md transition-colors hover:bg-[var(--surface)]/50"
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         title="Toggle left sidebar (Cmd+B)"
       >
         <svg
@@ -51,6 +52,7 @@ export function TabBar(): React.JSX.Element {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
                 isActive ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]/50'
               } ${tab.preview ? 'italic opacity-80' : ''}`}
+              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
               onClick={() => activateTab(tab.id)}
             >
               <span className="truncate max-w-[120px]">{title}</span>
@@ -77,6 +79,7 @@ export function TabBar(): React.JSX.Element {
         {settingsOpen && (
           <div
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors bg-[var(--surface)] text-[var(--text)]"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             onClick={() => openSettings()}
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -107,6 +110,7 @@ export function TabBar(): React.JSX.Element {
       <button
         onClick={toggleRightSidebar}
         className="flex items-center justify-center w-[36px] h-[28px] shrink-0 rounded-md transition-colors hover:bg-[var(--surface)]/50"
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         title="Toggle right sidebar (Cmd+Shift+L)"
       >
         <svg
