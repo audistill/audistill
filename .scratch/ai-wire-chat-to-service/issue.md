@@ -1,6 +1,6 @@
 ---
 title: "Wire chat UI to ChatService: end-to-end conversation"
-status: ready-for-agent
+status: done
 created: 2026-06-04
 ---
 
