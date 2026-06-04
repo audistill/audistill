@@ -8,6 +8,7 @@ import { SummarizationService, ViewType } from './summarization-service'
 import { IngestPipeline } from './ingest-pipeline'
 import { ChatService } from './chat-service'
 import { ChatToolExecutor } from './chat-tool-executor'
+import { getWindowOptions, trackWindowState, getSavedBounds } from './window-state'
 
 nativeTheme.themeSource = 'system'
 
@@ -195,9 +196,9 @@ function registerChatHandlers(): void {
 }
 
 function createWindow(): void {
+  const savedBounds = getWindowOptions(db)
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    ...savedBounds,
     minWidth: 600,
     minHeight: 500,
     titleBarStyle: 'hiddenInset',
@@ -209,6 +210,13 @@ function createWindow(): void {
       sandbox: false
     }
   })
+
+  const saved = getSavedBounds(db)
+  if (saved?.isMaximized) {
+    mainWindow.maximize()
+  }
+
+  trackWindowState(mainWindow, db)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
