@@ -23,6 +23,8 @@ interface ResizeHandleProps {
   currentWidth: number
   min: number
   max: number
+  onDragStart?: () => void
+  onDragEnd?: () => void
 }
 
 export function ResizeHandle({
@@ -32,6 +34,8 @@ export function ResizeHandle({
   currentWidth,
   min,
   max,
+  onDragStart,
+  onDragEnd,
 }: ResizeHandleProps): React.JSX.Element {
   const startX = useRef(0)
   const startWidth = useRef(0)
@@ -41,6 +45,7 @@ export function ResizeHandle({
       e.preventDefault()
       startX.current = e.clientX
       startWidth.current = currentWidth
+      onDragStart?.()
 
       const handleMouseMove = (moveEvent: MouseEvent): void => {
         const delta =
@@ -56,6 +61,7 @@ export function ResizeHandle({
           document.removeEventListener('mouseup', handleMouseUp)
           document.body.style.cursor = ''
           document.body.style.userSelect = ''
+          onDragEnd?.()
           return
         }
 
@@ -67,6 +73,7 @@ export function ResizeHandle({
         document.removeEventListener('mouseup', handleMouseUp)
         document.body.style.cursor = ''
         document.body.style.userSelect = ''
+        onDragEnd?.()
       }
 
       document.addEventListener('mousemove', handleMouseMove)
@@ -74,7 +81,7 @@ export function ResizeHandle({
       document.body.style.cursor = 'col-resize'
       document.body.style.userSelect = 'none'
     },
-    [side, currentWidth, min, max, onResize, onSnap]
+    [side, currentWidth, min, max, onResize, onSnap, onDragStart, onDragEnd]
   )
 
   return (

@@ -14,6 +14,8 @@ import {
 } from './components/ResizeHandle'
 import { useAppStore, Episode } from './store/app-store'
 
+const SIDEBAR_TRANSITION_MS = 200
+
 const SUPPORTED_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.flac', '.mp4'])
 
 function getExtension(filename: string): string {
@@ -35,6 +37,7 @@ function App(): React.JSX.Element {
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null)
   const [dropActive, setDropActive] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [resizing, setResizing] = useState(false)
   const dragCounter = useRef(0)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -208,37 +211,53 @@ function App(): React.JSX.Element {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
+        <div
+          style={{
+            width: leftSidebarOpen ? leftSidebarWidth : 0,
+            transition: resizing ? 'none' : `width ${SIDEBAR_TRANSITION_MS}ms cubic-bezier(0.25, 1, 0.5, 1)`,
+          }}
+          className="shrink-0 overflow-hidden"
+        >
+          <div style={{ width: leftSidebarWidth }} className="h-full">
+            <Sidebar />
+          </div>
+        </div>
         {leftSidebarOpen && (
-          <>
-            <div style={{ width: leftSidebarWidth }} className="shrink-0 overflow-hidden">
-              <Sidebar />
-            </div>
-            <ResizeHandle
-              side="left"
-              currentWidth={leftSidebarWidth}
-              min={LEFT_SIDEBAR_MIN}
-              max={LEFT_SIDEBAR_MAX}
-              onResize={setLeftSidebarWidth}
-              onSnap={toggleLeftSidebar}
-            />
-          </>
+          <ResizeHandle
+            side="left"
+            currentWidth={leftSidebarWidth}
+            min={LEFT_SIDEBAR_MIN}
+            max={LEFT_SIDEBAR_MAX}
+            onResize={setLeftSidebarWidth}
+            onSnap={toggleLeftSidebar}
+            onDragStart={() => setResizing(true)}
+            onDragEnd={() => setResizing(false)}
+          />
         )}
         <ContentPane />
         {rightSidebarOpen && (
-          <>
-            <ResizeHandle
-              side="right"
-              currentWidth={rightSidebarWidth}
-              min={RIGHT_SIDEBAR_MIN}
-              max={RIGHT_SIDEBAR_MAX}
-              onResize={setRightSidebarWidth}
-              onSnap={toggleRightSidebar}
-            />
-            <div style={{ width: rightSidebarWidth }} className="shrink-0 bg-[var(--bg)] border-l border-[var(--surface)] flex flex-col overflow-hidden">
-              <ChatSidebar />
-            </div>
-          </>
+          <ResizeHandle
+            side="right"
+            currentWidth={rightSidebarWidth}
+            min={RIGHT_SIDEBAR_MIN}
+            max={RIGHT_SIDEBAR_MAX}
+            onResize={setRightSidebarWidth}
+            onSnap={toggleRightSidebar}
+            onDragStart={() => setResizing(true)}
+            onDragEnd={() => setResizing(false)}
+          />
         )}
+        <div
+          style={{
+            width: rightSidebarOpen ? rightSidebarWidth : 0,
+            transition: resizing ? 'none' : `width ${SIDEBAR_TRANSITION_MS}ms cubic-bezier(0.33, 1, 0.68, 1)`,
+          }}
+          className="shrink-0 overflow-hidden"
+        >
+          <div style={{ width: rightSidebarWidth }} className="h-full bg-[var(--bg)] border-l border-[var(--surface)] flex flex-col overflow-hidden">
+            <ChatSidebar />
+          </div>
+        </div>
       </div>
 
       <DropOverlay visible={dropActive} />
