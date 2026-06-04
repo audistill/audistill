@@ -1,13 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Markdown from 'react-markdown'
 import { useAppStore, Episode, SummaryEntry } from '../store/app-store'
 
-function CanvasToggleButton(): React.JSX.Element {
+const seenEpisodes = new Set<string>()
+
+function CanvasToggleButton({ episodeId }: { episodeId: string }): React.JSX.Element {
   const setActiveContentView = useAppStore((s) => s.setActiveContentView)
+  const shouldGlow = useRef(!seenEpisodes.has(episodeId))
+
+  useEffect(() => {
+    seenEpisodes.add(episodeId)
+  }, [episodeId])
+
   return (
     <button
       onClick={() => setActiveContentView('canvas')}
-      className="p-1.5 rounded-[8px] text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors"
+      className={`p-1.5 rounded-[8px] text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors ${shouldGlow.current ? 'canvas-button-glow' : ''}`}
       title="Open Canvas"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -309,7 +317,7 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
           <span className="w-1 h-1 rounded-full bg-[var(--secondary)]" />
           <span>{formatDate(episode.created_at)}</span>
           <span className="ml-auto" />
-          <CanvasToggleButton />
+          <CanvasToggleButton episodeId={episode.id} />
         </div>
 
         {/* Summary section with segmented control */}
