@@ -16,6 +16,10 @@ function getExtension(filename: string): string {
 function App(): React.JSX.Element {
   const hydrate = useAppStore((s) => s.hydrate)
   const hydrated = useAppStore((s) => s.hydrated)
+  const leftSidebarOpen = useAppStore((s) => s.leftSidebarOpen)
+  const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
+  const toggleLeftSidebar = useAppStore((s) => s.toggleLeftSidebar)
+  const toggleRightSidebar = useAppStore((s) => s.toggleRightSidebar)
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null)
   const [dropActive, setDropActive] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -120,6 +124,21 @@ function App(): React.JSX.Element {
     return unsubscribe
   }, [hydrated])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.metaKey && e.key === 'b' && !e.shiftKey) {
+        e.preventDefault()
+        toggleLeftSidebar()
+      }
+      if (e.metaKey && e.shiftKey && e.key === 'l') {
+        e.preventDefault()
+        toggleRightSidebar()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [toggleLeftSidebar, toggleRightSidebar])
+
   if (!hydrated || needsOnboarding === null) {
     return (
       <div className="flex items-center justify-center h-screen bg-[var(--bg)]">
@@ -149,14 +168,21 @@ function App(): React.JSX.Element {
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         <div className="w-[70px] shrink-0" />
-        <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <div className="flex-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <TabBar />
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+        {leftSidebarOpen && <Sidebar />}
         <ContentPane />
+        {rightSidebarOpen && (
+          <div className="w-[360px] shrink-0 bg-[var(--bg)] border-l border-[var(--surface)] flex flex-col overflow-hidden">
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-sm text-[var(--secondary)]">Chat sidebar — coming soon</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <DropOverlay visible={dropActive} />

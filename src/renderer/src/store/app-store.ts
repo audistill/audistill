@@ -49,6 +49,9 @@ interface AppState {
   hydrated: boolean
   progress: Record<string, ProgressEntry>
   summaries: Record<string, Record<string, SummaryEntry>>
+  leftSidebarOpen: boolean
+  rightSidebarOpen: boolean
+  activeContentView: 'episode' | 'canvas'
 
   hydrate: () => Promise<void>
   selectEpisode: (id: string) => void
@@ -73,6 +76,9 @@ interface AppState {
   clearProgress: (episodeId: string) => void
   loadSummaries: (episodeId: string) => Promise<void>
   handleSummaryUpdated: (data: SummaryUpdatedPayload) => void
+  toggleLeftSidebar: () => void
+  toggleRightSidebar: () => void
+  setActiveContentView: (view: 'episode' | 'canvas') => void
 }
 
 function dbEpisodeToEpisode(row: DbEpisode): Episode {
@@ -110,6 +116,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   hydrated: false,
   progress: {},
   summaries: {},
+  leftSidebarOpen: true,
+  rightSidebarOpen: false,
+  activeContentView: 'episode',
 
   hydrate: async () => {
     const [dbEpisodes, dbFolders, dbTabs] = await Promise.all([
@@ -365,4 +374,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
     })
   },
+
+  toggleLeftSidebar: () => set((s) => ({ leftSidebarOpen: !s.leftSidebarOpen })),
+  toggleRightSidebar: () => set((s) => ({ rightSidebarOpen: !s.rightSidebarOpen })),
+  setActiveContentView: (view) => set({ activeContentView: view }),
 }))
