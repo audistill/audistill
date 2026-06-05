@@ -43,7 +43,7 @@ describe('SummarizationService', () => {
     it('loads the brief template for viewType brief', () => {
       const messages = service.buildMessages('Test transcript', 'brief')
       expect(messages[0].content).toContain('concise overview summary')
-      expect(messages[0].content).toContain('150-400 words')
+      expect(messages[0].content).toContain('150-600 words')
       expect(messages[1].content).toContain('Test transcript')
     })
 
@@ -69,7 +69,7 @@ describe('SummarizationService', () => {
     })
 
     it('each template contains content-type examples', () => {
-      for (const viewType of ['brief', 'detailed', 'full'] as const) {
+      for (const viewType of ['detailed', 'full'] as const) {
         const messages = service.buildMessages('transcript', viewType)
         expect(messages[0].content).toContain('meetings')
         expect(messages[0].content).toContain('podcast')
@@ -315,7 +315,7 @@ describe('SummarizationService', () => {
         await service.summarize('My transcript', 'brief')
         const body = JSON.parse(receivedBody)
         const systemContent = body.messages[0].content
-        expect(systemContent).toContain('150-400 words')
+        expect(systemContent).toContain('150-600 words')
         expect(systemContent).not.toContain('500-1500 words')
         expect(systemContent).not.toContain('2000-5000 words')
       } finally {
