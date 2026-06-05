@@ -68,12 +68,10 @@ describe('SummarizationService', () => {
       }
     })
 
-    it('each template contains content-type examples', () => {
+    it('detailed and full templates use dynamic section headings', () => {
       for (const viewType of ['detailed', 'full'] as const) {
         const messages = service.buildMessages('transcript', viewType)
-        expect(messages[0].content).toContain('meetings')
-        expect(messages[0].content).toContain('podcast')
-        expect(messages[0].content).toContain('lecture')
+        expect(messages[0].content).toContain('Choose section headings dynamically')
       }
     })
   })
