@@ -2,6 +2,7 @@ import { net } from 'electron'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseService } from './database-service'
+import { MARKDOWN_FORMAT_GUIDANCE } from '../shared/markdown-guidance'
 
 export type ViewType = 'brief' | 'detailed' | 'full'
 
@@ -47,7 +48,7 @@ export class SummarizationService {
     const model = this.db.getSetting('summarization_model') ?? 'google/gemini-3.5-flash'
     const customInstructions = this.db.getSetting('custom_instructions') ?? ''
 
-    const prompt = this.buildPrompt(transcript, viewType, customInstructions)
+    const messages = this.buildMessages(transcript, viewType, customInstructions)
 
     const response = await net.fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -57,7 +58,7 @@ export class SummarizationService {
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: prompt }],
+        messages,
         response_format: { type: 'json_object' },
       }),
     })
@@ -79,13 +80,21 @@ export class SummarizationService {
     return this.parseResponse(content)
   }
 
-  buildPrompt(transcript: string, viewType: ViewType, customInstructions?: string): string {
+  buildMessages(
+    transcript: string,
+    viewType: ViewType,
+    customInstructions?: string
+  ): { role: 'system' | 'user'; content: string }[] {
     const template = this.prompts[viewType]
-    const instructions = customInstructions?.trim()
-      ? `${template}\n\nAdditional instructions:\n${customInstructions.trim()}`
-      : template
+    let systemContent = `${template}\n${MARKDOWN_FORMAT_GUIDANCE}`
+    if (customInstructions?.trim()) {
+      systemContent += `\n\nAdditional instructions:\n${customInstructions.trim()}`
+    }
 
-    return `<instructions>\n${instructions}\n</instructions>\n\n<transcript>\n${transcript}\n</transcript>`
+    return [
+      { role: 'system', content: systemContent },
+      { role: 'user', content: `<transcript>\n${transcript}\n</transcript>` },
+    ]
   }
 
   private parseResponse(content: string): { title: string; summary: string } {

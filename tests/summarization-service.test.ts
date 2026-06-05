@@ -41,76 +41,86 @@ describe('SummarizationService', () => {
 
   describe('prompt template loading', () => {
     it('loads the brief template for viewType brief', () => {
-      const prompt = service.buildPrompt('Test transcript', 'brief')
-      expect(prompt).toContain('concise overview summary')
-      expect(prompt).toContain('150-400 words')
-      expect(prompt).toContain('Test transcript')
+      const messages = service.buildMessages('Test transcript', 'brief')
+      expect(messages[0].content).toContain('concise overview summary')
+      expect(messages[0].content).toContain('150-400 words')
+      expect(messages[1].content).toContain('Test transcript')
     })
 
     it('loads the detailed template for viewType detailed', () => {
-      const prompt = service.buildPrompt('Test transcript', 'detailed')
-      expect(prompt).toContain('structured reference summary')
-      expect(prompt).toContain('500-1500 words')
-      expect(prompt).toContain('Test transcript')
+      const messages = service.buildMessages('Test transcript', 'detailed')
+      expect(messages[0].content).toContain('structured reference summary')
+      expect(messages[0].content).toContain('500-1500 words')
+      expect(messages[1].content).toContain('Test transcript')
     })
 
     it('loads the full template for viewType full', () => {
-      const prompt = service.buildPrompt('Test transcript', 'full')
-      expect(prompt).toContain('comprehensive chapter-style notes')
-      expect(prompt).toContain('2000-5000 words')
-      expect(prompt).toContain('Test transcript')
+      const messages = service.buildMessages('Test transcript', 'full')
+      expect(messages[0].content).toContain('comprehensive chapter-style notes')
+      expect(messages[0].content).toContain('2000-5000 words')
+      expect(messages[1].content).toContain('Test transcript')
     })
 
     it('each template contains language-matching instructions', () => {
       for (const viewType of ['brief', 'detailed', 'full'] as const) {
-        const prompt = service.buildPrompt('transcript', viewType)
-        expect(prompt).toContain('Match the language of the transcript')
+        const messages = service.buildMessages('transcript', viewType)
+        expect(messages[0].content).toContain('Match the language of the transcript')
       }
     })
 
     it('each template contains content-type examples', () => {
       for (const viewType of ['brief', 'detailed', 'full'] as const) {
-        const prompt = service.buildPrompt('transcript', viewType)
-        expect(prompt).toContain('meetings')
-        expect(prompt).toContain('podcast')
-        expect(prompt).toContain('lecture')
+        const messages = service.buildMessages('transcript', viewType)
+        expect(messages[0].content).toContain('meetings')
+        expect(messages[0].content).toContain('podcast')
+        expect(messages[0].content).toContain('lecture')
       }
     })
   })
 
-  describe('prompt construction', () => {
-    it('assembles template + transcript in XML format', () => {
-      const prompt = service.buildPrompt('Hello world transcript', 'brief')
+  describe('message construction', () => {
+    it('returns system and user messages with correct roles', () => {
+      const messages = service.buildMessages('Hello world transcript', 'brief')
 
-      expect(prompt).toContain('<instructions>')
-      expect(prompt).toContain('</instructions>')
-      expect(prompt).toContain('<transcript>')
-      expect(prompt).toContain('Hello world transcript')
-      expect(prompt).toContain('</transcript>')
+      expect(messages).toHaveLength(2)
+      expect(messages[0].role).toBe('system')
+      expect(messages[1].role).toBe('user')
     })
 
-    it('appends custom instructions to template', () => {
-      const prompt = service.buildPrompt('Transcript text', 'brief', 'Focus on technical details')
+    it('system message contains template content', () => {
+      const messages = service.buildMessages('Hello world transcript', 'brief')
 
-      expect(prompt).toContain('Focus on technical details')
-      expect(prompt).toContain('Additional instructions:')
-      expect(prompt).toContain('concise overview summary')
-      expect(prompt.indexOf('concise overview summary')).toBeLessThan(
-        prompt.indexOf('Focus on technical details')
+      expect(messages[0].content).toContain('concise overview summary')
+    })
+
+    it('user message contains only transcript in XML tags', () => {
+      const messages = service.buildMessages('Hello world transcript', 'brief')
+
+      expect(messages[1].content).toBe('<transcript>\nHello world transcript\n</transcript>')
+    })
+
+    it('appends custom instructions to system message', () => {
+      const messages = service.buildMessages('Transcript text', 'brief', 'Focus on technical details')
+
+      expect(messages[0].content).toContain('Focus on technical details')
+      expect(messages[0].content).toContain('Additional instructions:')
+      expect(messages[0].content).toContain('concise overview summary')
+      expect(messages[0].content.indexOf('concise overview summary')).toBeLessThan(
+        messages[0].content.indexOf('Focus on technical details')
       )
     })
 
     it('custom instructions are appended for all view types', () => {
       for (const viewType of ['brief', 'detailed', 'full'] as const) {
-        const prompt = service.buildPrompt('Transcript', viewType, 'Custom stuff')
-        expect(prompt).toContain('Custom stuff')
-        expect(prompt).toContain('Additional instructions:')
+        const messages = service.buildMessages('Transcript', viewType, 'Custom stuff')
+        expect(messages[0].content).toContain('Custom stuff')
+        expect(messages[0].content).toContain('Additional instructions:')
       }
     })
 
     it('no additional instructions block when custom instructions are empty', () => {
-      const prompt = service.buildPrompt('Transcript', 'brief', '')
-      expect(prompt).not.toContain('Additional instructions:')
+      const messages = service.buildMessages('Transcript', 'brief', '')
+      expect(messages[0].content).not.toContain('Additional instructions:')
     })
   })
 
@@ -247,7 +257,7 @@ describe('SummarizationService', () => {
   })
 
   describe('correct template selection per view type', () => {
-    it('sends brief template content in API request for brief viewType', async () => {
+    it('sends system/user message pair in API request', async () => {
       let receivedBody = ''
       serverHandler = (req, res) => {
         let data = ''
@@ -271,16 +281,49 @@ describe('SummarizationService', () => {
       try {
         await service.summarize('My transcript', 'brief')
         const body = JSON.parse(receivedBody)
-        const content = body.messages[0].content
-        expect(content).toContain('150-400 words')
-        expect(content).not.toContain('500-1500 words')
-        expect(content).not.toContain('2000-5000 words')
+        expect(body.messages).toHaveLength(2)
+        expect(body.messages[0].role).toBe('system')
+        expect(body.messages[1].role).toBe('user')
+        expect(body.messages[1].content).toContain('My transcript')
       } finally {
         globalThis.fetch = origFetch
       }
     })
 
-    it('sends detailed template content in API request for detailed viewType', async () => {
+    it('sends brief template content in system message for brief viewType', async () => {
+      let receivedBody = ''
+      serverHandler = (req, res) => {
+        let data = ''
+        req.on('data', (chunk) => { data += chunk })
+        req.on('end', () => {
+          receivedBody = data
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({
+            choices: [{ message: { content: JSON.stringify({ title: 'T', summary: 'S' }) } }]
+          }))
+        })
+      }
+
+      const origFetch = globalThis.fetch
+      globalThis.fetch = (input, init) => {
+        const url = typeof input === 'string' ? input : (input as Request).url
+        const rewritten = url.replace('https://openrouter.ai/api/v1/chat/completions', `${baseUrl}/chat`)
+        return origFetch(rewritten, init)
+      }
+
+      try {
+        await service.summarize('My transcript', 'brief')
+        const body = JSON.parse(receivedBody)
+        const systemContent = body.messages[0].content
+        expect(systemContent).toContain('150-400 words')
+        expect(systemContent).not.toContain('500-1500 words')
+        expect(systemContent).not.toContain('2000-5000 words')
+      } finally {
+        globalThis.fetch = origFetch
+      }
+    })
+
+    it('sends detailed template content in system message for detailed viewType', async () => {
       let receivedBody = ''
       serverHandler = (req, res) => {
         let data = ''
@@ -304,16 +347,16 @@ describe('SummarizationService', () => {
       try {
         await service.summarize('My transcript', 'detailed')
         const body = JSON.parse(receivedBody)
-        const content = body.messages[0].content
-        expect(content).toContain('500-1500 words')
-        expect(content).not.toContain('150-400 words')
-        expect(content).not.toContain('2000-5000 words')
+        const systemContent = body.messages[0].content
+        expect(systemContent).toContain('500-1500 words')
+        expect(systemContent).not.toContain('150-400 words')
+        expect(systemContent).not.toContain('2000-5000 words')
       } finally {
         globalThis.fetch = origFetch
       }
     })
 
-    it('sends full template content in API request for full viewType', async () => {
+    it('sends full template content in system message for full viewType', async () => {
       let receivedBody = ''
       serverHandler = (req, res) => {
         let data = ''
@@ -337,10 +380,10 @@ describe('SummarizationService', () => {
       try {
         await service.summarize('My transcript', 'full')
         const body = JSON.parse(receivedBody)
-        const content = body.messages[0].content
-        expect(content).toContain('2000-5000 words')
-        expect(content).not.toContain('150-400 words')
-        expect(content).not.toContain('500-1500 words')
+        const systemContent = body.messages[0].content
+        expect(systemContent).toContain('2000-5000 words')
+        expect(systemContent).not.toContain('150-400 words')
+        expect(systemContent).not.toContain('500-1500 words')
       } finally {
         globalThis.fetch = origFetch
       }
