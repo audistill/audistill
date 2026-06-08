@@ -45,7 +45,7 @@ export class SummarizationService {
       throw new Error('No API key configured. Please set your OpenRouter API key in Settings.')
     }
 
-    const model = this.db.getSetting('summarization_model') ?? 'google/gemini-3.5-flash'
+    const model = this.resolveModel(viewType)
     const customInstructions = this.db.getSetting('custom_instructions') ?? ''
 
     const messages = this.buildMessages(transcript, viewType, customInstructions)
@@ -80,6 +80,13 @@ export class SummarizationService {
     return this.parseResponse(content)
   }
 
+  resolveModel(viewType: ViewType): string {
+    if (viewType === 'brief') {
+      return this.db.getSetting('model_fast') ?? 'google/gemini-3.1-flash-lite'
+    }
+    return this.db.getSetting('model_quality') ?? 'google/gemini-3.5-flash'
+  }
+
   buildMessages(
     transcript: string,
     viewType: ViewType,
@@ -97,11 +104,21 @@ export class SummarizationService {
     ]
   }
 
+  private extractJson(content: string): string {
+    const trimmed = content.trim()
+    const fenceMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/)
+    if (fenceMatch) return fenceMatch[1].trim()
+    return trimmed
+  }
+
   private parseResponse(content: string): { title: string; summary: string } {
     let parsed: unknown
     try {
-      parsed = JSON.parse(content)
-    } catch {
+      parsed = JSON.parse(this.extractJson(content))
+    } catch (e) {
+      console.error('[summarization] Failed to parse LLM response as JSON')
+      console.error('[summarization] Raw response:', content)
+      console.error('[summarization] Parse error:', e)
       throw new Error('Failed to parse LLM response as JSON')
     }
 
