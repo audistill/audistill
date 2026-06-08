@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Markdown from 'react-markdown'
 import { useAppStore } from '../store/app-store'
+import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
 import type { DbChatMessage } from '../../../preload/index.d'
 
 interface ChatMessage {
@@ -200,19 +201,24 @@ When answering questions about the episode content, prefer using the search_tran
 
 When the user asks you to write, draft, or create something (show notes, blog posts, key takeaways, etc.), use the write_canvas tool to put the content in the Canvas workspace. When they ask for a targeted edit ("change X to Y", "update the third bullet"), use edit_canvas for surgical replacement. Use navigate_view to switch between episode and canvas views.
 
-Be concise and helpful. Format responses with markdown when appropriate.`
+Be concise and helpful. Format responses with markdown when appropriate.
+
+## Canvas Formatting
+When writing to the Canvas, use only these markdown elements:
+- Headings (h1-h3) for structure
+- **Bold** and *italic* for emphasis
+- Bullet lists and numbered lists
+- Blockquotes for notable quotes or callouts
+- [Links](url) for references
+- Inline \`code\` for technical terms or timestamps
+- Fenced code blocks for longer excerpts or structured data
+- Horizontal rules (---) to separate major sections
+
+Do not use tables, images, task lists, or nested blockquotes in Canvas content.`
 
   return prompt
 }
 
-interface ModelOption {
-  id: string
-  name: string
-}
-
-let cachedModels: ModelOption[] | null = null
-let lastFetchTime = 0
-const MODEL_CACHE_TTL = 10 * 60 * 1000
 
 export function ChatSidebar(): React.JSX.Element {
   const activeTabId = useAppStore((s) => s.activeTabId)
@@ -228,30 +234,16 @@ export function ChatSidebar(): React.JSX.Element {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const streamingStateRef = useRef<StreamingState | null>(null)
+  const streamingEpisodeRef = useRef<string | null>(null)
   const [selectedModel, setSelectedModel] = useState<string | null>(null)
-  const [models, setModels] = useState<ModelOption[]>([])
+  const models = useOpenRouterModels()
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
   const modelDropdownRef = useRef<HTMLDivElement>(null)
   const [modelFilter, setModelFilter] = useState('')
 
   useEffect(() => {
-    window.api.getSetting('summarization_model').then((m) => {
+    window.api.getSetting('model_quality').then((m) => {
       if (m && !selectedModel) setSelectedModel(m)
-    })
-  }, [])
-
-  useEffect(() => {
-    const now = Date.now()
-    if (cachedModels && now - lastFetchTime < MODEL_CACHE_TTL) {
-      setModels(cachedModels)
-      return
-    }
-    window.api.chatFetchModels().then((fetched) => {
-      if (fetched.length > 0) {
-        cachedModels = fetched
-        lastFetchTime = Date.now()
-        setModels(fetched)
-      }
     })
   }, [])
 
@@ -279,6 +271,13 @@ export function ChatSidebar(): React.JSX.Element {
     } else {
       setMessages([])
     }
+    if (activeTabId !== streamingEpisodeRef.current) {
+      setStreamingState(null)
+      setStreaming(false)
+    } else if (streamingStateRef.current) {
+      setStreamingState(streamingStateRef.current)
+      setStreaming(true)
+    }
   }, [activeTabId, loadMessages])
 
   useEffect(() => {
@@ -287,37 +286,40 @@ export function ChatSidebar(): React.JSX.Element {
 
   useEffect(() => {
     const unsubToken = window.api.onChatStreamToken((token) => {
-      setStreamingState((prev) => {
-        const next = prev
-          ? { ...prev, content: prev.content + token }
-          : { content: token, toolCalls: [] }
-        streamingStateRef.current = next
-        return next
-      })
+      const prev = streamingStateRef.current
+      const next = prev
+        ? { ...prev, content: prev.content + token }
+        : { content: token, toolCalls: [] }
+      streamingStateRef.current = next
+      if (useAppStore.getState().activeTabId === streamingEpisodeRef.current) {
+        setStreamingState(next)
+      }
     })
 
     const unsubToolStart = window.api.onChatToolCallStart((data) => {
-      setStreamingState((prev) => {
-        const next = prev
-          ? { ...prev, toolCalls: [...prev.toolCalls, { id: data.id, name: data.name }] }
-          : { content: '', toolCalls: [{ id: data.id, name: data.name }] }
-        streamingStateRef.current = next
-        return next
-      })
+      const prev = streamingStateRef.current
+      const next = prev
+        ? { ...prev, toolCalls: [...prev.toolCalls, { id: data.id, name: data.name }] }
+        : { content: '', toolCalls: [{ id: data.id, name: data.name }] }
+      streamingStateRef.current = next
+      if (useAppStore.getState().activeTabId === streamingEpisodeRef.current) {
+        setStreamingState(next)
+      }
     })
 
     const unsubToolResult = window.api.onChatToolCallResult((data) => {
-      setStreamingState((prev) => {
-        if (!prev) return prev
-        const next = {
-          ...prev,
-          toolCalls: prev.toolCalls.map((tc) =>
-            tc.id === data.id ? { ...tc, result: data.result } : tc
-          ),
-        }
-        streamingStateRef.current = next
-        return next
-      })
+      const prev = streamingStateRef.current
+      if (!prev) return
+      const next = {
+        ...prev,
+        toolCalls: prev.toolCalls.map((tc) =>
+          tc.id === data.id ? { ...tc, result: data.result } : tc
+        ),
+      }
+      streamingStateRef.current = next
+      if (useAppStore.getState().activeTabId === streamingEpisodeRef.current) {
+        setStreamingState(next)
+      }
     })
 
     const unsubEnd = window.api.onChatStreamEnd((data) => {
@@ -330,9 +332,10 @@ export function ChatSidebar(): React.JSX.Element {
       const finalContent = data.content || prev.content
       const toolCallsJson = prev.toolCalls.length > 0 ? JSON.stringify(prev.toolCalls) : null
 
-      const episodeId = useAppStore.getState().activeTabId
+      const episodeId = streamingEpisodeRef.current
       if (episodeId && finalContent) {
         window.api.chatSaveMessage(episodeId, 'assistant', finalContent, toolCallsJson).then((id) => {
+          if (useAppStore.getState().activeTabId !== episodeId) return
           const msg: ChatMessage = {
             id,
             role: 'assistant',
@@ -366,6 +369,7 @@ export function ChatSidebar(): React.JSX.Element {
 
     setInput('')
     setError(null)
+    streamingEpisodeRef.current = activeTabId
 
     const id = await window.api.chatSaveMessage(activeTabId, 'user', trimmed)
     const newMessage: ChatMessage = {
@@ -397,7 +401,7 @@ export function ChatSidebar(): React.JSX.Element {
       }
     }
 
-    const model = selectedModel || (await window.api.getSetting('summarization_model')) || 'google/gemini-3.5-flash'
+    const model = selectedModel || (await window.api.getSetting('model_quality')) || 'google/gemini-3.5-flash'
 
     const canvasContent = await window.api.canvasGetContent(activeTabId)
 
