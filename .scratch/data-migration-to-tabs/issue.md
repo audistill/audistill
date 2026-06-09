@@ -1,6 +1,6 @@
 ---
 title: "Data migration: episode_summaries + canvas → episode_tabs"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

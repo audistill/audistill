@@ -10,6 +10,7 @@ import { TabService } from './tab-service'
 import { IngestPipeline } from './ingest-pipeline'
 import { ChatService } from './chat-service'
 import { ChatToolExecutor } from './chat-tool-executor'
+import { MigrationService } from './migration-service'
 import { getWindowOptions, trackWindowState, getSavedBounds } from './window-state'
 
 nativeTheme.themeSource = 'system'
@@ -259,6 +260,7 @@ app.whenReady().then(() => {
   summarizationService = new SummarizationService(db)
   recipeService = new RecipeService(db)
   tabService = new TabService(db)
+  new MigrationService(db, recipeService, tabService).run()
   chatService = new ChatService(db)
   registerDatabaseHandlers()
   registerChatHandlers()
