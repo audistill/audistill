@@ -116,6 +116,10 @@ const api = {
     return () => ipcRenderer.removeListener('canvas:navigate', handler)
   },
 
+  // Recipes API
+  recipesGetAll: (): Promise<{ id: string; name: string; is_builtin: number }[]> =>
+    ipcRenderer.invoke('recipe:get-all'),
+
   // Tabs API
   tabsGet: (episodeId: string) => ipcRenderer.invoke('tabs:get', episodeId),
   tabsCreate: (episodeId: string, options: { recipe_id?: string | null; tab_name?: string; is_pipeline?: boolean; content?: string }) =>

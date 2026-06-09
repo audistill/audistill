@@ -94,6 +94,9 @@ interface AudistillApi {
   onCanvasEdit: (callback: (data: { episodeId: string; content: string; oldText: string; newText: string }) => void) => () => void
   onCanvasNavigate: (callback: (data: { view: 'episode' | 'canvas' }) => void) => () => void
 
+  // Recipes API
+  recipesGetAll: () => Promise<{ id: string; name: string; is_builtin: number }[]>
+
   // Tabs API
   tabsGet: (episodeId: string) => Promise<DbEpisodeTab[]>
   tabsCreate: (episodeId: string, options: { recipe_id?: string | null; tab_name?: string; is_pipeline?: boolean; content?: string }) => Promise<string>

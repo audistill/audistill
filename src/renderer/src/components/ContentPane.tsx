@@ -63,17 +63,20 @@ function EpisodeContentWithTabs({ episodeId }: { episodeId: string }): React.JSX
 
   if (tabs.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-12">
-        <p className="text-sm text-[var(--secondary)]">
-          No content tabs yet. Use the chat to generate content.
-        </p>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <ContentTabBar episodeId={episodeId} />
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-12">
+          <p className="text-sm text-[var(--secondary)]">
+            No content tabs yet. Click + to create one.
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
     <>
-      <ContentTabBar />
+      <ContentTabBar episodeId={episodeId} />
       <TabContentView />
     </>
   )
