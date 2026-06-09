@@ -1,6 +1,6 @@
 ---
 title: "Recipe data layer: schema, service, seed built-ins"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

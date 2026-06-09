@@ -317,6 +317,22 @@ export class DatabaseService {
       .run(randomUUID(), episodeId, content)
   }
 
+  exec(sql: string): void {
+    this.db.exec(sql)
+  }
+
+  run(sql: string, ...params: unknown[]): void {
+    this.db.prepare(sql).run(...params)
+  }
+
+  queryAll<T>(sql: string, ...params: unknown[]): T[] {
+    return this.db.prepare(sql).all(...params) as T[]
+  }
+
+  queryOne<T>(sql: string, ...params: unknown[]): T | undefined {
+    return this.db.prepare(sql).get(...params) as T | undefined
+  }
+
   close(): void {
     this.db.close()
   }

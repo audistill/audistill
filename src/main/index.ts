@@ -5,6 +5,7 @@ import { ModelManager } from './model-manager'
 import { registerTranscriptionService } from './transcription-service'
 import { DatabaseService } from './database-service'
 import { SummarizationService, ViewType } from './summarization-service'
+import { RecipeService } from './recipe-service'
 import { IngestPipeline } from './ingest-pipeline'
 import { ChatService } from './chat-service'
 import { ChatToolExecutor } from './chat-tool-executor'
@@ -14,6 +15,7 @@ nativeTheme.themeSource = 'system'
 
 let db: DatabaseService
 let summarizationService: SummarizationService
+let recipeService: RecipeService
 let ingestPipeline: IngestPipeline
 let chatService: ChatService
 
@@ -195,6 +197,45 @@ function registerChatHandlers(): void {
   })
 }
 
+function registerRecipeHandlers(): void {
+  ipcMain.handle('recipe:get-all', () => {
+    return recipeService.getRecipes()
+  })
+
+  ipcMain.handle('recipe:get', (_event, id: string) => {
+    return recipeService.getRecipe(id)
+  })
+
+  ipcMain.handle('recipe:create', (_event, data: { name: string; prompt: string; model_override?: string }) => {
+    return recipeService.createRecipe(data)
+  })
+
+  ipcMain.handle('recipe:update', (_event, id: string, fields: { name?: string; prompt?: string; model_override?: string }) => {
+    recipeService.updateRecipe(id, fields)
+  })
+
+  ipcMain.handle('recipe:delete', (_event, id: string) => {
+    recipeService.deleteRecipe(id)
+  })
+
+  ipcMain.handle('recipe:get-pipeline', () => {
+    return recipeService.getPipelineRecipe()
+  })
+
+  ipcMain.handle('recipe:execute', async (event, recipeId: string, transcript: string) => {
+    await recipeService.executeRecipe(recipeId, transcript, (token) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('recipe:stream-token', { recipeId, token })
+      }
+    })
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('recipe:stream-end', { recipeId })
+    }
+  })
+}
+
 function createWindow(): void {
   const savedBounds = getWindowOptions(db)
   const mainWindow = new BrowserWindow({
@@ -249,9 +290,11 @@ app.whenReady().then(() => {
 
   db = new DatabaseService()
   summarizationService = new SummarizationService(db)
+  recipeService = new RecipeService(db)
   chatService = new ChatService(db)
   registerDatabaseHandlers()
   registerChatHandlers()
+  registerRecipeHandlers()
 
   const modelManager = new ModelManager()
   modelManager.on('progress', (percent) => {
