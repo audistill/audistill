@@ -46,25 +46,20 @@ vi.mock('../src/main/audio-preprocessor', () => ({
   preprocess: vi.fn()
 }))
 
+import { join } from 'node:path'
 import { DatabaseService } from '../src/main/database-service'
-import { SummarizationService } from '../src/main/summarization-service'
+import { RecipeService } from '../src/main/recipe-service'
+import { TabService } from '../src/main/tab-service'
 import { IngestPipeline } from '../src/main/ingest-pipeline'
 import { ModelManager } from '../src/main/model-manager'
 import { preprocess } from '../src/main/audio-preprocessor'
+
+const promptsDir = join(__dirname, '..', 'src', 'main', 'prompts')
 
 function createMockModelManager(): ModelManager {
   return {
     ensureModel: vi.fn().mockResolvedValue('/fake/models')
   } as unknown as ModelManager
-}
-
-function createMockSummarizationService(
-  result = { title: 'Generated Title', summary: '**The Rundown:** Content' }
-): SummarizationService {
-  return {
-    summarize: vi.fn().mockResolvedValue(result),
-    validateApiKey: vi.fn().mockResolvedValue(true)
-  } as unknown as SummarizationService
 }
 
 function setupMockWorker(segments?: { start: number; end: number; text: string }[]): void {
@@ -104,13 +99,23 @@ describe('IngestPipeline', () => {
   let db: DatabaseService
   let pipeline: IngestPipeline
   let mockModelManager: ModelManager
-  let mockSummarizationService: SummarizationService
+  let recipeService: RecipeService
+  let tabService: TabService
 
   beforeEach(() => {
     db = new DatabaseService(':memory:')
     mockModelManager = createMockModelManager()
-    mockSummarizationService = createMockSummarizationService()
-    pipeline = new IngestPipeline(db, mockModelManager, mockSummarizationService)
+    recipeService = new RecipeService(db, promptsDir)
+    tabService = new TabService(db)
+
+    vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+      async (_recipeId, _transcript, onToken) => {
+        const response = JSON.stringify({ title: 'Generated Title', summary: '**The Rundown:** Content' })
+        onToken(response)
+      }
+    )
+
+    pipeline = new IngestPipeline(db, mockModelManager, recipeService, tabService)
 
     const fakePcm = Buffer.alloc(16000 * 4 * 2) // 2 seconds of silence
     ;(preprocess as ReturnType<typeof vi.fn>).mockResolvedValue(fakePcm)
@@ -142,10 +147,12 @@ describe('IngestPipeline', () => {
       const episode = db.getEpisode(epId)
       expect(episode!.status).toBe('complete')
       expect(episode!.title).toBe('Generated Title')
-      const briefSummary = db.getSummary(epId, 'brief')
-      expect(briefSummary).toBeDefined()
-      expect(briefSummary!.content).toContain('The Rundown')
-      expect(briefSummary!.status).toBe('complete')
+
+      const tabs = tabService.getTabs(epId)
+      expect(tabs.length).toBeGreaterThan(0)
+      expect(tabs[0].is_pipeline).toBe(1)
+      expect(tabs[0].content).toContain('The Rundown')
+
       const segments = JSON.parse(episode!.transcript!)
       expect(segments).toEqual([{ start: 0, end: 30.5, text: 'This is the transcribed text' }])
     })
@@ -185,7 +192,7 @@ describe('IngestPipeline', () => {
 
   describe('summarization error', () => {
     it('preserves transcript in DB when summarization fails', async () => {
-      ;(mockSummarizationService.summarize as ReturnType<typeof vi.fn>).mockRejectedValue(
+      vi.spyOn(recipeService, 'executeRecipe').mockRejectedValue(
         new Error('API rate limit exceeded')
       )
 
@@ -222,7 +229,7 @@ describe('IngestPipeline', () => {
       const epId = db.createEpisode({ file_path: '/test.mp3', title: 'Test', status: 'queued' })
 
       // First run: transcription succeeds, summarization fails
-      ;(mockSummarizationService.summarize as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      vi.spyOn(recipeService, 'executeRecipe').mockRejectedValueOnce(
         new Error('Temporary failure')
       )
       await (pipeline as any).processEpisode(epId)
@@ -232,10 +239,12 @@ describe('IngestPipeline', () => {
       expect(transcriptJson[0].text).toBe('This is the transcribed text')
 
       // Retry: transcript exists so transcription is skipped
-      ;(mockSummarizationService.summarize as ReturnType<typeof vi.fn>).mockResolvedValue({
-        title: 'Retry Title',
-        summary: 'Retry summary'
-      })
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          const response = JSON.stringify({ title: 'Retry Title', summary: 'Retry summary' })
+          onToken(response)
+        }
+      )
       ;(preprocess as ReturnType<typeof vi.fn>).mockClear()
 
       db.updateEpisode(epId, { status: 'queued', error_message: null })

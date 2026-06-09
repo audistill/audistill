@@ -50,14 +50,6 @@ export interface DbEpisodeTab {
   updated_at: string
 }
 
-export interface SummaryUpdatedPayload {
-  episodeId: string
-  viewType: string
-  status: string
-  content?: string
-  errorMessage?: string
-}
-
 export interface DbChatMessage {
   id: string
   episode_id: string
@@ -102,12 +94,6 @@ interface AudistillApi {
   onCanvasEdit: (callback: (data: { episodeId: string; content: string; oldText: string; newText: string }) => void) => () => void
   onCanvasNavigate: (callback: (data: { view: 'episode' | 'canvas' }) => void) => () => void
 
-  // Summary API
-  getSummaries: (episodeId: string) => Promise<DbEpisodeSummary[]>
-  generateSummary: (episodeId: string, viewType: string) => Promise<void>
-  regenerateSummary: (episodeId: string, viewType: string) => Promise<void>
-  onSummaryUpdated: (callback: (data: SummaryUpdatedPayload) => void) => () => void
-
   // Tabs API
   tabsGet: (episodeId: string) => Promise<DbEpisodeTab[]>
   tabsCreate: (episodeId: string, options: { recipe_id?: string | null; tab_name?: string; is_pipeline?: boolean; content?: string }) => Promise<string>
@@ -115,6 +101,13 @@ interface AudistillApi {
   tabsDelete: (tabId: string) => Promise<void>
   tabsRename: (tabId: string, name: string) => Promise<void>
   tabsReorder: (episodeId: string, tabIds: string[]) => Promise<void>
+  tabsExecuteRecipe: (episodeId: string, tabId: string) => Promise<void>
+
+  // Tab streaming events
+  onTabStreamStart: (callback: (data: { episodeId: string; tabId: string }) => void) => () => void
+  onTabStreamToken: (callback: (data: { episodeId: string; tabId: string; token: string }) => void) => () => void
+  onTabStreamEnd: (callback: (data: { episodeId: string; tabId: string }) => void) => () => void
+  onTabStreamError: (callback: (data: { episodeId: string; tabId: string; error: string }) => void) => () => void
 
   // Chat API
   chatGetMessages: (episodeId: string) => Promise<DbChatMessage[]>

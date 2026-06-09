@@ -13,6 +13,7 @@ import {
   RIGHT_SIDEBAR_MAX,
 } from './components/ResizeHandle'
 import { useAppStore, Episode } from './store/app-store'
+import { useContentTabStore } from './store/content-tab-store'
 
 const SIDEBAR_TRANSITION_MS = 200
 
@@ -133,10 +134,24 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     if (!hydrated) return
-    const unsubscribe = window.api.onSummaryUpdated((data) => {
-      useAppStore.getState().handleSummaryUpdated(data)
+    const unsubStart = window.api.onTabStreamStart((data) => {
+      useContentTabStore.getState().startStreaming(data.tabId)
     })
-    return unsubscribe
+    const unsubToken = window.api.onTabStreamToken((data) => {
+      useContentTabStore.getState().appendStreamToken(data.tabId, data.token)
+    })
+    const unsubEnd = window.api.onTabStreamEnd((data) => {
+      useContentTabStore.getState().endStreaming(data.tabId)
+    })
+    const unsubError = window.api.onTabStreamError((data) => {
+      useContentTabStore.getState().endStreaming(data.tabId)
+    })
+    return () => {
+      unsubStart()
+      unsubToken()
+      unsubEnd()
+      unsubError()
+    }
   }, [hydrated])
 
   useEffect(() => {

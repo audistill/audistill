@@ -4,7 +4,8 @@ import { join, basename } from 'node:path'
 import { preprocess } from './audio-preprocessor'
 import { ModelManager } from './model-manager'
 import { DatabaseService, Episode } from './database-service'
-import { SummarizationService } from './summarization-service'
+import { RecipeService } from './recipe-service'
+import { TabService } from './tab-service'
 
 const SUPPORTED_FILTERS = [
   { name: 'Audio Files', extensions: ['mp3', 'm4a', 'wav', 'flac', 'mp4'] }
@@ -13,15 +14,17 @@ const SUPPORTED_FILTERS = [
 export class IngestPipeline {
   private db: DatabaseService
   private modelManager: ModelManager
-  private summarizationService: SummarizationService
+  private recipeService: RecipeService
+  private tabService: TabService
   private processing = false
   private queue: string[] = []
   private activeWorkers = new Map<string, Worker>()
 
-  constructor(db: DatabaseService, modelManager: ModelManager, summarizationService: SummarizationService) {
+  constructor(db: DatabaseService, modelManager: ModelManager, recipeService: RecipeService, tabService: TabService) {
     this.db = db
     this.modelManager = modelManager
-    this.summarizationService = summarizationService
+    this.recipeService = recipeService
+    this.tabService = tabService
   }
 
   recoverOrphanedEpisodes(): void {
@@ -96,6 +99,10 @@ export class IngestPipeline {
       this.db.updateEpisode(episodeId, { status: 'cancelled', error_message: null })
       this.broadcastEpisodeUpdate(episodeId)
     })
+
+    ipcMain.handle('tabs:execute-recipe', async (_event, episodeId: string, tabId: string) => {
+      await this.regenerateTab(episodeId, tabId)
+    })
   }
 
   private async processQueue(): Promise<void> {
@@ -124,7 +131,7 @@ export class IngestPipeline {
       this.broadcastEpisodeUpdate(episodeId)
     }
 
-    await this.summarizeEpisode(episodeId)
+    await this.runSummarization(episodeId)
   }
 
   private async transcribeEpisode(episodeId: string, episode: Episode): Promise<boolean> {
@@ -216,7 +223,7 @@ export class IngestPipeline {
     })
   }
 
-  private async summarizeEpisode(episodeId: string): Promise<void> {
+  async runSummarization(episodeId: string): Promise<void> {
     this.db.updateEpisode(episodeId, { status: 'summarizing' })
     this.broadcastEpisodeUpdate(episodeId)
 
@@ -227,17 +234,107 @@ export class IngestPipeline {
       return
     }
 
+    const pipelineRecipe = this.recipeService.getPipelineRecipe()
+    if (!pipelineRecipe) {
+      this.db.updateEpisode(episodeId, { status: 'error', error_message: 'No pipeline recipe configured' })
+      this.broadcastEpisodeUpdate(episodeId)
+      return
+    }
+
+    const tabId = this.tabService.createTab(episodeId, {
+      recipe_id: pipelineRecipe.id,
+      tab_name: pipelineRecipe.name,
+      is_pipeline: true,
+    })
+
+    this.broadcastTabEvent('tab:stream-start', { episodeId, tabId })
+
+    let content = ''
     try {
-      const defaultView = (this.db.getSetting('default_summary_view') as 'brief' | 'detailed' | 'full') ?? 'brief'
-      const { title, summary } = await this.summarizationService.summarize(episode.transcript, defaultView)
-      this.db.updateEpisode(episodeId, { title, status: 'complete', error_message: null })
-      this.db.createSummary(episodeId, defaultView, 'complete')
-      this.db.updateSummary(episodeId, defaultView, { content: summary, status: 'complete' })
+      await this.recipeService.executeRecipe(pipelineRecipe.id, episode.transcript, (token) => {
+        content += token
+        this.broadcastTabEvent('tab:stream-token', { episodeId, tabId, token })
+      })
+
+      const { title, summary } = this.parseRecipeOutput(content)
+      const finalContent = summary || content
+      this.tabService.updateTabContent(tabId, finalContent)
+
+      if (title) {
+        this.db.updateEpisode(episodeId, { title, status: 'complete', error_message: null })
+      } else {
+        this.db.updateEpisode(episodeId, { status: 'complete', error_message: null })
+      }
+
+      this.broadcastTabEvent('tab:stream-end', { episodeId, tabId })
       this.broadcastEpisodeUpdate(episodeId)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       this.db.updateEpisode(episodeId, { status: 'error', error_message: message })
+      this.broadcastTabEvent('tab:stream-error', { episodeId, tabId, error: message })
       this.broadcastEpisodeUpdate(episodeId)
+    }
+  }
+
+  async regenerateTab(episodeId: string, tabId: string): Promise<void> {
+    const tabs = this.tabService.getTabs(episodeId)
+    const tab = tabs.find((t) => t.id === tabId)
+    if (!tab) throw new Error('Tab not found')
+    if (!tab.recipe_id) throw new Error('Tab has no associated recipe')
+
+    const episode = this.db.getEpisode(episodeId)
+    if (!episode?.transcript) throw new Error('No transcript available')
+
+    this.tabService.updateTabContent(tabId, '')
+    this.broadcastTabEvent('tab:stream-start', { episodeId, tabId })
+
+    let content = ''
+    try {
+      await this.recipeService.executeRecipe(tab.recipe_id, episode.transcript, (token) => {
+        content += token
+        this.broadcastTabEvent('tab:stream-token', { episodeId, tabId, token })
+      })
+
+      const { title, summary } = this.parseRecipeOutput(content)
+      const finalContent = summary || content
+      this.tabService.updateTabContent(tabId, finalContent)
+
+      if (title && tab.is_pipeline) {
+        this.db.updateEpisode(episodeId, { title })
+        this.broadcastEpisodeUpdate(episodeId)
+      }
+
+      this.broadcastTabEvent('tab:stream-end', { episodeId, tabId })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      this.broadcastTabEvent('tab:stream-error', { episodeId, tabId, error: message })
+      throw err
+    }
+  }
+
+  private parseRecipeOutput(content: string): { title: string | null; summary: string | null } {
+    try {
+      const trimmed = content.trim()
+      const fenceMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/)
+      const jsonStr = fenceMatch ? fenceMatch[1].trim() : trimmed
+      const parsed = JSON.parse(jsonStr)
+      if (typeof parsed === 'object' && parsed !== null && 'title' in parsed && 'summary' in parsed) {
+        return {
+          title: typeof parsed.title === 'string' ? parsed.title : null,
+          summary: typeof parsed.summary === 'string' ? parsed.summary : null,
+        }
+      }
+    } catch {
+      // not JSON, treat as plain markdown
+    }
+    return { title: null, summary: null }
+  }
+
+  private broadcastTabEvent(channel: string, data: Record<string, unknown>): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel, data)
+      }
     }
   }
 

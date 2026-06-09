@@ -16,6 +16,7 @@ interface ContentTabState {
   tabs: ContentTab[]
   activeTabId: string | null
   loading: boolean
+  streamingTabId: string | null
 
   loadTabs: (episodeId: string) => Promise<void>
   setActiveTab: (tabId: string) => void
@@ -24,6 +25,10 @@ interface ContentTabState {
   deleteTab: (tabId: string) => void
   renameTab: (tabId: string, name: string) => void
   clearTabs: () => void
+  appendStreamToken: (tabId: string, token: string) => void
+  startStreaming: (tabId: string) => void
+  endStreaming: (tabId: string) => void
+  regenerateTab: (episodeId: string, tabId: string) => Promise<void>
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -32,6 +37,7 @@ export const useContentTabStore = create<ContentTabState>((set, get) => ({
   tabs: [],
   activeTabId: null,
   loading: false,
+  streamingTabId: null,
 
   loadTabs: async (episodeId: string) => {
     set({ loading: true })
@@ -83,6 +89,32 @@ export const useContentTabStore = create<ContentTabState>((set, get) => ({
   },
 
   clearTabs: () => {
-    set({ tabs: [], activeTabId: null })
+    set({ tabs: [], activeTabId: null, streamingTabId: null })
+  },
+
+  appendStreamToken: (tabId: string, token: string) => {
+    const { tabs } = get()
+    set({
+      tabs: tabs.map((t) =>
+        t.id === tabId ? { ...t, content: t.content + token } : t
+      ),
+    })
+  },
+
+  startStreaming: (tabId: string) => {
+    const { tabs } = get()
+    set({
+      streamingTabId: tabId,
+      tabs: tabs.map((t) => (t.id === tabId ? { ...t, content: '' } : t)),
+      activeTabId: tabId,
+    })
+  },
+
+  endStreaming: (_tabId: string) => {
+    set({ streamingTabId: null })
+  },
+
+  regenerateTab: async (episodeId: string, tabId: string) => {
+    await window.api.tabsExecuteRecipe(episodeId, tabId)
   },
 }))

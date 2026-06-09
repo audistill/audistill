@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { DbEpisode, DbFolder, DbOpenTab, SummaryUpdatedPayload } from '../../../preload/index.d'
+import type { DbEpisode, DbFolder, DbOpenTab } from '../../../preload/index.d'
 
 export interface Episode {
   id: string
@@ -32,12 +32,6 @@ export interface ProgressEntry {
   startedAt: number
 }
 
-export interface SummaryEntry {
-  content: string | null
-  status: 'generating' | 'complete' | 'error'
-  errorMessage?: string
-}
-
 interface AppState {
   episodes: Episode[]
   folders: Folder[]
@@ -48,7 +42,6 @@ interface AppState {
   searchQuery: string
   hydrated: boolean
   progress: Record<string, ProgressEntry>
-  summaries: Record<string, Record<string, SummaryEntry>>
   leftSidebarOpen: boolean
   rightSidebarOpen: boolean
   leftSidebarWidth: number
@@ -76,8 +69,6 @@ interface AppState {
   deleteFolder: (id: string) => Promise<void>
   setProgress: (episodeId: string, percent: number) => void
   clearProgress: (episodeId: string) => void
-  loadSummaries: (episodeId: string) => Promise<void>
-  handleSummaryUpdated: (data: SummaryUpdatedPayload) => void
   toggleLeftSidebar: () => void
   toggleRightSidebar: () => void
   setLeftSidebarWidth: (width: number) => void
@@ -119,7 +110,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   searchQuery: '',
   hydrated: false,
   progress: {},
-  summaries: {},
   leftSidebarOpen: true,
   rightSidebarOpen: false,
   leftSidebarWidth: 280,
@@ -347,38 +337,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!(episodeId in progress)) return
     const { [episodeId]: _, ...rest } = progress
     set({ progress: rest })
-  },
-
-  loadSummaries: async (episodeId) => {
-    const rows = await window.api.getSummaries(episodeId)
-    const byView: Record<string, SummaryEntry> = {}
-    for (const row of rows) {
-      byView[row.view_type] = {
-        content: row.status === 'complete' ? row.content : null,
-        status: row.status,
-        errorMessage: row.error_message ?? undefined,
-      }
-    }
-    const { summaries } = get()
-    set({ summaries: { ...summaries, [episodeId]: byView } })
-  },
-
-  handleSummaryUpdated: (data) => {
-    const { summaries } = get()
-    const episodeSummaries = summaries[data.episodeId] ?? {}
-    set({
-      summaries: {
-        ...summaries,
-        [data.episodeId]: {
-          ...episodeSummaries,
-          [data.viewType]: {
-            content: data.content ?? null,
-            status: data.status as SummaryEntry['status'],
-            errorMessage: data.errorMessage,
-          },
-        },
-      },
-    })
   },
 
   toggleLeftSidebar: () => set((s) => ({ leftSidebarOpen: !s.leftSidebarOpen })),

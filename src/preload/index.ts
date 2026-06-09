@@ -63,15 +63,28 @@ const api = {
   retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
   cancelEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:cancel', id),
 
-  // Summary API
-  getSummaries: (episodeId: string) => ipcRenderer.invoke('summary:get-all', episodeId),
-  generateSummary: (episodeId: string, viewType: string) => ipcRenderer.invoke('summary:generate', episodeId, viewType),
-  regenerateSummary: (episodeId: string, viewType: string) => ipcRenderer.invoke('summary:regenerate', episodeId, viewType),
+  // Tab streaming events
+  tabsExecuteRecipe: (episodeId: string, tabId: string) => ipcRenderer.invoke('tabs:execute-recipe', episodeId, tabId),
 
-  onSummaryUpdated: (callback: (data: { episodeId: string; viewType: string; status: string; content?: string; errorMessage?: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; viewType: string; status: string; content?: string; errorMessage?: string }): void => callback(data)
-    ipcRenderer.on('summary-updated', handler)
-    return () => ipcRenderer.removeListener('summary-updated', handler)
+  onTabStreamStart: (callback: (data: { episodeId: string; tabId: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; tabId: string }): void => callback(data)
+    ipcRenderer.on('tab:stream-start', handler)
+    return () => ipcRenderer.removeListener('tab:stream-start', handler)
+  },
+  onTabStreamToken: (callback: (data: { episodeId: string; tabId: string; token: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; tabId: string; token: string }): void => callback(data)
+    ipcRenderer.on('tab:stream-token', handler)
+    return () => ipcRenderer.removeListener('tab:stream-token', handler)
+  },
+  onTabStreamEnd: (callback: (data: { episodeId: string; tabId: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; tabId: string }): void => callback(data)
+    ipcRenderer.on('tab:stream-end', handler)
+    return () => ipcRenderer.removeListener('tab:stream-end', handler)
+  },
+  onTabStreamError: (callback: (data: { episodeId: string; tabId: string; error: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; tabId: string; error: string }): void => callback(data)
+    ipcRenderer.on('tab:stream-error', handler)
+    return () => ipcRenderer.removeListener('tab:stream-error', handler)
   },
 
   // Canvas API

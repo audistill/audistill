@@ -1,6 +1,6 @@
 ---
 title: "Pipeline recipe execution on ingest"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

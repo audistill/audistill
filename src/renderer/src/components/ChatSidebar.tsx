@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Markdown from 'react-markdown'
 import { useAppStore } from '../store/app-store'
+import { useContentTabStore } from '../store/content-tab-store'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
 import type { DbChatMessage } from '../../../preload/index.d'
 
@@ -223,8 +224,8 @@ Do not use tables, images, task lists, or nested blockquotes in Canvas content.`
 export function ChatSidebar(): React.JSX.Element {
   const activeTabId = useAppStore((s) => s.activeTabId)
   const episodes = useAppStore((s) => s.episodes)
-  const summaries = useAppStore((s) => s.summaries)
-  const activeContentView = useAppStore((s) => s.activeContentView)
+  const contentTabs = useContentTabStore((s) => s.tabs)
+  const activeContentTabId = useContentTabStore((s) => s.activeTabId)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -389,17 +390,8 @@ export function ChatSidebar(): React.JSX.Element {
     if (!episode) return
 
     const fileName = episode.file_path.split('/').pop() || episode.file_path
-    const episodeSummaries = summaries[activeTabId]
-    let activeSummary: string | null = null
-    if (activeContentView === 'episode' && episodeSummaries) {
-      for (const viewType of ['brief', 'detailed', 'full'] as const) {
-        const entry = episodeSummaries[viewType]
-        if (entry?.status === 'complete' && entry.content) {
-          activeSummary = entry.content
-          break
-        }
-      }
-    }
+    const activeTab = contentTabs.find((t) => t.id === activeContentTabId)
+    const activeSummary = activeTab?.content || null
 
     const model = selectedModel || (await window.api.getSetting('model_quality')) || 'google/gemini-3.5-flash'
 
