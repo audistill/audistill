@@ -5,6 +5,7 @@ import { EpisodeView } from './EpisodeView'
 import { SettingsView } from './SettingsView'
 import { ContentTabBar } from './ContentTabBar'
 import { TabContentView } from './TabContentView'
+import { TranscriptPanel } from './TranscriptPanel'
 import { EmptyLibraryState, NoTabsOpenState } from './EmptyState'
 
 export function ContentPane(): React.JSX.Element {
@@ -48,6 +49,8 @@ function EpisodeContentWithTabs({ episodeId }: { episodeId: string }): React.JSX
   const loadTabs = useContentTabStore((s) => s.loadTabs)
   const tabs = useContentTabStore((s) => s.tabs)
   const loading = useContentTabStore((s) => s.loading)
+  const episode = useAppStore((s) => s.episodes.find((e) => e.id === episodeId))
+  const transcriptPanelOpen = useAppStore((s) => s.transcriptPanelOpen)
 
   useEffect(() => {
     loadTabs(episodeId)
@@ -70,14 +73,30 @@ function EpisodeContentWithTabs({ episodeId }: { episodeId: string }): React.JSX
             No content tabs yet. Click + to create one.
           </p>
         </div>
+        {transcriptPanelOpen && (
+          <TranscriptPanel
+            transcript={episode?.transcript ?? null}
+            duration={episode?.duration_sec ?? null}
+          />
+        )}
       </div>
     )
   }
 
   return (
-    <>
+    <div className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 200 }}>
       <ContentTabBar episodeId={episodeId} />
-      <TabContentView />
-    </>
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+        <div className="flex-1 overflow-hidden min-h-[200px]">
+          <TabContentView />
+        </div>
+        {transcriptPanelOpen && (
+          <TranscriptPanel
+            transcript={episode?.transcript ?? null}
+            duration={episode?.duration_sec ?? null}
+          />
+        )}
+      </div>
+    </div>
   )
 }

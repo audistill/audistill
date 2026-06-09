@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useContentTabStore, ContentTab } from '../store/content-tab-store'
+import { useAppStore } from '../store/app-store'
 
 interface Recipe {
   id: string
@@ -13,6 +14,8 @@ export function ContentTabBar({ episodeId }: { episodeId: string }): React.JSX.E
   const setActiveTab = useContentTabStore((s) => s.setActiveTab)
   const deleteTab = useContentTabStore((s) => s.deleteTab)
   const renameTab = useContentTabStore((s) => s.renameTab)
+  const transcriptPanelOpen = useAppStore((s) => s.transcriptPanelOpen)
+  const toggleTranscriptPanel = useAppStore((s) => s.toggleTranscriptPanel)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   return (
@@ -33,6 +36,36 @@ export function ContentTabBar({ episodeId }: { episodeId: string }): React.JSX.E
         ))}
       </div>
       <PlusButton episodeId={episodeId} />
+      <button
+        onClick={toggleTranscriptPanel}
+        className={`ml-2 flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+          transcriptPanelOpen
+            ? 'text-[var(--accent)] bg-[var(--accent)]/10'
+            : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
+        }`}
+        aria-label="Toggle transcript panel"
+        title="Toggle transcript (⌘⇧T)"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+        <span>Transcript</span>
+        <svg
+          width="8"
+          height="8"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          className={`transition-transform ${transcriptPanelOpen ? 'rotate-180' : ''}`}
+        >
+          <path d="M18 15l-6-6-6 6" />
+        </svg>
+      </button>
     </div>
   )
 }

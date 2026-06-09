@@ -176,6 +176,8 @@ function App(): React.JSX.Element {
     }
   }, [hydrated])
 
+  const toggleTranscriptPanel = useAppStore((s) => s.toggleTranscriptPanel)
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (e.metaKey && e.key === 'b' && !e.shiftKey) {
@@ -186,10 +188,14 @@ function App(): React.JSX.Element {
         e.preventDefault()
         toggleRightSidebar()
       }
+      if (e.metaKey && e.shiftKey && e.key === 't') {
+        e.preventDefault()
+        toggleTranscriptPanel()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [toggleLeftSidebar, toggleRightSidebar])
+  }, [toggleLeftSidebar, toggleRightSidebar, toggleTranscriptPanel])
 
   if (!hydrated || needsOnboarding === null) {
     return (

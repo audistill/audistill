@@ -19,7 +19,7 @@ export function TabContentView(): React.JSX.Element {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-end px-4 py-1.5">
         <div className="inline-flex rounded-[8px] bg-[var(--surface)] p-0.5">
           <button

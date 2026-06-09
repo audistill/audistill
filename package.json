@@ -39,6 +39,7 @@
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@electron/rebuild": "^4.0.4",
+    "@tanstack/react-virtual": "^3.14.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/ffmpeg-static": "^5.1.0",
     "@types/node": "^22.12.11",

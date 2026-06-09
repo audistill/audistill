@@ -1,6 +1,6 @@
 ---
 title: "Transcript bottom panel: toggle, resize, virtualized, search"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

@@ -47,6 +47,8 @@ interface AppState {
   leftSidebarWidth: number
   rightSidebarWidth: number
   activeContentView: 'episode' | 'canvas'
+  transcriptPanelOpen: boolean
+  transcriptPanelRatio: number
 
   hydrate: () => Promise<void>
   selectEpisode: (id: string) => void
@@ -74,6 +76,8 @@ interface AppState {
   setLeftSidebarWidth: (width: number) => void
   setRightSidebarWidth: (width: number) => void
   setActiveContentView: (view: 'episode' | 'canvas') => void
+  toggleTranscriptPanel: () => void
+  setTranscriptPanelRatio: (ratio: number) => void
 }
 
 function dbEpisodeToEpisode(row: DbEpisode): Episode {
@@ -115,12 +119,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   leftSidebarWidth: 280,
   rightSidebarWidth: 360,
   activeContentView: 'episode',
+  transcriptPanelOpen: false,
+  transcriptPanelRatio: 0.4,
 
   hydrate: async () => {
-    const [dbEpisodes, dbFolders, dbTabs] = await Promise.all([
+    const [dbEpisodes, dbFolders, dbTabs, savedRatio] = await Promise.all([
       window.api.getEpisodes(),
       window.api.getFolders(),
       window.api.getOpenTabs(),
+      window.api.getSetting('transcript_panel_ratio'),
     ])
 
     const episodes = dbEpisodes.map(dbEpisodeToEpisode)
@@ -135,8 +142,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const activeTabId = validTabs.length > 0 ? validTabs[0].id : null
 
     const expandedFolders = new Set(folders.map((f) => f.id))
+    const transcriptPanelRatio = savedRatio ? parseFloat(savedRatio) : 0.4
 
-    set({ episodes, folders, tabs: validTabs, activeTabId, expandedFolders, hydrated: true })
+    set({ episodes, folders, tabs: validTabs, activeTabId, expandedFolders, hydrated: true, transcriptPanelRatio })
   },
 
   selectEpisode: (id) => {
@@ -344,4 +352,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLeftSidebarWidth: (width) => set({ leftSidebarWidth: width }),
   setRightSidebarWidth: (width) => set({ rightSidebarWidth: width }),
   setActiveContentView: (view) => set({ activeContentView: view }),
+
+  toggleTranscriptPanel: () => set((s) => ({ transcriptPanelOpen: !s.transcriptPanelOpen })),
+  setTranscriptPanelRatio: (ratio) => {
+    const clamped = Math.max(0.25, Math.min(0.65, ratio))
+    set({ transcriptPanelRatio: clamped })
+    window.api.setSetting('transcript_panel_ratio', String(clamped))
+  },
 }))
