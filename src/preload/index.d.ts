@@ -38,6 +38,18 @@ export interface DbEpisodeSummary {
   created_at: string
 }
 
+export interface DbEpisodeTab {
+  id: string
+  episode_id: string
+  recipe_id: string | null
+  tab_name: string
+  content: string
+  is_pipeline: number
+  position: number
+  created_at: string
+  updated_at: string
+}
+
 export interface SummaryUpdatedPayload {
   episodeId: string
   viewType: string
@@ -95,6 +107,14 @@ interface AudistillApi {
   generateSummary: (episodeId: string, viewType: string) => Promise<void>
   regenerateSummary: (episodeId: string, viewType: string) => Promise<void>
   onSummaryUpdated: (callback: (data: SummaryUpdatedPayload) => void) => () => void
+
+  // Tabs API
+  tabsGet: (episodeId: string) => Promise<DbEpisodeTab[]>
+  tabsCreate: (episodeId: string, options: { recipe_id?: string | null; tab_name?: string; is_pipeline?: boolean; content?: string }) => Promise<string>
+  tabsUpdateContent: (tabId: string, content: string) => Promise<void>
+  tabsDelete: (tabId: string) => Promise<void>
+  tabsRename: (tabId: string, name: string) => Promise<void>
+  tabsReorder: (episodeId: string, tabIds: string[]) => Promise<void>
 
   // Chat API
   chatGetMessages: (episodeId: string) => Promise<DbChatMessage[]>

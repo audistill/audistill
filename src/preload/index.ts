@@ -103,6 +103,15 @@ const api = {
     return () => ipcRenderer.removeListener('canvas:navigate', handler)
   },
 
+  // Tabs API
+  tabsGet: (episodeId: string) => ipcRenderer.invoke('tabs:get', episodeId),
+  tabsCreate: (episodeId: string, options: { recipe_id?: string | null; tab_name?: string; is_pipeline?: boolean; content?: string }) =>
+    ipcRenderer.invoke('tabs:create', episodeId, options),
+  tabsUpdateContent: (tabId: string, content: string) => ipcRenderer.invoke('tabs:update-content', tabId, content),
+  tabsDelete: (tabId: string) => ipcRenderer.invoke('tabs:delete', tabId),
+  tabsRename: (tabId: string, name: string) => ipcRenderer.invoke('tabs:rename', tabId, name),
+  tabsReorder: (episodeId: string, tabIds: string[]) => ipcRenderer.invoke('tabs:reorder', episodeId, tabIds),
+
   // Chat API
   chatGetMessages: (episodeId: string) => ipcRenderer.invoke('chat:get-messages', episodeId),
   chatSaveMessage: (episodeId: string, role: string, content: string, toolCalls?: string | null) =>

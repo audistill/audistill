@@ -1,6 +1,6 @@
 ---
 title: "Episode tabs data layer: schema, TabService, IPC"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

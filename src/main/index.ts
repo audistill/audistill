@@ -6,6 +6,7 @@ import { registerTranscriptionService } from './transcription-service'
 import { DatabaseService } from './database-service'
 import { SummarizationService, ViewType } from './summarization-service'
 import { RecipeService } from './recipe-service'
+import { TabService } from './tab-service'
 import { IngestPipeline } from './ingest-pipeline'
 import { ChatService } from './chat-service'
 import { ChatToolExecutor } from './chat-tool-executor'
@@ -16,6 +17,7 @@ nativeTheme.themeSource = 'system'
 let db: DatabaseService
 let summarizationService: SummarizationService
 let recipeService: RecipeService
+let tabService: TabService
 let ingestPipeline: IngestPipeline
 let chatService: ChatService
 
@@ -236,6 +238,32 @@ function registerRecipeHandlers(): void {
   })
 }
 
+function registerTabHandlers(): void {
+  ipcMain.handle('tabs:get', (_event, episodeId: string) => {
+    return tabService.getTabs(episodeId)
+  })
+
+  ipcMain.handle('tabs:create', (_event, episodeId: string, options: { recipe_id?: string | null; tab_name?: string; is_pipeline?: boolean; content?: string }) => {
+    return tabService.createTab(episodeId, options)
+  })
+
+  ipcMain.handle('tabs:update-content', (_event, tabId: string, content: string) => {
+    tabService.updateTabContent(tabId, content)
+  })
+
+  ipcMain.handle('tabs:delete', (_event, tabId: string) => {
+    tabService.deleteTab(tabId)
+  })
+
+  ipcMain.handle('tabs:rename', (_event, tabId: string, name: string) => {
+    tabService.renameTab(tabId, name)
+  })
+
+  ipcMain.handle('tabs:reorder', (_event, episodeId: string, tabIds: string[]) => {
+    tabService.reorderTabs(episodeId, tabIds)
+  })
+}
+
 function createWindow(): void {
   const savedBounds = getWindowOptions(db)
   const mainWindow = new BrowserWindow({
@@ -291,10 +319,12 @@ app.whenReady().then(() => {
   db = new DatabaseService()
   summarizationService = new SummarizationService(db)
   recipeService = new RecipeService(db)
+  tabService = new TabService(db)
   chatService = new ChatService(db)
   registerDatabaseHandlers()
   registerChatHandlers()
   registerRecipeHandlers()
+  registerTabHandlers()
 
   const modelManager = new ModelManager()
   modelManager.on('progress', (percent) => {
