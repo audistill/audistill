@@ -117,8 +117,14 @@ const api = {
   },
 
   // Recipes API
-  recipesGetAll: (): Promise<{ id: string; name: string; is_builtin: number }[]> =>
-    ipcRenderer.invoke('recipe:get-all'),
+  recipesGetAll: () => ipcRenderer.invoke('recipe:get-all'),
+  recipesGet: (id: string) => ipcRenderer.invoke('recipe:get', id),
+  recipesCreate: (data: { name: string; prompt: string; model_override?: string }) =>
+    ipcRenderer.invoke('recipe:create', data),
+  recipesUpdate: (id: string, fields: { name?: string; prompt?: string; model_override?: string | null }) =>
+    ipcRenderer.invoke('recipe:update', id, fields),
+  recipesDelete: (id: string) => ipcRenderer.invoke('recipe:delete', id),
+  recipesGetPipeline: () => ipcRenderer.invoke('recipe:get-pipeline'),
 
   // Tabs API
   tabsGet: (episodeId: string) => ipcRenderer.invoke('tabs:get', episodeId),

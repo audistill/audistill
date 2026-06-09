@@ -1,6 +1,6 @@
 ---
 title: "Settings: recipe editor accordion + pipeline selector"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

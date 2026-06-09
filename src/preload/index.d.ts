@@ -95,7 +95,12 @@ interface AudistillApi {
   onCanvasNavigate: (callback: (data: { view: 'episode' | 'canvas' }) => void) => () => void
 
   // Recipes API
-  recipesGetAll: () => Promise<{ id: string; name: string; is_builtin: number }[]>
+  recipesGetAll: () => Promise<{ id: string; name: string; prompt: string; model_override: string | null; is_builtin: number; sort_order: number; created_at: string }[]>
+  recipesGet: (id: string) => Promise<{ id: string; name: string; prompt: string; model_override: string | null; is_builtin: number; sort_order: number; created_at: string } | undefined>
+  recipesCreate: (data: { name: string; prompt: string; model_override?: string }) => Promise<string>
+  recipesUpdate: (id: string, fields: { name?: string; prompt?: string; model_override?: string | null }) => Promise<void>
+  recipesDelete: (id: string) => Promise<void>
+  recipesGetPipeline: () => Promise<{ id: string; name: string; prompt: string; model_override: string | null; is_builtin: number; sort_order: number; created_at: string } | undefined>
 
   // Tabs API
   tabsGet: (episodeId: string) => Promise<DbEpisodeTab[]>

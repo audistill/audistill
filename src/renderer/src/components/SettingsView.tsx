@@ -1,11 +1,15 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
 
-const VIEW_OPTIONS = [
-  { value: 'brief', label: 'Brief' },
-  { value: 'detailed', label: 'Detailed' },
-  { value: 'full', label: 'Full' },
-] as const
+interface Recipe {
+  id: string
+  name: string
+  prompt: string
+  model_override: string | null
+  is_builtin: number
+  sort_order: number
+  created_at: string
+}
 
 function ModelPicker({
   label,
@@ -13,12 +17,14 @@ function ModelPicker({
   value,
   onChange,
   models,
+  placeholder,
 }: {
-  label: string
-  subtitle: string
+  label?: string
+  subtitle?: string
   value: string
   onChange: (value: string) => void
   models: ModelOption[]
+  placeholder?: string
 }): React.JSX.Element {
   const [filter, setFilter] = useState('')
   const [open, setOpen] = useState(false)
@@ -44,20 +50,20 @@ function ModelPicker({
     : []
 
   return (
-    <div className="mb-8">
-      <label className="block font-heading text-sm font-medium text-[var(--text)] mb-0.5">{label}</label>
-      <p className="text-xs text-[var(--secondary)] mb-2">{subtitle}</p>
+    <div className={label ? 'mb-8' : ''}>
+      {label && <label className="block font-heading text-sm font-medium text-[var(--text)] mb-0.5">{label}</label>}
+      {subtitle && <p className="text-xs text-[var(--secondary)] mb-2">{subtitle}</p>}
       <div className="relative w-full max-w-lg" ref={ref}>
         <input
           type="text"
-          value={open ? filter : value}
+          value={open ? filter : value || ''}
           onChange={(e) => setFilter(e.target.value)}
           onFocus={() => {
             setOpen(true)
             setFilter('')
           }}
           className="w-full px-4 py-2.5 rounded-[12px] bg-[var(--surface)] border border-[var(--surface)] text-[var(--text)] text-sm outline-none focus:border-[var(--accent)] transition-colors"
-          placeholder="Search models..."
+          placeholder={placeholder ?? 'Search models...'}
         />
         {open && (
           <div className="absolute top-full left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-[10px] bg-[var(--bg)] border border-[var(--surface)] shadow-xl z-50">
@@ -89,12 +95,149 @@ function ModelPicker({
   )
 }
 
+function RecipeRow({
+  recipe,
+  expanded,
+  onToggle,
+  onUpdate,
+  onDuplicate,
+  onDelete,
+  models,
+}: {
+  recipe: Recipe
+  expanded: boolean
+  onToggle: () => void
+  onUpdate: (fields: Partial<Pick<Recipe, 'name' | 'prompt' | 'model_override'>>) => void
+  onDuplicate: () => void
+  onDelete: () => void
+  models: ModelOption[]
+}): React.JSX.Element {
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleNameBlur = useCallback(() => {
+    const val = nameRef.current?.value
+    if (val !== undefined && val !== recipe.name) {
+      onUpdate({ name: val })
+    }
+  }, [recipe.name, onUpdate])
+
+  const handlePromptBlur = useCallback(() => {
+    const val = promptRef.current?.value
+    if (val !== undefined && val !== recipe.prompt) {
+      onUpdate({ prompt: val })
+    }
+  }, [recipe.prompt, onUpdate])
+
+  return (
+    <div className="border border-[var(--surface)] rounded-[12px] overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--surface)] transition-colors text-left"
+      >
+        <div className="flex items-center gap-2">
+          <svg
+            className={`w-3.5 h-3.5 text-[var(--secondary)] transition-transform ${expanded ? 'rotate-90' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span className="text-sm font-medium text-[var(--text)]">{recipe.name}</span>
+          {recipe.is_builtin === 1 && (
+            <span className="px-1.5 py-0.5 text-[10px] rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
+              built-in
+            </span>
+          )}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-[var(--surface)]">
+          <div className="pt-4 space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-[var(--secondary)] mb-1">Name</label>
+              <input
+                ref={nameRef}
+                type="text"
+                defaultValue={recipe.name}
+                onBlur={handleNameBlur}
+                className="w-full max-w-sm px-3 py-2 rounded-[8px] bg-[var(--surface)] border border-[var(--surface)] text-[var(--text)] text-sm outline-none focus:border-[var(--accent)] transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--secondary)] mb-1">Prompt</label>
+              <textarea
+                ref={promptRef}
+                rows={6}
+                defaultValue={recipe.prompt}
+                onBlur={handlePromptBlur}
+                className="w-full px-3 py-2 rounded-[8px] bg-[var(--surface)] border border-[var(--surface)] text-[var(--text)] text-sm outline-none focus:border-[var(--accent)] transition-colors resize-y font-mono"
+              />
+            </div>
+
+            <div>
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="flex items-center gap-1 text-xs text-[var(--secondary)] hover:text-[var(--text)] transition-colors"
+              >
+                <svg
+                  className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                Advanced
+              </button>
+              {showAdvanced && (
+                <div className="mt-2">
+                  <label className="block text-xs font-medium text-[var(--secondary)] mb-1">Model Override</label>
+                  <div className="max-w-sm">
+                    <ModelPicker
+                      value={recipe.model_override || ''}
+                      onChange={(val) => onUpdate({ model_override: val || null })}
+                      models={[{ id: '', name: 'Use default model' }, ...models]}
+                      placeholder="Use default model..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={onDuplicate}
+                className="px-3 py-1.5 text-xs rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] transition-colors"
+              >
+                Duplicate
+              </button>
+              {recipe.is_builtin !== 1 && (
+                <button
+                  onClick={onDelete}
+                  className="px-3 py-1.5 text-xs rounded-[8px] bg-[var(--surface)] text-red-400 hover:bg-red-400/10 transition-colors"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SettingsView(): React.JSX.Element {
   const [apiKey, setApiKey] = useState('')
-  const [modelFast, setModelFast] = useState('google/gemini-3.1-flash-lite')
-  const [modelQuality, setModelQuality] = useState('google/gemini-3.5-flash')
-  const [defaultView, setDefaultView] = useState<string>('brief')
-  const [customInstructions, setCustomInstructions] = useState('')
+  const [defaultModel, setDefaultModel] = useState('google/gemini-3.5-flash')
+  const [pipelineRecipeId, setPipelineRecipeId] = useState('')
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   const models = useOpenRouterModels()
@@ -102,16 +245,14 @@ export function SettingsView(): React.JSX.Element {
   useEffect(() => {
     Promise.all([
       window.api.getSetting('openrouter_api_key'),
-      window.api.getSetting('model_fast'),
       window.api.getSetting('model_quality'),
-      window.api.getSetting('default_summary_view'),
-      window.api.getSetting('custom_instructions'),
-    ]).then(([key, savedFast, savedQuality, savedView, instructions]) => {
+      window.api.getSetting('pipeline_recipe_id'),
+      window.api.recipesGetAll(),
+    ]).then(([key, savedModel, savedPipelineId, allRecipes]) => {
       if (key) setApiKey(key)
-      if (savedFast) setModelFast(savedFast)
-      if (savedQuality) setModelQuality(savedQuality)
-      if (savedView) setDefaultView(savedView)
-      if (instructions) setCustomInstructions(instructions)
+      if (savedModel) setDefaultModel(savedModel)
+      if (savedPipelineId) setPipelineRecipeId(savedPipelineId)
+      setRecipes(allRecipes)
       setLoaded(true)
     })
   }, [])
@@ -121,25 +262,53 @@ export function SettingsView(): React.JSX.Element {
     window.api.setSetting('openrouter_api_key', value)
   }
 
-  const saveModelFast = (value: string): void => {
-    setModelFast(value)
-    window.api.setSetting('model_fast', value)
-  }
-
-  const saveModelQuality = (value: string): void => {
-    setModelQuality(value)
+  const saveDefaultModel = (value: string): void => {
+    setDefaultModel(value)
     window.api.setSetting('model_quality', value)
   }
 
-  const saveDefaultView = (value: string): void => {
-    setDefaultView(value)
-    window.api.setSetting('default_summary_view', value)
+  const savePipelineRecipe = (value: string): void => {
+    setPipelineRecipeId(value)
+    window.api.setSetting('pipeline_recipe_id', value)
   }
 
-  const saveCustomInstructions = (value: string): void => {
-    setCustomInstructions(value)
-    window.api.setSetting('custom_instructions', value)
-  }
+  const handleRecipeUpdate = useCallback((id: string, fields: Partial<Pick<Recipe, 'name' | 'prompt' | 'model_override'>>) => {
+    window.api.recipesUpdate(id, fields)
+    setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, ...fields } : r))
+  }, [])
+
+  const handleRecipeDuplicate = useCallback(async (recipe: Recipe) => {
+    const newId = await window.api.recipesCreate({
+      name: `${recipe.name} (copy)`,
+      prompt: recipe.prompt,
+      model_override: recipe.model_override || undefined,
+    })
+    const allRecipes = await window.api.recipesGetAll()
+    setRecipes(allRecipes)
+    setExpandedId(newId)
+  }, [])
+
+  const handleRecipeDelete = useCallback(async (id: string) => {
+    await window.api.recipesDelete(id)
+    setRecipes((prev) => prev.filter((r) => r.id !== id))
+    if (expandedId === id) setExpandedId(null)
+    if (pipelineRecipeId === id) {
+      const remaining = recipes.filter((r) => r.id !== id)
+      if (remaining.length > 0) {
+        savePipelineRecipe(remaining[0].id)
+      }
+    }
+  }, [expandedId, pipelineRecipeId, recipes])
+
+  const handleNewRecipe = useCallback(async () => {
+    const newId = await window.api.recipesCreate({
+      name: 'New Template',
+      prompt: '',
+    })
+    const allRecipes = await window.api.recipesGetAll()
+    setRecipes(allRecipes)
+    setExpandedId(newId)
+  }, [])
 
   if (!loaded) return <div />
 
@@ -162,55 +331,61 @@ export function SettingsView(): React.JSX.Element {
       </div>
 
       <ModelPicker
-        label="Brief Summary Model"
-        subtitle="Used for brief summaries"
-        value={modelFast}
-        onChange={saveModelFast}
-        models={models}
-      />
-
-      <ModelPicker
-        label="Detailed & Chat Model"
-        subtitle="Used for detailed, full summaries and chat"
-        value={modelQuality}
-        onChange={saveModelQuality}
+        label="Default Model"
+        subtitle="Used for all recipes unless overridden per-template"
+        value={defaultModel}
+        onChange={saveDefaultModel}
         models={models}
       />
 
       <div className="mb-8">
-        <label className="block font-heading text-sm font-medium text-[var(--text)] mb-2">Default Summary View</label>
-        <div className="inline-flex rounded-[12px] bg-[var(--surface)] border border-[var(--surface)] p-1">
-          {VIEW_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => saveDefaultView(opt.value)}
-              className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-colors ${
-                defaultView === opt.value
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'text-[var(--secondary)] hover:text-[var(--text)]'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-[var(--secondary)] mt-1.5">
-          New episodes will be summarized at this detail level during import. Changing this only affects future episodes.
+        <label className="block font-heading text-sm font-medium text-[var(--text)] mb-0.5">Pipeline Template</label>
+        <p className="text-xs text-[var(--secondary)] mb-2">
+          This template auto-runs when you import new audio.
         </p>
+        <select
+          value={pipelineRecipeId}
+          onChange={(e) => savePipelineRecipe(e.target.value)}
+          className="w-full max-w-lg px-4 py-2.5 rounded-[12px] bg-[var(--surface)] border border-[var(--surface)] text-[var(--text)] text-sm outline-none focus:border-[var(--accent)] transition-colors appearance-none"
+        >
+          {recipes.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="mb-8">
-        <label className="block font-heading text-sm font-medium text-[var(--text)] mb-2">Custom Instructions</label>
-        <textarea
-          rows={5}
-          value={customInstructions}
-          onChange={(e) => saveCustomInstructions(e.target.value)}
-          className="w-full max-w-lg px-4 py-2.5 rounded-[12px] bg-[var(--surface)] border border-[var(--surface)] text-[var(--text)] text-sm outline-none focus:border-[var(--accent)] transition-colors resize-none"
-          placeholder='Additional instructions appended to the summarization prompt...'
-        />
-        <p className="text-xs text-[var(--secondary)] mt-1.5">
-          These are added to the default prompt. Example: &quot;Also extract action items&quot; or &quot;Summarize in English regardless of source language.&quot;
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <label className="block font-heading text-sm font-medium text-[var(--text)]">Templates</label>
+            <p className="text-xs text-[var(--secondary)] mt-0.5">
+              Prompt templates for generating content from transcripts.
+            </p>
+          </div>
+          <button
+            onClick={handleNewRecipe}
+            className="px-3 py-1.5 text-xs font-medium rounded-[8px] bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+          >
+            + New
+          </button>
+        </div>
+
+        <div className="space-y-2 max-w-2xl">
+          {recipes.map((recipe) => (
+            <RecipeRow
+              key={recipe.id}
+              recipe={recipe}
+              expanded={expandedId === recipe.id}
+              onToggle={() => setExpandedId(expandedId === recipe.id ? null : recipe.id)}
+              onUpdate={(fields) => handleRecipeUpdate(recipe.id, fields)}
+              onDuplicate={() => handleRecipeDuplicate(recipe)}
+              onDelete={() => handleRecipeDelete(recipe.id)}
+              models={models}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
