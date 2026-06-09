@@ -155,6 +155,8 @@ export class ChatService {
               toolResult = await this.toolExecutor(toolCall.function.name, args)
             }
           } catch (err) {
+            console.error('[chat] Failed to parse tool call arguments:', toolCall.function.arguments)
+            console.error('[chat] Error:', err)
             toolResult = JSON.stringify({
               error: err instanceof Error ? err.message : String(err),
             })

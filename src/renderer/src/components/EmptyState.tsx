@@ -28,6 +28,25 @@ export function EmptyLibraryState(): React.JSX.Element {
   )
 }
 
+export function NoTabsOpenState(): React.JSX.Element {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center px-12">
+      <div className="text-center max-w-sm">
+        <div className="w-16 h-16 rounded-[12px] bg-[var(--surface)] flex items-center justify-center mx-auto mb-6">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--secondary)]">
+            <path d="M5 3l14 9-7 2-4 7-3-18z" />
+            <path d="M12 14l5 5" />
+          </svg>
+        </div>
+        <h2 className="font-heading text-xl font-semibold text-[var(--text)] mb-2">No episodes open</h2>
+        <p className="text-sm text-[var(--secondary)]">
+          Select an item from your Inbox to get started.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function EmptyFolderState(): React.JSX.Element {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-12">

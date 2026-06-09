@@ -256,10 +256,10 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
 
   const handleViewSwitch = (viewType: string) => {
     setActiveView(viewType)
-    const entry = episodeSummaries?.[viewType]
-    if (!entry) {
-      window.api.generateSummary(episode.id, viewType)
-    }
+  }
+
+  const handleGenerate = () => {
+    window.api.generateSummary(episode.id, activeView)
   }
 
   const handleRegenerate = () => {
@@ -325,20 +325,25 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
           <div className="flex items-center justify-between mb-4">
             <div className="inline-flex rounded-[12px] bg-[var(--surface)] p-1">
               {VIEW_TYPES.map((v) => {
-                const hasContent = episodeSummaries?.[v]?.status === 'complete'
+                const hasContent = episodeSummaries?.[v]?.status === 'complete' || episodeSummaries?.[v]?.status === 'generating'
                 return (
                   <button
                     key={v}
                     onClick={() => handleViewSwitch(v)}
-                    className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-colors ${
+                    className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       activeView === v
                         ? 'bg-[var(--accent)] text-white'
                         : hasContent
                           ? 'text-[var(--secondary)] hover:text-[var(--text)]'
-                          : 'text-[var(--secondary)] opacity-50 hover:opacity-80'
+                          : 'text-[var(--secondary)] hover:text-[var(--text)]'
                     }`}
                   >
                     {VIEW_LABELS[v]}
+                    {!hasContent && (
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="opacity-60">
+                        <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z" />
+                      </svg>
+                    )}
                   </button>
                 )
               })}
@@ -357,7 +362,7 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
             </button>
           </div>
 
-          <SummaryContent summary={currentSummary} onRetry={() => handleViewSwitch(activeView)} />
+          <SummaryContent summary={currentSummary} onRetry={() => handleRegenerate()} onGenerate={handleGenerate} viewType={activeView} />
         </div>
 
         {/* Transcript */}
@@ -413,11 +418,28 @@ function EpisodeDetail({ episode }: { episode: Episode }): React.JSX.Element {
   )
 }
 
-function SummaryContent({ summary, onRetry }: { summary: SummaryEntry | undefined; onRetry: () => void }): React.JSX.Element {
+function SummaryContent({ summary, onRetry, onGenerate, viewType }: { summary: SummaryEntry | undefined; onRetry: () => void; onGenerate: () => void; viewType: string }): React.JSX.Element {
   if (!summary) {
+    const isQuality = viewType === 'detailed' || viewType === 'full'
     return (
-      <div className="text-sm text-[var(--secondary)] italic">
-        No summary generated. Click a tab to generate.
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="w-10 h-10 rounded-[10px] bg-[var(--surface)] flex items-center justify-center mb-4">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" className="text-[var(--accent)]">
+            <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium text-[var(--text)] mb-1">
+          Generate {VIEW_LABELS[viewType]} summary
+        </p>
+        <p className="text-xs text-[var(--secondary)] mb-5">
+          {isQuality ? 'Uses your quality model' : 'Uses your fast model'}
+        </p>
+        <button
+          onClick={onGenerate}
+          className="px-5 py-2 rounded-[10px] bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-[opacity] duration-150"
+        >
+          Generate
+        </button>
       </div>
     )
   }

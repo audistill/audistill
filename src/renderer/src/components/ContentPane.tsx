@@ -2,7 +2,7 @@ import { useAppStore } from '../store/app-store'
 import { EpisodeView } from './EpisodeView'
 import { CanvasView } from './CanvasView'
 import { SettingsView } from './SettingsView'
-import { EmptyLibraryState } from './EmptyState'
+import { EmptyLibraryState, NoTabsOpenState } from './EmptyState'
 
 export function ContentPane(): React.JSX.Element {
   const settingsOpen = useAppStore((s) => s.settingsOpen)
@@ -22,7 +22,7 @@ export function ContentPane(): React.JSX.Element {
   if (!episode) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
-        <EmptyLibraryState />
+        {episodes.length === 0 ? <EmptyLibraryState /> : <NoTabsOpenState />}
       </div>
     )
   }

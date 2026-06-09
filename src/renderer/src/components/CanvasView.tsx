@@ -6,7 +6,7 @@ type CanvasMode = 'source' | 'preview'
 
 export function CanvasView({ episodeId }: { episodeId: string }): React.JSX.Element {
   const [content, setContent] = useState('')
-  const [mode, setMode] = useState<CanvasMode>('source')
+  const [mode, setMode] = useState<CanvasMode>('preview')
   const [loading, setLoading] = useState(true)
   const setActiveContentView = useAppStore((s) => s.setActiveContentView)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -78,16 +78,6 @@ export function CanvasView({ episodeId }: { episodeId: string }): React.JSX.Elem
       <div className="flex items-center justify-between mb-4">
         <div className="inline-flex rounded-[12px] bg-[var(--surface)] p-1">
           <button
-            onClick={() => setMode('source')}
-            className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-colors ${
-              mode === 'source'
-                ? 'bg-[var(--accent)] text-white'
-                : 'text-[var(--secondary)] hover:text-[var(--text)]'
-            }`}
-          >
-            Source
-          </button>
-          <button
             onClick={() => setMode('preview')}
             className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-colors ${
               mode === 'preview'
@@ -95,13 +85,23 @@ export function CanvasView({ episodeId }: { episodeId: string }): React.JSX.Elem
                 : 'text-[var(--secondary)] hover:text-[var(--text)]'
             }`}
           >
-            Preview
+            View
+          </button>
+          <button
+            onClick={() => setMode('source')}
+            className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-colors ${
+              mode === 'source'
+                ? 'bg-[var(--accent)] text-white'
+                : 'text-[var(--secondary)] hover:text-[var(--text)]'
+            }`}
+          >
+            Edit
           </button>
         </div>
         <button
           onClick={() => setActiveContentView('episode')}
           className="p-1.5 rounded-[8px] text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors"
-          title="Back to Episode"
+          aria-label="Back to Episode"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 6 6 18M6 6l12 12" />
@@ -116,7 +116,8 @@ export function CanvasView({ episodeId }: { episodeId: string }): React.JSX.Elem
             className="w-full h-full resize-none bg-transparent text-sm text-[var(--text)] font-mono leading-relaxed outline-none placeholder:text-[var(--secondary)] placeholder:opacity-50"
             value={content}
             onChange={(e) => handleChange(e.target.value)}
-            placeholder="Ask the AI to create something, or start typing..."
+            placeholder="Ask the AI to create something, or start typing…"
+            aria-label="Canvas editor"
             spellCheck={false}
           />
         </div>
@@ -128,7 +129,7 @@ export function CanvasView({ episodeId }: { episodeId: string }): React.JSX.Elem
             </div>
           ) : (
             <p className="text-sm text-[var(--secondary)] opacity-50 italic">
-              Ask the AI to create something, or start typing...
+              Ask the AI to create something, or start typing&hellip;
             </p>
           )}
         </div>
