@@ -1,6 +1,6 @@
 ---
 title: "Chat slash commands → tab creation"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

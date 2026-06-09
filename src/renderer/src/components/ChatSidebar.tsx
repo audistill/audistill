@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Markdown from 'react-markdown'
 import { useAppStore } from '../store/app-store'
 import { useContentTabStore } from '../store/content-tab-store'
@@ -11,6 +11,12 @@ interface ChatMessage {
   content: string
   toolCalls: string | null
   createdAt: string
+}
+
+interface SlashRecipe {
+  id: string
+  name: string
+  is_builtin: number
 }
 
 interface ToolCallBlock {
@@ -241,6 +247,12 @@ export function ChatSidebar(): React.JSX.Element {
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
   const modelDropdownRef = useRef<HTMLDivElement>(null)
   const [modelFilter, setModelFilter] = useState('')
+  const [slashOpen, setSlashOpen] = useState(false)
+  const [slashRecipes, setSlashRecipes] = useState<SlashRecipe[]>([])
+  const [slashFilter, setSlashFilter] = useState('')
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
+  const [generatingRecipe, setGeneratingRecipe] = useState<string | null>(null)
+  const slashPopoverRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     window.api.getSetting('model_quality').then((m) => {
@@ -253,6 +265,9 @@ export function ChatSidebar(): React.JSX.Element {
       if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
         setModelDropdownOpen(false)
         setModelFilter('')
+      }
+      if (slashPopoverRef.current && !slashPopoverRef.current.contains(e.target as Node)) {
+        setSlashOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -431,6 +446,29 @@ export function ChatSidebar(): React.JSX.Element {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (slashOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSlashSelectedIndex((i) => Math.min(i + 1, filteredSlashRecipes.length - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSlashSelectedIndex((i) => Math.max(i - 1, 0))
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        const recipe = filteredSlashRecipes[slashSelectedIndex]
+        if (recipe) handleSlashSelect(recipe)
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setSlashOpen(false)
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -445,10 +483,91 @@ export function ChatSidebar(): React.JSX.Element {
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
-    setInput(e.target.value)
+    const value = e.target.value
+    setInput(value)
     const el = e.target
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+
+    if (value === '/') {
+      window.api.recipesGetAll().then((recipes) => {
+        setSlashRecipes(recipes)
+        setSlashOpen(true)
+        setSlashFilter('')
+        setSlashSelectedIndex(0)
+      })
+    } else if (value.startsWith('/') && slashOpen) {
+      setSlashFilter(value.slice(1))
+      setSlashSelectedIndex(0)
+    } else {
+      setSlashOpen(false)
+    }
+  }
+
+  const filteredSlashRecipes = useMemo(() => {
+    if (!slashFilter) return slashRecipes
+    const lower = slashFilter.toLowerCase()
+    return slashRecipes.filter((r) => r.name.toLowerCase().includes(lower))
+  }, [slashRecipes, slashFilter])
+
+  const handleSlashSelect = async (recipe: SlashRecipe): Promise<void> => {
+    if (!activeTabId) return
+    setSlashOpen(false)
+    setInput('')
+
+    const slashText = `/${recipe.name}`
+    const msgId = await window.api.chatSaveMessage(activeTabId, 'user', slashText)
+    const newMessage: ChatMessage = {
+      id: msgId,
+      role: 'user',
+      content: slashText,
+      toolCalls: null,
+      createdAt: new Date().toISOString(),
+    }
+    setMessages((prev) => [...prev, newMessage])
+
+    const tabs = useContentTabStore.getState().tabs
+    const existingTab = tabs.find((t) => t.recipe_id === recipe.id)
+    if (existingTab) {
+      useContentTabStore.getState().setActiveTab(existingTab.id)
+      const confirmId = await window.api.chatSaveMessage(
+        activeTabId, 'assistant', `Navigated to existing ${recipe.name} tab.`
+      )
+      setMessages((prev) => [...prev, {
+        id: confirmId,
+        role: 'assistant',
+        content: `Navigated to existing ${recipe.name} tab.`,
+        toolCalls: null,
+        createdAt: new Date().toISOString(),
+      }])
+      return
+    }
+
+    setGeneratingRecipe(recipe.name)
+
+    try {
+      const tabId = await useContentTabStore.getState().createTab(activeTabId, {
+        recipe_id: recipe.id,
+        tab_name: recipe.name,
+      })
+      await window.api.tabsExecuteRecipe(activeTabId, tabId)
+
+      const confirmId = await window.api.chatSaveMessage(
+        activeTabId, 'assistant', `✓ ${recipe.name} generated`
+      )
+      setMessages((prev) => [...prev, {
+        id: confirmId,
+        role: 'assistant',
+        content: `✓ ${recipe.name} generated`,
+        toolCalls: null,
+        createdAt: new Date().toISOString(),
+      }])
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      setError(`Failed to generate ${recipe.name}: ${errorMsg}`)
+    } finally {
+      setGeneratingRecipe(null)
+    }
   }
 
   if (!activeTabId) {
@@ -550,6 +669,17 @@ export function ChatSidebar(): React.JSX.Element {
           <StreamingBubble state={streamingState} />
         )}
 
+        {generatingRecipe && (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] rounded-[12px] bg-[var(--surface)] px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+                <span className="text-sm text-[var(--secondary)]">Generating {generatingRecipe}...</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="flex justify-start">
             <div className="max-w-[85%] rounded-[12px] bg-red-500/10 border border-red-500/20 px-3 py-2">
@@ -562,7 +692,27 @@ export function ChatSidebar(): React.JSX.Element {
       </div>
 
       {/* Input */}
-      <div className="px-4 pb-4 pt-2 border-t border-[var(--surface)]">
+      <div className="px-4 pb-4 pt-2 border-t border-[var(--surface)] relative">
+        {slashOpen && filteredSlashRecipes.length > 0 && (
+          <div
+            ref={slashPopoverRef}
+            className="absolute bottom-full left-4 right-4 mb-1 z-50 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] shadow-lg max-h-[200px] overflow-y-auto"
+          >
+            {filteredSlashRecipes.map((recipe, i) => (
+              <button
+                key={recipe.id}
+                onClick={() => handleSlashSelect(recipe)}
+                className={`w-full px-3 py-1.5 text-left text-sm transition-colors ${
+                  i === slashSelectedIndex
+                    ? 'bg-[var(--accent)]/10 text-[var(--text)]'
+                    : 'text-[var(--text)] hover:bg-[var(--accent)]/10'
+                }`}
+              >
+                {recipe.name}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-end gap-2 rounded-[12px] bg-[var(--surface)] px-3 py-2">
           <textarea
             ref={textareaRef}
@@ -571,7 +721,7 @@ export function ChatSidebar(): React.JSX.Element {
             onKeyDown={handleKeyDown}
             placeholder="Ask about this episode..."
             rows={1}
-            disabled={streaming}
+            disabled={streaming || !!generatingRecipe}
             className="flex-1 bg-transparent outline-none resize-none text-sm text-[var(--text)] placeholder-[var(--secondary)] max-h-[120px] disabled:opacity-50"
           />
           {streaming ? (
