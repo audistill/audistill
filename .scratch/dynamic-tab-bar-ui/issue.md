@@ -1,6 +1,6 @@
 ---
 title: "Dynamic tab bar + content display with view/edit toggle"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

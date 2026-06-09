@@ -163,4 +163,12 @@
   .canvas-button-glow {
     animation: canvas-glow 1s ease-in-out 3;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
