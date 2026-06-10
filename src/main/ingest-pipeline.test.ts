@@ -35,7 +35,8 @@ describe('IngestPipeline - recipe execution on ingest', () => {
     tabService = new TabService(db)
 
     const modelManager = { ensureModel: vi.fn() } as any
-    pipeline = new IngestPipeline(db, modelManager, recipeService, tabService)
+    const ytdlpService = { detect: vi.fn(), download: vi.fn(), kill: vi.fn() } as any
+    pipeline = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService)
   })
 
   describe('summarizeEpisode (now recipe-based)', () => {

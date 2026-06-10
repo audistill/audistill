@@ -302,7 +302,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ingestPipeline = new IngestPipeline(db, modelManager, recipeService, tabService)
+  ingestPipeline = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService)
   ingestPipeline.recoverOrphanedEpisodes()
   ingestPipeline.registerIPC()
 

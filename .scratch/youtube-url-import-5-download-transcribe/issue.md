@@ -1,6 +1,6 @@
 ---
 title: "YouTube URL import: download → transcribe → complete (happy path with progress)"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 

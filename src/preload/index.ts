@@ -60,6 +60,8 @@ const api = {
   // Ingest pipeline
   selectFiles: (): Promise<string[] | null> => ipcRenderer.invoke('ingest:select-files'),
   addFiles: (filePaths: string[]): Promise<string[]> => ipcRenderer.invoke('ingest:add-files', filePaths),
+  addUrl: (canonicalUrl: string, metadata: { title: string; channel: string; duration: number; thumbnail: string; uploadDate: string }): Promise<string> =>
+    ipcRenderer.invoke('ingest:add-url', canonicalUrl, metadata),
   retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
   cancelEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:cancel', id),
 

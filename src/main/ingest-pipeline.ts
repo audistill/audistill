@@ -1,27 +1,34 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { Worker } from 'node:worker_threads'
 import { join, basename } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { preprocess } from './audio-preprocessor'
 import { ModelManager } from './model-manager'
 import { DatabaseService, Episode } from './database-service'
 import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
+import { YtdlpService } from './ytdlp-service'
 import { SUPPORTED_FILE_FILTER } from '../shared/supported-formats'
+
+const TMP_DIR = join(homedir(), '.audistill', 'tmp')
 
 export class IngestPipeline {
   private db: DatabaseService
   private modelManager: ModelManager
   private recipeService: RecipeService
   private tabService: TabService
+  private ytdlpService: YtdlpService
   private processing = false
   private queue: string[] = []
   private activeWorkers = new Map<string, Worker>()
 
-  constructor(db: DatabaseService, modelManager: ModelManager, recipeService: RecipeService, tabService: TabService) {
+  constructor(db: DatabaseService, modelManager: ModelManager, recipeService: RecipeService, tabService: TabService, ytdlpService: YtdlpService) {
     this.db = db
     this.modelManager = modelManager
     this.recipeService = recipeService
     this.tabService = tabService
+    this.ytdlpService = ytdlpService
   }
 
   recoverOrphanedEpisodes(): void {
@@ -29,8 +36,23 @@ export class IngestPipeline {
     for (const ep of allEpisodes) {
       if (ep.status === 'transcribing' || ep.status === 'queued') {
         this.db.updateEpisode(ep.id, { status: 'cancelled', error_message: null })
+      } else if (ep.status === 'downloading') {
+        this.db.updateEpisode(ep.id, { status: 'cancelled', error_message: null })
       }
     }
+    this.sweepTmpDir()
+  }
+
+  private sweepTmpDir(): void {
+    if (!existsSync(TMP_DIR)) return
+    try {
+      const files = readdirSync(TMP_DIR)
+      for (const file of files) {
+        try {
+          unlinkSync(join(TMP_DIR, file))
+        } catch { /* ignore */ }
+      }
+    } catch { /* ignore */ }
   }
 
   terminateWorkerForEpisode(episodeId: string): void {
@@ -60,6 +82,19 @@ export class IngestPipeline {
       return ids
     })
 
+    ipcMain.handle('ingest:add-url', async (_event, canonicalUrl: string, metadata: { title: string; channel: string; duration: number; thumbnail: string; uploadDate: string }) => {
+      const id = this.db.createEpisode({
+        title: metadata.title,
+        source_url: canonicalUrl,
+        source_meta: JSON.stringify({ channel: metadata.channel, uploadDate: metadata.uploadDate, thumbnail: metadata.thumbnail }),
+        status: 'downloading',
+      })
+      this.queue.push(id)
+      this.broadcastEpisodeUpdate(id)
+      this.processQueue()
+      return id
+    })
+
     ipcMain.handle('ingest:select-files', async () => {
       const win = BrowserWindow.getFocusedWindow()
       if (!win) return null
@@ -77,7 +112,15 @@ export class IngestPipeline {
       const episode = this.db.getEpisode(episodeId)
       if (!episode || (episode.status !== 'error' && episode.status !== 'cancelled')) return
 
-      this.db.updateEpisode(episodeId, { status: 'queued', error_message: null })
+      if (episode.source_url) {
+        const existingTmp = this.findDownloadedFile(episodeId)
+        if (existingTmp) {
+          try { unlinkSync(existingTmp) } catch { /* ignore */ }
+        }
+        this.db.updateEpisode(episodeId, { status: 'queued', file_path: null, error_message: null })
+      } else {
+        this.db.updateEpisode(episodeId, { status: 'queued', error_message: null })
+      }
       this.queue.push(episodeId)
       this.broadcastEpisodeUpdate(episodeId)
       this.processQueue()
@@ -85,7 +128,16 @@ export class IngestPipeline {
 
     ipcMain.handle('ingest:cancel', async (_event, episodeId: string) => {
       const episode = this.db.getEpisode(episodeId)
-      if (!episode || episode.status !== 'transcribing') return
+      if (!episode) return
+
+      if (episode.status === 'downloading') {
+        this.ytdlpService.kill(episodeId)
+        this.db.updateEpisode(episodeId, { status: 'cancelled', error_message: null })
+        this.broadcastEpisodeUpdate(episodeId)
+        return
+      }
+
+      if (episode.status !== 'transcribing') return
 
       const worker = this.activeWorkers.get(episodeId)
       if (worker) {
@@ -115,8 +167,16 @@ export class IngestPipeline {
   }
 
   private async processEpisode(episodeId: string): Promise<void> {
-    const episode = this.db.getEpisode(episodeId)
+    let episode = this.db.getEpisode(episodeId)
     if (!episode) return
+
+    const isUrlEpisode = !!episode.source_url && !episode.file_path
+
+    if (isUrlEpisode && !episode.transcript) {
+      const downloadOk = await this.downloadEpisode(episodeId, episode)
+      if (!downloadOk) return
+      episode = this.db.getEpisode(episodeId)!
+    }
 
     const hasTranscript = !!episode.transcript
 
@@ -131,16 +191,65 @@ export class IngestPipeline {
     await this.runSummarization(episodeId)
   }
 
+  private async downloadEpisode(episodeId: string, episode: Episode): Promise<boolean> {
+    this.db.updateEpisode(episodeId, { status: 'downloading' })
+    this.broadcastEpisodeUpdate(episodeId)
+
+    if (!existsSync(TMP_DIR)) {
+      mkdirSync(TMP_DIR, { recursive: true })
+    }
+
+    const outputTemplate = join(TMP_DIR, `${episodeId}.%(ext)s`)
+    const customArgs = this.db.getSetting('ytdlp_custom_args') || undefined
+
+    try {
+      await this.ytdlpService.download(episode.source_url!, outputTemplate, episodeId, {
+        customArgs,
+        onProgress: (pct) => {
+          this.broadcastProgress(episodeId, 'downloading', pct)
+        },
+      })
+
+      const downloadedFile = this.findDownloadedFile(episodeId)
+      if (!downloadedFile) {
+        throw new Error('Download completed but output file not found')
+      }
+
+      this.db.updateEpisode(episodeId, { file_path: downloadedFile })
+      this.broadcastEpisodeUpdate(episodeId)
+      return true
+    } catch (err) {
+      const current = this.db.getEpisode(episodeId)
+      if (current?.status === 'cancelled') return false
+
+      const message = err instanceof Error ? err.message : String(err)
+      this.db.updateEpisode(episodeId, { status: 'error', error_message: message })
+      this.broadcastEpisodeUpdate(episodeId)
+      return false
+    }
+  }
+
+  private findDownloadedFile(episodeId: string): string | null {
+    if (!existsSync(TMP_DIR)) return null
+    const files = readdirSync(TMP_DIR)
+    const match = files.find((f) => f.startsWith(episodeId))
+    return match ? join(TMP_DIR, match) : null
+  }
+
   private async transcribeEpisode(episodeId: string, episode: Episode): Promise<boolean> {
     this.db.updateEpisode(episodeId, { status: 'transcribing' })
     this.broadcastEpisodeUpdate(episodeId)
 
+    const currentEp = this.db.getEpisode(episodeId)!
+    const filePath = currentEp.file_path || episode.file_path
+    const isUrlEpisode = !!currentEp.source_url
+
     try {
-      if (!episode.file_path) {
+      if (!filePath) {
         throw new Error('No audio file available for transcription')
       }
       const modelPath = await this.modelManager.ensureModel()
-      const pcmBuffer = await preprocess(episode.file_path)
+      const pcmBuffer = await preprocess(filePath)
 
       const durationSec = Math.round(pcmBuffer.byteLength / 4 / 16000)
       this.db.updateEpisode(episodeId, { duration_sec: durationSec })
@@ -148,7 +257,12 @@ export class IngestPipeline {
 
       const transcript = await this.runTranscriptionWorker(pcmBuffer, modelPath, episodeId)
 
-      this.db.updateEpisode(episodeId, { transcript, status: 'summarizing' })
+      if (isUrlEpisode) {
+        try { unlinkSync(filePath) } catch { /* ignore */ }
+        this.db.updateEpisode(episodeId, { transcript, file_path: null, status: 'summarizing' })
+      } else {
+        this.db.updateEpisode(episodeId, { transcript, status: 'summarizing' })
+      }
       this.broadcastEpisodeUpdate(episodeId)
       return true
     } catch (err) {

@@ -243,7 +243,7 @@ export function Sidebar(): React.JSX.Element {
                 onClose={() => setUrlPopoverOpen(false)}
                 onImport={(canonicalUrl, metadata) => {
                   setUrlPopoverOpen(false)
-                  console.log('Import confirmed:', canonicalUrl, metadata)
+                  window.api.addUrl(canonicalUrl, metadata)
                 }}
               />
             )}
@@ -561,13 +561,16 @@ function EpisodeContextMenu({
   const episode = episodes.find((e) => e.id === episodeId)
   const currentFolderId = episode?.folder_id ?? null
   const isTranscribing = episode?.status === 'transcribing'
+  const isDownloading = episode?.status === 'downloading'
   const isCancelled = episode?.status === 'cancelled'
   const isError = episode?.status === 'error'
 
   type ActionItem = { key: string; label: string; action: () => void; danger?: boolean; hasFlyout?: boolean }
   const actions: ActionItem[] = []
 
-  if (isTranscribing) {
+  if (isDownloading) {
+    actions.push({ key: 'cancel', label: 'Cancel Download', action: () => onCancel(episodeId) })
+  } else if (isTranscribing) {
     actions.push({ key: 'cancel', label: 'Cancel Transcription', action: () => onCancel(episodeId) })
   }
   if (isCancelled) {
@@ -1032,7 +1035,14 @@ function SidebarEpisode({
   const isProcessing = episode.status !== 'complete' && episode.status !== 'error' && episode.status !== 'cancelled'
 
   let statusLine: React.ReactNode = null
-  if (episode.status === 'transcribing') {
+  if (episode.status === 'downloading') {
+    statusLine = (
+      <div className="flex gap-0.5 items-center">
+        <span className="processing-dot w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+        <span className="text-[10px] text-[var(--accent)] ml-1">Downloading</span>
+      </div>
+    )
+  } else if (episode.status === 'transcribing') {
     statusLine = (
       <div className="flex gap-0.5 items-center">
         <span className="processing-dot w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />

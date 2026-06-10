@@ -135,6 +135,7 @@ interface AudistillApi {
   // Ingest pipeline
   selectFiles: () => Promise<string[] | null>
   addFiles: (filePaths: string[]) => Promise<string[]>
+  addUrl: (canonicalUrl: string, metadata: { title: string; channel: string; duration: number; thumbnail: string; uploadDate: string }) => Promise<string>
   retryEpisode: (id: string) => Promise<void>
   cancelEpisode: (id: string) => Promise<void>
 
