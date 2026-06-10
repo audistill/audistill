@@ -15,7 +15,7 @@
     "pretest": "pnpm rebuild better-sqlite3",
     "test": "vitest run",
     "posttest": "electron-rebuild -f -w better-sqlite3 --build-from-source",
-    "postinstall": "electron-rebuild -f -w better-sqlite3 --build-from-source",
+    "postinstall": "rm -rf node_modules/better-sqlite3/build && electron-rebuild -f -w better-sqlite3 --build-from-source",
     "build:mac": "pnpm run build && electron-builder --mac"
   },
   "dependencies": {
