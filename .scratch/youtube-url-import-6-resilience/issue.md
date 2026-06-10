@@ -1,6 +1,6 @@
 ---
 title: "YouTube URL import: cancel, stall detection, retry, startup temp sweep"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 
