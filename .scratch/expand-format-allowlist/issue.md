@@ -1,6 +1,6 @@
 ---
 title: "Expand ingest allowlist to 11 formats"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 

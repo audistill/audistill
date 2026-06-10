@@ -9,7 +9,7 @@ export async function preprocess(inputPath: string): Promise<Buffer> {
 
   if (!SUPPORTED_EXTENSIONS.has(ext)) {
     throw new Error(
-      `Unsupported file format "${ext}". Supported formats: MP3, M4A, WAV, FLAC, MP4.`
+      `Unsupported file format "${ext}". Supported formats: ${[...SUPPORTED_EXTENSIONS].map((e) => e.slice(1).toUpperCase()).join(', ')}.`
     )
   }
 
