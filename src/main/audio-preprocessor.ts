@@ -4,6 +4,19 @@ import { extname } from 'node:path'
 import ffmpegPath from 'ffmpeg-static'
 import { SUPPORTED_EXTENSIONS } from '../shared/supported-formats'
 
+export function parseFfmpegError(stderr: string): string {
+  if (/does not contain any stream/i.test(stderr)) {
+    return 'This file contains no audio track.'
+  }
+  if (/invalid data found|corrupt/i.test(stderr)) {
+    return 'This file appears to be corrupted or incomplete.'
+  }
+  if (/decoder .* not found|codec not currently supported/i.test(stderr)) {
+    return 'This audio format is not supported.'
+  }
+  return 'Could not process this file. Try converting it to MP3 first.'
+}
+
 export async function preprocess(inputPath: string): Promise<Buffer> {
   const ext = extname(inputPath).toLowerCase()
 
@@ -44,7 +57,7 @@ export async function preprocess(inputPath: string): Promise<Buffer> {
 
     proc.on('close', (code) => {
       if (code !== 0) {
-        reject(new Error(`FFmpeg failed (exit ${code}): ${stderr.slice(-500)}`))
+        reject(new Error(parseFfmpegError(stderr)))
         return
       }
       resolve(Buffer.concat(chunks))
