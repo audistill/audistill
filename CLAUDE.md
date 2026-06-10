@@ -11,3 +11,7 @@ Default label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-h
 ### Domain docs
 
 Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### E2E verification
+
+After typecheck/tests pass, verify UI changes by running `pnpm dev:test` in the background (starts Electron with remote debugging on port 9222) and using `/agent-browser --cdp 9222` to confirm the feature works. Kill the dev server when done.

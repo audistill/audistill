@@ -1,10 +1,15 @@
 @.scratch/ @CLAUDE.md
+Load skills as required: 
+
+/tdd
+/frontend-design
+
 
 1. Read all issues in .scratch/*/issue.md. Find the highest-priority issue with status 'ready-for-agent' whose blockers (if any) are all 'done'. Work only on that one issue.
 
 2. Update the issue status to 'in-progress' before starting work.
 
-3. Implement the issue end-to-end, satisfying all acceptance criteria.
+3. Implement the issue end-to-end, satisfying all acceptance criteria. 
 
 4. If pnpm scripts exist for typecheck or test, run them and fix any failures.
 
