@@ -1,6 +1,6 @@
 ---
 title: "Informative toast for skipped files on mixed drop"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 

@@ -72,11 +72,14 @@ function App(): React.JSX.Element {
     if (!files || files.length === 0) return
 
     const validPaths: string[] = []
+    const skippedNames: string[] = []
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       if (SUPPORTED_EXTENSIONS.has(getExtension(file.name))) {
         const filePath = window.api.getPathForFile(file)
         if (filePath) validPaths.push(filePath)
+      } else {
+        skippedNames.push(file.name)
       }
     }
 
@@ -86,6 +89,14 @@ function App(): React.JSX.Element {
     }
 
     window.api.addFiles(validPaths)
+
+    if (skippedNames.length > 0) {
+      if (skippedNames.length <= 3) {
+        showToast(`${skippedNames.length} file${skippedNames.length > 1 ? 's' : ''} skipped (unsupported format): ${skippedNames.join(', ')}`)
+      } else {
+        showToast(`${skippedNames.length} files skipped (unsupported format)`)
+      }
+    }
   }, [showToast])
 
   useEffect(() => {
