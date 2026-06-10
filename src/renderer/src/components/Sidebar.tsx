@@ -241,10 +241,9 @@ export function Sidebar(): React.JSX.Element {
               <UrlImportPopover
                 anchorRef={addMenuRef}
                 onClose={() => setUrlPopoverOpen(false)}
-                onDetected={(canonicalUrl) => {
+                onImport={(canonicalUrl, metadata) => {
                   setUrlPopoverOpen(false)
-                  // Preview card handling will be wired in slice 4
-                  console.log('URL ready for preview:', canonicalUrl)
+                  console.log('Import confirmed:', canonicalUrl, metadata)
                 }}
               />
             )}

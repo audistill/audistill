@@ -193,6 +193,14 @@ function registerYtdlpHandlers(): void {
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
   })
+
+  ipcMain.handle('ytdlp:fetch-metadata', async (_event, url: string) => {
+    return ytdlpService.fetchMetadata(url)
+  })
+
+  ipcMain.handle('ytdlp:check-duplicate', async (_event, url: string) => {
+    return db.getEpisodeBySourceUrl(url) ?? null
+  })
 }
 
 function registerTabHandlers(): void {

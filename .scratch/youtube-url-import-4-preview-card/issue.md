@@ -1,6 +1,6 @@
 ---
 title: "YouTube URL import: preview card with metadata, de-duplication, and error states"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 

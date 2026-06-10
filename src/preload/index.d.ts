@@ -142,6 +142,8 @@ interface AudistillApi {
   ytdlpDetect: () => Promise<string | null>
   ytdlpSetPath: (path: string) => Promise<string | null>
   selectDirectory: () => Promise<string | null>
+  ytdlpFetchMetadata: (url: string) => Promise<{ title: string; channel: string; duration: number; thumbnail: string; uploadDate: string } | { code: string; message: string }>
+  ytdlpCheckDuplicate: (url: string) => Promise<DbEpisode | null>
 
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
   onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => () => void

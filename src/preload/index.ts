@@ -67,6 +67,8 @@ const api = {
   ytdlpDetect: (): Promise<string | null> => ipcRenderer.invoke('ytdlp:detect'),
   ytdlpSetPath: (path: string): Promise<string | null> => ipcRenderer.invoke('ytdlp:set-path', path),
   selectDirectory: (): Promise<string | null> => ipcRenderer.invoke('ytdlp:select-binary'),
+  ytdlpFetchMetadata: (url: string) => ipcRenderer.invoke('ytdlp:fetch-metadata', url),
+  ytdlpCheckDuplicate: (url: string) => ipcRenderer.invoke('ytdlp:check-duplicate', url),
 
   // Tab streaming events
   tabsExecuteRecipe: (episodeId: string, tabId: string) => ipcRenderer.invoke('tabs:execute-recipe', episodeId, tabId),
