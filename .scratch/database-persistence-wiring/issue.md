@@ -6,11 +6,11 @@ created: 2026-06-02
 
 ## Parent
 
-`.scratch/library-and-summarization/issue.md` — PRD: PodCapture v2 — Library & Summarization
+`.scratch/library-and-summarization/issue.md` — PRD: Audistill v2 — Library & Summarization
 
 ## What to build
 
-Add SQLite persistence to PodCapture. Create a DatabaseService module (main process) using `better-sqlite3` that manages schema initialization and full CRUD for episodes, folders, open_tabs, and settings. Wire it to the renderer via IPC so the UI loads real data from the database and writes changes back.
+Add SQLite persistence to Audistill. Create a DatabaseService module (main process) using `better-sqlite3` that manages schema initialization and full CRUD for episodes, folders, open_tabs, and settings. Wire it to the renderer via IPC so the UI loads real data from the database and writes changes back.
 
 Replace the mock data from the UI shell with data loaded from SQLite on app launch. Tab state persists across restarts. The zustand store hydrates from IPC calls to the database on startup.
 
@@ -51,7 +51,7 @@ CREATE TABLE settings (
 );
 ```
 
-Database location: `app.getPath('userData')/podcapture.db`. IDs generated as UUIDs. `folder_id = NULL` means Inbox.
+Database location: `app.getPath('userData')/audistill.db`. IDs generated as UUIDs. `folder_id = NULL` means Inbox.
 
 Expand the preload/IPC layer to expose: `getEpisodes`, `getEpisode`, `getFolders`, `getOpenTabs`, `saveOpenTabs`, `getSetting`, `setSetting`.
 
@@ -63,7 +63,7 @@ Expand the preload/IPC layer to expose: `getEpisodes`, `getEpisode`, `getFolders
 - [ ] Open tabs persist across app restart (close app with 2 tabs open → relaunch → same tabs appear)
 - [ ] Settings values persist (set a value → restart → value is there)
 - [ ] Preload/IPC API exposes read operations for episodes, folders, tabs, settings
-- [ ] Database stored at `app.getPath('userData')/podcapture.db`
+- [ ] Database stored at `app.getPath('userData')/audistill.db`
 - [ ] Empty database results in empty states showing correctly (no mock data fallback)
 
 ## Blocked by

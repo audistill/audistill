@@ -6,7 +6,7 @@ created: 2026-06-02
 
 ## Parent
 
-`.scratch/library-and-summarization/issue.md` — PRD: PodCapture v2 — Library & Summarization
+`.scratch/library-and-summarization/issue.md` — PRD: Audistill v2 — Library & Summarization
 
 ## What to build
 

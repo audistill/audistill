@@ -6,7 +6,7 @@ created: 2026-06-02
 
 ## Parent
 
-[PRD: PodCapture — Minimum Prototype](.scratch/podscribe-prototype-prd/issue.md)
+[PRD: Audistill — Minimum Prototype](.scratch/podscribe-prototype-prd/issue.md)
 
 ## What to build
 

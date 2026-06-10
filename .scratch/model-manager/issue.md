@@ -6,7 +6,7 @@ created: 2026-06-02
 
 ## Parent
 
-[PRD: PodCapture — Minimum Prototype](.scratch/podscribe-prototype-prd/issue.md)
+[PRD: Audistill — Minimum Prototype](.scratch/podscribe-prototype-prd/issue.md)
 
 ## What to build
 
@@ -20,7 +20,7 @@ Interface: `ensureModel(): Promise<string>` — returns the path to the model di
 - [ ] Progress events fire with percentage during download
 - [ ] Subsequent calls detect existing model and resolve immediately without network requests
 - [ ] Partial/failed downloads do not leave corrupt state — next launch retries cleanly
-- [ ] Model stored at `~/Library/Application Support/PodCapture/models/`
+- [ ] Model stored at `~/Library/Application Support/Audistill/models/`
 - [ ] Works with the `parakeet-tdt-0.6b-v3` int8 quantized ONNX export from HuggingFace
 
 ## Blocked by

@@ -1,12 +1,12 @@
 ---
-title: "PRD: PodCapture v3 — UI/UX Polish"
+title: "PRD: Audistill v3 — UI/UX Polish"
 status: done
 created: 2026-06-02
 ---
 
 ## Problem Statement
 
-PodCapture's core features (library management, episode summarization, folder organization) are functional but lack the fit-and-finish of a native macOS app. The context menu dumps all folders into a flat list making it hard to move episodes when folder count grows. Summaries are stored as markdown but rendered as plain text, losing all formatting structure. Sidebar episode items show only titles with no metadata, making it hard to distinguish episodes at a glance. Small interaction details — focus states, transitions, empty states, search UX — feel web-app-ish rather than native desktop.
+Audistill's core features (library management, episode summarization, folder organization) are functional but lack the fit-and-finish of a native macOS app. The context menu dumps all folders into a flat list making it hard to move episodes when folder count grows. Summaries are stored as markdown but rendered as plain text, losing all formatting structure. Sidebar episode items show only titles with no metadata, making it hard to distinguish episodes at a glance. Small interaction details — focus states, transitions, empty states, search UX — feel web-app-ish rather than native desktop.
 
 ## Solution
 

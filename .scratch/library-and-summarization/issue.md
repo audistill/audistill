@@ -1,16 +1,16 @@
 ---
-title: "PRD: PodCapture v2 — Library & Summarization"
+title: "PRD: Audistill v2 — Library & Summarization"
 status: done
 created: 2026-06-02
 ---
 
 ## Problem Statement
 
-PodCapture currently transcribes one audio file at a time and displays the result in-memory — everything is lost on window close. The raw transcript itself is not useful for retrieval or scanning; users need structured summaries to make their audio knowledge accessible. There is no way to build up a personal audio knowledge base over time.
+Audistill currently transcribes one audio file at a time and displays the result in-memory — everything is lost on window close. The raw transcript itself is not useful for retrieval or scanning; users need structured summaries to make their audio knowledge accessible. There is no way to build up a personal audio knowledge base over time.
 
 ## Solution
 
-Transform PodCapture into a persistent local audio knowledge base. Users add audio files, which are automatically transcribed and summarized into a scannable "Rundown" format. Episodes are stored in a SQLite library with manual folder organization. A Craft.do-style sidebar + tabs + content pane layout enables fast navigation between episodes. Summarization uses OpenRouter (BYOK) with a default model of `google/gemini-3.5-flash`.
+Transform Audistill into a persistent local audio knowledge base. Users add audio files, which are automatically transcribed and summarized into a scannable "Rundown" format. Episodes are stored in a SQLite library with manual folder organization. A Craft.do-style sidebar + tabs + content pane layout enables fast navigation between episodes. Summarization uses OpenRouter (BYOK) with a default model of `google/gemini-3.5-flash`.
 
 ## User Stories
 
@@ -70,7 +70,7 @@ Six modules:
    - `setSetting(key, value): void`
    - `searchEpisodes(query): Episode[]`
 
-   Database location: `app.getPath('userData')/podcapture.db`
+   Database location: `app.getPath('userData')/audistill.db`
 
 2. **SummarizationService** (new, main process) — OpenRouter API client. Constructs the XML prompt with base instructions + user custom instructions + transcript. Sends one request, parses JSON response. Interface:
    - `summarize(transcript: string): Promise<{title: string, summary: string}>`

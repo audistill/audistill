@@ -1,5 +1,5 @@
 ---
-title: "PRD: PodCapture — Minimum Prototype"
+title: "PRD: Audistill — Minimum Prototype"
 status: done
 created: 2026-06-02
 ---
@@ -10,7 +10,7 @@ Knowledge workers consume hours of audio content daily — podcasts, lectures, m
 
 ## Solution
 
-PodCapture is a macOS desktop app that transcribes audio files entirely on-device using NVIDIA's Parakeet-TDT v3 multilingual model. The user picks an audio file, the app transcribes it locally (no cloud, no cost per minute), and displays timestamped transcript segments. This prototype validates the core pipeline: local file → on-device transcription → readable output.
+Audistill is a macOS desktop app that transcribes audio files entirely on-device using NVIDIA's Parakeet-TDT v3 multilingual model. The user picks an audio file, the app transcribes it locally (no cloud, no cost per minute), and displays timestamped transcript segments. This prototype validates the core pipeline: local file → on-device transcription → readable output.
 
 The prototype is the foundation for a growing personal audio knowledge base with RAG search, but this phase proves only that the transcription pipeline works end-to-end on Apple Silicon.
 
@@ -63,7 +63,7 @@ Four deep modules with simple interfaces, plus the renderer:
 - **ASR model:** `parakeet-tdt-0.6b-v3` int8 quantized ONNX (~670MB total: encoder ~624MB, decoder ~6.9MB, joiner ~1.7MB). Sourced from HuggingFace community ONNX export.
 - **Inference runtime:** `onnxruntime-node` — runs on Apple Silicon via CPU. No CUDA, no CoreML bridge needed for prototype.
 - **Audio conversion:** `ffmpeg-static` bundles a platform-specific FFmpeg binary. Command: `ffmpeg -i input -ar 16000 -ac 1 -f f32le output.pcm`.
-- **Model storage:** `~/Library/Application Support/PodCapture/models/` via Electron's `app.getPath('userData')`.
+- **Model storage:** `~/Library/Application Support/Audistill/models/` via Electron's `app.getPath('userData')`.
 - **Transcript persistence:** None. In-memory React state only. Lost on window close.
 - **Error handling:** All errors surface as inline messages in the UI (no native dialogs, no silent failures).
 - **Model download:** Simple HTTP fetch from HuggingFace. No resume on failure — app retries from scratch on next launch.
@@ -99,7 +99,7 @@ Four deep modules with simple interfaces, plus the renderer:
 3. Native-feeling — respect macOS conventions, system theme, SF Pro for reading
 4. Single-purpose clarity — one screen, one action at a time, no clutter
 
-**Validated prototype:** `/tmp/podcapture-prototype/index.html` (HTML/Tailwind mock showing all three states)
+**Validated prototype:** `/tmp/audistill-prototype/index.html` (HTML/Tailwind mock showing all three states)
 
 ### IPC Contract (Main ↔ Renderer)
 
@@ -147,7 +147,7 @@ Good tests for this prototype verify external behavior through module interfaces
 
 ## Further Notes
 
-- **App name:** PodCapture. A local-first podcast knowledge base for macOS.
+- **App name:** Audistill. A local-first podcast knowledge base for macOS.
 - This prototype is a **throwaway validation** of the transcription pipeline. The architecture is intentionally simple — no premature abstractions for features that don't exist yet.
 - The Parakeet-TDT v3 model is licensed CC-BY-4.0 — free for commercial use with attribution.
 - VoiceInk (GPL v3, Swift/macOS) serves as a technical reference for how local Parakeet transcription works, but no code is reused.

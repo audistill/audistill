@@ -1,12 +1,12 @@
 ---
-title: "PRD: PodCapture v4 — Timestamped Transcripts & Drag-and-Drop Import"
+title: "PRD: Audistill v4 — Timestamped Transcripts & Drag-and-Drop Import"
 status: done
 created: 2026-06-02
 ---
 
 ## Problem Statement
 
-PodCapture transcribes audio but discards the temporal information during ingestion — segments are joined into a plain string, losing the start/end times that the transcription model produces. Users cannot see *where* in an episode something was said, making long transcripts hard to navigate.
+Audistill transcribes audio but discards the temporal information during ingestion — segments are joined into a plain string, losing the start/end times that the transcription model produces. Users cannot see *where* in an episode something was said, making long transcripts hard to navigate.
 
 Separately, the only way to import audio is through the native file picker dialog. Users expect to drag files from Finder onto the app window — the absence of drag-and-drop makes the app feel like a prototype rather than a native macOS tool.
 
@@ -21,7 +21,7 @@ Separately, the only way to import audio is through the native file picker dialo
 1. As a user, I want to see timestamps in the transcript section of an episode, so that I know roughly when in the recording each passage occurs.
 2. As a user, I want timestamps displayed as muted time markers (e.g. "0:42", "12:15") at the start of each segment, so that they're visible but don't clutter the reading experience.
 3. As a user, I want transcript segments to correspond to the transcription model's natural output chunks (~30 seconds), so that timestamps are honest and accurate.
-4. As a user, I want to drag audio files from Finder onto the PodCapture window, so that I can import without navigating a file picker.
+4. As a user, I want to drag audio files from Finder onto the Audistill window, so that I can import without navigating a file picker.
 5. As a user, I want a visual overlay to appear when I drag files over the window, so that I know the app is ready to accept my drop.
 6. As a user, I want the drop overlay to use the app's terracotta accent color with a dashed border, icon, and "Drop audio files to import" message, so that it's consistent with the app's design language.
 7. As a user, I want the overlay to disappear immediately when I drag away or drop, so that it doesn't obstruct my view.

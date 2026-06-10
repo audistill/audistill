@@ -6,7 +6,7 @@ created: 2026-06-02
 
 ## Parent
 
-[PRD: PodCapture — Minimum Prototype](.scratch/podscribe-prototype-prd/issue.md)
+[PRD: Audistill — Minimum Prototype](.scratch/podscribe-prototype-prd/issue.md)
 
 ## What to build
 
@@ -18,7 +18,7 @@ A single-page React app (no router) with three view states managed by React stat
 
 Inline error messages replace the current view content when `transcription-error` fires — with a "Try Again" button that returns to idle.
 
-Uses the PodCapture design system: warm companion aesthetic, accent color for primary actions, generous spacing, 12px radius, Poppins headings, SF Pro body. Follows system dark/light mode.
+Uses the Audistill design system: warm companion aesthetic, accent color for primary actions, generous spacing, 12px radius, Poppins headings, SF Pro body. Follows system dark/light mode.
 
 ## Acceptance criteria
 
@@ -29,7 +29,7 @@ Uses the PodCapture design system: warm companion aesthetic, accent color for pr
 - [ ] "Transcribe Another" resets to idle state
 - [ ] Error state shows inline message with "Try Again" button
 - [ ] Respects dark/light mode via CSS custom properties
-- [ ] Uses PodCapture design tokens (colors, typography, spacing, radius)
+- [ ] Uses Audistill design tokens (colors, typography, spacing, radius)
 - [ ] UI never freezes during transcription (all work is off main thread)
 
 ## Blocked by
