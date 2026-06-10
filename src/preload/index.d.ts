@@ -3,10 +3,12 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 export interface DbEpisode {
   id: string
   title: string | null
-  file_path: string
+  file_path: string | null
   folder_id: string | null
   duration_sec: number | null
   transcript: string | null
+  source_url: string | null
+  source_meta: string | null
   status: string
   error_message: string | null
   created_at: string

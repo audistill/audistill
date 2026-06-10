@@ -8,7 +8,7 @@ export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Elemen
 }
 
 function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
-  const fileName = episode.file_path.split('/').pop() || episode.file_path
+  const fileName = episode.file_path?.split('/').pop() || episode.file_path || 'Untitled'
   const progressEntry = useAppStore((s) => s.progress[episode.id])
   const statusText =
     episode.status === 'queued'
@@ -124,7 +124,7 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
 }
 
 function CancelledState({ episode }: { episode: Episode }): React.JSX.Element {
-  const fileName = episode.file_path.split('/').pop() || episode.file_path
+  const fileName = episode.file_path?.split('/').pop() || episode.file_path || 'Untitled'
 
   const handleRestart = async (): Promise<void> => {
     await window.api.retryEpisode(episode.id)

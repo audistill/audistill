@@ -73,7 +73,7 @@ export function Sidebar(): React.JSX.Element {
 
   const filteredEpisodes = searchQuery
     ? episodes.filter((ep) => {
-        const title = (ep.title || ep.file_path).toLowerCase()
+        const title = (ep.title || ep.file_path || '').toLowerCase()
         const q = searchQuery.toLowerCase()
         return title.includes(q)
       })
@@ -130,7 +130,7 @@ export function Sidebar(): React.JSX.Element {
   const handleDeleteEpisode = (episodeId: string): void => {
     setContextMenu(null)
     const ep = episodes.find((e) => e.id === episodeId)
-    const title = ep?.title || ep?.file_path.split('/').pop() || 'this episode'
+    const title = ep?.title || ep?.file_path?.split('/').pop() || 'this episode'
     if (window.confirm(`Delete "${title}"? This cannot be undone.`)) {
       deleteEpisode(episodeId)
     }
@@ -978,7 +978,7 @@ function SidebarEpisode({
   onRenameSubmit: (id: string, name: string) => Promise<void>
   onRenameCancel: () => void
 }): React.JSX.Element {
-  const fileName = episode.file_path.split('/').pop() || episode.file_path
+  const fileName = episode.file_path?.split('/').pop() || episode.file_path || 'Untitled'
   const title = episode.title || fileName
   const progressEntry = useAppStore((s) => s.progress[episode.id])
 

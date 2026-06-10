@@ -136,6 +136,9 @@ export class IngestPipeline {
     this.broadcastEpisodeUpdate(episodeId)
 
     try {
+      if (!episode.file_path) {
+        throw new Error('No audio file available for transcription')
+      }
       const modelPath = await this.modelManager.ensureModel()
       const pcmBuffer = await preprocess(episode.file_path)
 

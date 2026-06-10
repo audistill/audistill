@@ -6,10 +6,12 @@ import { randomUUID } from 'crypto'
 export interface Episode {
   id: string
   title: string | null
-  file_path: string
+  file_path: string | null
   folder_id: string | null
   duration_sec: number | null
   transcript: string | null
+  source_url: string | null
+  source_meta: string | null
   status: string
   error_message: string | null
   created_at: string
@@ -62,6 +64,7 @@ export class DatabaseService {
   }
 
   private init(): void {
+    this.migrate()
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS folders (
         id TEXT PRIMARY KEY,
@@ -74,10 +77,12 @@ export class DatabaseService {
       CREATE TABLE IF NOT EXISTS episodes (
         id TEXT PRIMARY KEY,
         title TEXT,
-        file_path TEXT NOT NULL,
+        file_path TEXT,
         folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
         duration_sec INTEGER,
         transcript TEXT,
+        source_url TEXT,
+        source_meta TEXT,
         status TEXT NOT NULL DEFAULT 'queued',
         error_message TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -125,6 +130,48 @@ export class DatabaseService {
     `)
   }
 
+  private migrate(): void {
+    const columns = this.db
+      .prepare("PRAGMA table_info('episodes')")
+      .all() as { name: string }[]
+    const colNames = new Set(columns.map((c) => c.name))
+
+    if (colNames.size === 0) return
+
+    if (!colNames.has('source_url')) {
+      this.db.exec(`
+        ALTER TABLE episodes ADD COLUMN source_url TEXT;
+        ALTER TABLE episodes ADD COLUMN source_meta TEXT;
+      `)
+    }
+
+    const filePathCol = (this.db
+      .prepare("PRAGMA table_info('episodes')")
+      .all() as { name: string; notnull: number }[])
+      .find((c) => c.name === 'file_path')
+    if (filePathCol && filePathCol.notnull === 1) {
+      this.db.exec(`
+        CREATE TABLE episodes_new (
+          id TEXT PRIMARY KEY,
+          title TEXT,
+          file_path TEXT,
+          folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
+          duration_sec INTEGER,
+          transcript TEXT,
+          source_url TEXT,
+          source_meta TEXT,
+          status TEXT NOT NULL DEFAULT 'queued',
+          error_message TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO episodes_new SELECT id, title, file_path, folder_id, duration_sec, transcript, source_url, source_meta, status, error_message, created_at, updated_at FROM episodes;
+        DROP TABLE episodes;
+        ALTER TABLE episodes_new RENAME TO episodes;
+      `)
+    }
+  }
+
   getEpisodes(folderId?: string | null): Episode[] {
     if (folderId === undefined) {
       return this.db.prepare('SELECT * FROM episodes ORDER BY created_at DESC').all() as Episode[]
@@ -143,25 +190,31 @@ export class DatabaseService {
     return this.db.prepare('SELECT * FROM episodes WHERE id = ?').get(id) as Episode | undefined
   }
 
+  getEpisodeBySourceUrl(url: string): Episode | undefined {
+    return this.db.prepare('SELECT * FROM episodes WHERE source_url = ?').get(url) as Episode | undefined
+  }
+
   createEpisode(data: {
     title?: string | null
-    file_path: string
+    file_path?: string | null
     folder_id?: string | null
     duration_sec?: number | null
+    source_url?: string | null
+    source_meta?: string | null
     status?: string
   }): string {
     const id = randomUUID()
     this.db
       .prepare(
-        `INSERT INTO episodes (id, title, file_path, folder_id, duration_sec, status)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO episodes (id, title, file_path, folder_id, duration_sec, source_url, source_meta, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(id, data.title ?? null, data.file_path, data.folder_id ?? null, data.duration_sec ?? null, data.status ?? 'queued')
+      .run(id, data.title ?? null, data.file_path ?? null, data.folder_id ?? null, data.duration_sec ?? null, data.source_url ?? null, data.source_meta ?? null, data.status ?? 'queued')
     return id
   }
 
   updateEpisode(id: string, fields: Partial<Omit<Episode, 'id' | 'created_at'>>): void {
-    const allowed = ['title', 'file_path', 'folder_id', 'duration_sec', 'transcript', 'status', 'error_message']
+    const allowed = ['title', 'file_path', 'folder_id', 'duration_sec', 'transcript', 'source_url', 'source_meta', 'status', 'error_message']
     const entries = Object.entries(fields).filter(([key]) => allowed.includes(key))
     if (entries.length === 0) return
 

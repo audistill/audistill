@@ -134,7 +134,7 @@ export class ChatToolExecutor {
     const episodes = this.db.searchEpisodes(query)
     const results = episodes.map((ep: Episode) => ({
       id: ep.id,
-      title: ep.title || basename(ep.file_path),
+      title: ep.title || (ep.file_path ? basename(ep.file_path) : 'Untitled'),
       duration: formatDuration(ep.duration_sec),
       date: ep.created_at,
     }))
@@ -148,7 +148,7 @@ export class ChatToolExecutor {
       .filter((ep: Episode) => ep.status === 'complete')
       .map((ep: Episode) => ({
         id: ep.id,
-        title: ep.title || basename(ep.file_path),
+        title: ep.title || (ep.file_path ? basename(ep.file_path) : 'Untitled'),
         duration: formatDuration(ep.duration_sec),
         date: ep.created_at,
         status: ep.status,
@@ -209,8 +209,8 @@ export class ChatToolExecutor {
 
     return JSON.stringify({
       id: episode.id,
-      title: episode.title || basename(episode.file_path),
-      filename: basename(episode.file_path),
+      title: episode.title || (episode.file_path ? basename(episode.file_path) : 'Untitled'),
+      filename: episode.file_path ? basename(episode.file_path) : null,
       duration: formatDuration(episode.duration_sec),
       date: episode.created_at,
       folder: folder?.name || null,

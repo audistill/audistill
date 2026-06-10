@@ -4,11 +4,13 @@ import type { DbEpisode, DbFolder, DbOpenTab } from '../../../preload/index.d'
 export interface Episode {
   id: string
   title: string | null
-  file_path: string
+  file_path: string | null
   folder_id: string | null
   duration_sec: number | null
   transcript: string | null
-  status: 'queued' | 'transcribing' | 'summarizing' | 'complete' | 'error' | 'cancelled'
+  source_url: string | null
+  source_meta: string | null
+  status: 'queued' | 'transcribing' | 'summarizing' | 'complete' | 'error' | 'cancelled' | 'downloading'
   error_message: string | null
   created_at: string
   updated_at: string
@@ -88,6 +90,8 @@ function dbEpisodeToEpisode(row: DbEpisode): Episode {
     folder_id: row.folder_id,
     duration_sec: row.duration_sec,
     transcript: row.transcript,
+    source_url: row.source_url,
+    source_meta: row.source_meta,
     status: row.status as Episode['status'],
     error_message: row.error_message,
     created_at: row.created_at,
@@ -221,10 +225,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       const newEpisode: Episode = {
         id,
         title: null,
-        file_path: '',
+        file_path: null,
         folder_id: null,
         duration_sec: null,
         transcript: null,
+        source_url: null,
+        source_meta: null,
         status: 'queued',
         error_message: null,
         created_at: new Date().toISOString(),

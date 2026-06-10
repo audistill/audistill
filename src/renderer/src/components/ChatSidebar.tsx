@@ -406,7 +406,7 @@ export function ChatSidebar(): React.JSX.Element {
     const episode = episodes.find((e) => e.id === activeTabId)
     if (!episode) return
 
-    const fileName = episode.file_path.split('/').pop() || episode.file_path
+    const fileName = episode.file_path?.split('/').pop() || episode.file_path || 'Untitled'
     const activeTab = contentTabs.find((t) => t.id === activeContentTabId)
     const activeSummary = activeTab?.content || null
 

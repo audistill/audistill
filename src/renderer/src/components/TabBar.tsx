@@ -43,7 +43,7 @@ export function TabBar(): React.JSX.Element {
           const ep = episodes.find((e) => e.id === tab.id)
           if (!ep) return null
           const isActive = activeTabId === tab.id && !settingsOpen
-          const fileName = ep.file_path.split('/').pop() || ep.file_path
+          const fileName = ep.file_path?.split('/').pop() || ep.file_path || 'Untitled'
           const title = ep.title || fileName
 
           return (
