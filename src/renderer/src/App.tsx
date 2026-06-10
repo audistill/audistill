@@ -14,10 +14,9 @@ import {
 } from './components/ResizeHandle'
 import { useAppStore, Episode } from './store/app-store'
 import { useContentTabStore } from './store/content-tab-store'
+import { SUPPORTED_EXTENSIONS } from '../../shared/supported-formats'
 
 const SIDEBAR_TRANSITION_MS = 200
-
-const SUPPORTED_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.flac', '.mp4'])
 
 function getExtension(filename: string): string {
   const dot = filename.lastIndexOf('.')

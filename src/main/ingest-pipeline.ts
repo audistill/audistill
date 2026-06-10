@@ -6,10 +6,7 @@ import { ModelManager } from './model-manager'
 import { DatabaseService, Episode } from './database-service'
 import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
-
-const SUPPORTED_FILTERS = [
-  { name: 'Audio Files', extensions: ['mp3', 'm4a', 'wav', 'flac', 'mp4'] }
-]
+import { SUPPORTED_FILE_FILTER } from '../shared/supported-formats'
 
 export class IngestPipeline {
   private db: DatabaseService
@@ -69,7 +66,7 @@ export class IngestPipeline {
 
       const result = await dialog.showOpenDialog(win, {
         properties: ['openFile', 'multiSelections'],
-        filters: SUPPORTED_FILTERS,
+        filters: [SUPPORTED_FILE_FILTER],
       })
 
       if (result.canceled || result.filePaths.length === 0) return null

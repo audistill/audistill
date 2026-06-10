@@ -1,6 +1,6 @@
 ---
 title: "Extract SUPPORTED_EXTENSIONS into a shared module"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 

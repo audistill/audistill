@@ -3,10 +3,7 @@ import { Worker } from 'node:worker_threads'
 import { join } from 'node:path'
 import { preprocess } from './audio-preprocessor'
 import { ModelManager } from './model-manager'
-
-const SUPPORTED_FILTERS = [
-  { name: 'Audio Files', extensions: ['mp3', 'm4a', 'wav', 'flac', 'mp4'] }
-]
+import { SUPPORTED_FILE_FILTER } from '../shared/supported-formats'
 
 export function registerTranscriptionService(modelManager: ModelManager): void {
   ipcMain.handle('select-file', async () => {
@@ -15,7 +12,7 @@ export function registerTranscriptionService(modelManager: ModelManager): void {
 
     const result = await dialog.showOpenDialog(win, {
       properties: ['openFile'],
-      filters: SUPPORTED_FILTERS
+      filters: [SUPPORTED_FILE_FILTER]
     })
 
     if (result.canceled || result.filePaths.length === 0) return null

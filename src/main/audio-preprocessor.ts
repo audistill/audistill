@@ -2,8 +2,7 @@ import { spawn } from 'node:child_process'
 import { access } from 'node:fs/promises'
 import { extname } from 'node:path'
 import ffmpegPath from 'ffmpeg-static'
-
-const SUPPORTED_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.flac', '.mp4'])
+import { SUPPORTED_EXTENSIONS } from '../shared/supported-formats'
 
 export async function preprocess(inputPath: string): Promise<Buffer> {
   const ext = extname(inputPath).toLowerCase()
