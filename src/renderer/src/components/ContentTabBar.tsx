@@ -117,7 +117,7 @@ function PlusButton({ episodeId }: { episodeId: string }): React.JSX.Element {
 
   const handleRecipe = async (recipe: Recipe) => {
     setOpen(false)
-    const existingTab = tabs.find((t) => t.recipe_id === recipe.id)
+    const existingTab = tabs.find((t) => t.recipe_id === recipe.id && t.is_pipeline !== 1)
     if (existingTab) {
       useContentTabStore.getState().setActiveTab(existingTab.id)
       return

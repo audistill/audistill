@@ -260,6 +260,10 @@ export class IngestPipeline {
       const finalContent = summary || content
       this.tabService.updateTabContent(tabId, finalContent)
 
+      if (summary) {
+        this.broadcastTabEvent('tab:content-updated', { episodeId, tabId, content: finalContent })
+      }
+
       if (title) {
         this.db.updateEpisode(episodeId, { title, status: 'complete', error_message: null })
       } else {
@@ -294,10 +298,13 @@ export class IngestPipeline {
         content += token
         this.broadcastTabEvent('tab:stream-token', { episodeId, tabId, token })
       })
-
       const { title, summary } = this.parseRecipeOutput(content)
       const finalContent = summary || content
       this.tabService.updateTabContent(tabId, finalContent)
+
+      if (summary) {
+        this.broadcastTabEvent('tab:content-updated', { episodeId, tabId, content: finalContent })
+      }
 
       if (title && tab.is_pipeline) {
         this.db.updateEpisode(episodeId, { title })
