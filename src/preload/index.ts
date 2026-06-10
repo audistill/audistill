@@ -63,6 +63,11 @@ const api = {
   retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
   cancelEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:cancel', id),
 
+  // yt-dlp
+  ytdlpDetect: (): Promise<string | null> => ipcRenderer.invoke('ytdlp:detect'),
+  ytdlpSetPath: (path: string): Promise<string | null> => ipcRenderer.invoke('ytdlp:set-path', path),
+  selectDirectory: (): Promise<string | null> => ipcRenderer.invoke('ytdlp:select-binary'),
+
   // Tab streaming events
   tabsExecuteRecipe: (episodeId: string, tabId: string) => ipcRenderer.invoke('tabs:execute-recipe', episodeId, tabId),
 

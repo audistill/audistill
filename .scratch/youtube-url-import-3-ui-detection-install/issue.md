@@ -1,6 +1,6 @@
 ---
 title: "YouTube URL import: + dropdown, URL popover, yt-dlp detection + install screen"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAppStore, Episode, Folder } from '../store/app-store'
+import { UrlImportPopover } from './UrlImportPopover'
 
 function formatRelativeDate(dateStr: string): string {
   const now = Date.now()
@@ -63,6 +64,9 @@ export function Sidebar(): React.JSX.Element {
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
   const [editingEpisodeId, setEditingEpisodeId] = useState<string | null>(null)
   const [creatingFolder, setCreatingFolder] = useState<{ parentId: string | null } | null>(null)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [urlPopoverOpen, setUrlPopoverOpen] = useState(false)
+  const addMenuRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -70,6 +74,17 @@ export function Sidebar(): React.JSX.Element {
     window.addEventListener('click', handler)
     return () => window.removeEventListener('click', handler)
   }, [])
+
+  useEffect(() => {
+    if (!addMenuOpen) return
+    function handleClick(e: MouseEvent): void {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setAddMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [addMenuOpen])
 
   const filteredEpisodes = searchQuery
     ? episodes.filter((ep) => {
@@ -187,20 +202,52 @@ export function Sidebar(): React.JSX.Element {
               <circle cx="12" cy="12" r="3" />
             </svg>
           </button>
-          <button
-            onClick={async () => {
-              const filePaths = await window.api.selectFiles()
-              if (filePaths && filePaths.length > 0) {
-                await window.api.addFiles(filePaths)
-              }
-            }}
-            className="flex items-center gap-1 px-2 py-1 rounded-[12px] text-xs font-medium text-[var(--accent)] hover:bg-[var(--surface)] transition-[background-color] duration-150"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Add
-          </button>
+          <div className="relative" ref={addMenuRef}>
+            <button
+              onClick={() => setAddMenuOpen(!addMenuOpen)}
+              className="flex items-center gap-1 px-2 py-1 rounded-[12px] text-xs font-medium text-[var(--accent)] hover:bg-[var(--surface)] transition-[background-color] duration-150"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Add
+            </button>
+            {addMenuOpen && !urlPopoverOpen && (
+              <div className="absolute top-full right-0 mt-1 w-48 bg-[var(--surface)] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] py-1.5 z-50">
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[13px] text-[var(--text)] hover:bg-white/[0.08] transition-colors"
+                  onClick={async () => {
+                    setAddMenuOpen(false)
+                    const filePaths = await window.api.selectFiles()
+                    if (filePaths && filePaths.length > 0) {
+                      await window.api.addFiles(filePaths)
+                    }
+                  }}
+                >
+                  Import files...
+                </button>
+                <button
+                  className="w-full text-left px-3 py-1.5 text-[13px] text-[var(--text)] hover:bg-white/[0.08] transition-colors"
+                  onClick={() => {
+                    setAddMenuOpen(false)
+                    setUrlPopoverOpen(true)
+                  }}
+                >
+                  Import from URL...
+                </button>
+              </div>
+            )}
+            {urlPopoverOpen && (
+              <UrlImportPopover
+                onClose={() => setUrlPopoverOpen(false)}
+                onDetected={(canonicalUrl) => {
+                  setUrlPopoverOpen(false)
+                  // Preview card handling will be wired in slice 4
+                  console.log('URL ready for preview:', canonicalUrl)
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
 

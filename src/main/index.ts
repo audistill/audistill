@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, nativeTheme, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, nativeTheme, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ModelManager } from './model-manager'
@@ -11,6 +11,7 @@ import { IngestPipeline } from './ingest-pipeline'
 import { ChatService } from './chat-service'
 import { ChatToolExecutor } from './chat-tool-executor'
 import { MigrationService } from './migration-service'
+import { YtdlpService } from './ytdlp-service'
 import { getWindowOptions, trackWindowState, getSavedBounds } from './window-state'
 
 nativeTheme.themeSource = 'system'
@@ -21,6 +22,7 @@ let recipeService: RecipeService
 let tabService: TabService
 let ingestPipeline: IngestPipeline
 let chatService: ChatService
+let ytdlpService: YtdlpService
 
 
 function registerDatabaseHandlers(): void {
@@ -171,6 +173,28 @@ function registerRecipeHandlers(): void {
   })
 }
 
+function registerYtdlpHandlers(): void {
+  ipcMain.handle('ytdlp:detect', async () => {
+    return ytdlpService.detect()
+  })
+
+  ipcMain.handle('ytdlp:set-path', async (_event, path: string) => {
+    db.setSetting('ytdlp_path', path)
+    return ytdlpService.detect()
+  })
+
+  ipcMain.handle('ytdlp:select-binary', async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return null
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openFile'],
+      message: 'Select yt-dlp binary',
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
+}
+
 function registerTabHandlers(): void {
   ipcMain.handle('tabs:get', (_event, episodeId: string) => {
     return tabService.getTabs(episodeId)
@@ -255,10 +279,12 @@ app.whenReady().then(() => {
   tabService = new TabService(db)
   new MigrationService(db, recipeService, tabService).run()
   chatService = new ChatService(db)
+  ytdlpService = new YtdlpService(db)
   registerDatabaseHandlers()
   registerChatHandlers()
   registerRecipeHandlers()
   registerTabHandlers()
+  registerYtdlpHandlers()
 
   const modelManager = new ModelManager()
   modelManager.on('progress', (percent) => {

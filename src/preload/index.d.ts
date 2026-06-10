@@ -138,6 +138,11 @@ interface AudistillApi {
   retryEpisode: (id: string) => Promise<void>
   cancelEpisode: (id: string) => Promise<void>
 
+  // yt-dlp
+  ytdlpDetect: () => Promise<string | null>
+  ytdlpSetPath: (path: string) => Promise<string | null>
+  selectDirectory: () => Promise<string | null>
+
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
   onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => () => void
 }

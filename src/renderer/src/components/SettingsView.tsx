@@ -239,6 +239,8 @@ export function SettingsView(): React.JSX.Element {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [ytdlpPath, setYtdlpPath] = useState('')
+  const [ytdlpCustomArgs, setYtdlpCustomArgs] = useState('')
 
   const models = useOpenRouterModels()
 
@@ -248,11 +250,15 @@ export function SettingsView(): React.JSX.Element {
       window.api.getSetting('model_quality'),
       window.api.getSetting('pipeline_recipe_id'),
       window.api.recipesGetAll(),
-    ]).then(([key, savedModel, savedPipelineId, allRecipes]) => {
+      window.api.getSetting('ytdlp_path'),
+      window.api.getSetting('ytdlp_custom_args'),
+    ]).then(([key, savedModel, savedPipelineId, allRecipes, savedYtdlpPath, savedYtdlpArgs]) => {
       if (key) setApiKey(key)
       if (savedModel) setDefaultModel(savedModel)
       if (savedPipelineId) setPipelineRecipeId(savedPipelineId)
       setRecipes(allRecipes)
+      if (savedYtdlpPath) setYtdlpPath(savedYtdlpPath)
+      if (savedYtdlpArgs) setYtdlpCustomArgs(savedYtdlpArgs)
       setLoaded(true)
     })
   }, [])
@@ -354,6 +360,55 @@ export function SettingsView(): React.JSX.Element {
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="mb-8">
+        <label className="block font-heading text-sm font-medium text-[var(--text)] mb-0.5">YouTube Import</label>
+        <p className="text-xs text-[var(--secondary)] mb-3">
+          Configure yt-dlp for importing audio from YouTube URLs.
+        </p>
+        <div className="space-y-3 max-w-lg">
+          <div>
+            <label className="block text-xs font-medium text-[var(--secondary)] mb-1">yt-dlp path</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={ytdlpPath}
+                onChange={(e) => {
+                  setYtdlpPath(e.target.value)
+                  window.api.setSetting('ytdlp_path', e.target.value)
+                }}
+                className="flex-1 px-4 py-2.5 rounded-[12px] bg-[var(--surface)] border border-[var(--surface)] text-[var(--text)] text-sm outline-none focus:border-[var(--accent)] transition-colors"
+                placeholder="Auto-detect from PATH"
+              />
+              <button
+                onClick={async () => {
+                  const path = await window.api.selectDirectory()
+                  if (path) {
+                    setYtdlpPath(path)
+                    window.api.setSetting('ytdlp_path', path)
+                  }
+                }}
+                className="px-3 py-2.5 text-xs font-medium rounded-[12px] bg-[var(--surface)] text-[var(--text)] hover:bg-white/[0.08] transition-colors shrink-0"
+              >
+                Browse...
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--secondary)] mb-1">Custom arguments</label>
+            <input
+              type="text"
+              value={ytdlpCustomArgs}
+              onChange={(e) => {
+                setYtdlpCustomArgs(e.target.value)
+                window.api.setSetting('ytdlp_custom_args', e.target.value)
+              }}
+              className="w-full px-4 py-2.5 rounded-[12px] bg-[var(--surface)] border border-[var(--surface)] text-[var(--text)] text-sm outline-none focus:border-[var(--accent)] transition-colors font-mono"
+              placeholder="--cookies-from-browser chrome"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="mb-8">
