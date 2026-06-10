@@ -20,9 +20,11 @@ vi.mock('electron', () => ({
 
 import { DatabaseService } from '../src/main/database-service'
 import { ChatToolExecutor, ToolContext } from '../src/main/chat-tool-executor'
+import { TabService } from '../src/main/tab-service'
 
 describe('ChatToolExecutor', () => {
   let db: DatabaseService
+  let tabService: TabService
   let executor: ChatToolExecutor
   let context: ToolContext
   let episodeId: string
@@ -30,7 +32,8 @@ describe('ChatToolExecutor', () => {
   beforeEach(() => {
     broadcasts.length = 0
     db = new DatabaseService(':memory:')
-    executor = new ChatToolExecutor(db)
+    tabService = new TabService(db)
+    executor = new ChatToolExecutor(db, tabService)
 
     episodeId = db.createEpisode({
       title: 'Test Episode',
@@ -188,9 +191,8 @@ describe('ChatToolExecutor', () => {
       expect(parsed.results[0].id).toBe(episodeId)
     })
 
-    it('returns matching episodes by summary content', async () => {
-      db.createSummary(episodeId, 'brief', 'complete')
-      db.updateSummary(episodeId, 'brief', { content: 'This is about artificial intelligence', status: 'complete' })
+    it('returns matching episodes by tab content', async () => {
+      tabService.createTab(episodeId, { tab_name: 'Brief', content: 'This is about artificial intelligence' })
 
       const result = await executor.executeTool(
         'search_episodes',
@@ -273,13 +275,11 @@ describe('ChatToolExecutor', () => {
 
   describe('read_summary', () => {
     beforeEach(() => {
-      db.createSummary(episodeId, 'brief', 'complete')
-      db.updateSummary(episodeId, 'brief', { content: 'Brief summary content', status: 'complete' })
-      db.createSummary(episodeId, 'detailed', 'complete')
-      db.updateSummary(episodeId, 'detailed', { content: 'Detailed summary content', status: 'complete' })
+      tabService.createTab(episodeId, { tab_name: 'Brief', content: 'Brief summary content' })
+      tabService.createTab(episodeId, { tab_name: 'Detailed Notes', content: 'Detailed summary content' })
     })
 
-    it('returns summary content for specified view type', async () => {
+    it('returns tab content for specified view type', async () => {
       const result = await executor.executeTool(
         'read_summary',
         { view_type: 'brief' },
@@ -290,7 +290,7 @@ describe('ChatToolExecutor', () => {
       expect(parsed.view_type).toBe('brief')
     })
 
-    it('returns detailed summary', async () => {
+    it('returns detailed summary via view_type', async () => {
       const result = await executor.executeTool(
         'read_summary',
         { view_type: 'detailed' },
@@ -300,7 +300,18 @@ describe('ChatToolExecutor', () => {
       expect(parsed.content).toBe('Detailed summary content')
     })
 
-    it('returns error when summary not yet generated', async () => {
+    it('returns tab content by tab_name', async () => {
+      const result = await executor.executeTool(
+        'read_summary',
+        { tab_name: 'Brief' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.content).toBe('Brief summary content')
+      expect(parsed.tab_name).toBe('Brief')
+    })
+
+    it('returns error when tab does not exist', async () => {
       const result = await executor.executeTool(
         'read_summary',
         { view_type: 'full' },
@@ -310,42 +321,37 @@ describe('ChatToolExecutor', () => {
       expect(parsed.error).toContain('No full summary available')
     })
 
-    it('returns error for invalid view_type', async () => {
-      const result = await executor.executeTool(
-        'read_summary',
-        { view_type: 'invalid' },
-        context
-      )
-      const parsed = JSON.parse(result)
-      expect(parsed.error).toContain('Missing or invalid parameter: view_type')
-    })
-
-    it('returns error when view_type is missing', async () => {
+    it('returns first tab with content when no params given', async () => {
       const result = await executor.executeTool('read_summary', {}, context)
       const parsed = JSON.parse(result)
-      expect(parsed.error).toContain('Missing or invalid parameter: view_type')
+      expect(parsed.content).toBe('Brief summary content')
     })
 
     it('returns error for non-existent episode', async () => {
       const result = await executor.executeTool(
         'read_summary',
-        { view_type: 'brief', episode_id: 'nonexistent' },
+        { tab_name: 'Brief', episode_id: 'nonexistent' },
         context
       )
       const parsed = JSON.parse(result)
       expect(parsed.error).toContain('Episode not found')
     })
 
-    it('returns error when summary status is not complete', async () => {
-      db.createSummary(episodeId, 'full', 'generating')
+    it('returns error when no tabs have content', async () => {
+      tabService.createTab(episodeId, { tab_name: 'Empty' })
+      const noContentId = db.createEpisode({
+        title: 'No Content',
+        file_path: '/path/to/nocontent.mp3',
+        status: 'complete',
+      })
 
       const result = await executor.executeTool(
         'read_summary',
-        { view_type: 'full' },
-        context
+        {},
+        { currentEpisodeId: noContentId }
       )
       const parsed = JSON.parse(result)
-      expect(parsed.error).toContain('No full summary available')
+      expect(parsed.error).toContain('No summary tabs available')
     })
   })
 
@@ -413,10 +419,10 @@ describe('ChatToolExecutor', () => {
     })
   })
 
-  describe('write_canvas', () => {
-    it('persists content to database and returns success', async () => {
+  describe('write_tab', () => {
+    it('persists content to tab and returns success', async () => {
       const result = await executor.executeTool(
-        'write_canvas',
+        'write_tab',
         { content: '# Show Notes\n\nGreat episode about ML.' },
         context
       )
@@ -424,82 +430,114 @@ describe('ChatToolExecutor', () => {
       expect(parsed.success).toBe(true)
       expect(parsed.message).toContain('written successfully')
 
-      const saved = db.getCanvas(episodeId)
-      expect(saved).toBe('# Show Notes\n\nGreat episode about ML.')
+      const tabs = tabService.getTabs(episodeId)
+      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')
+      expect(canvasTab?.content).toBe('# Show Notes\n\nGreat episode about ML.')
     })
 
-    it('broadcasts canvas:stream-write event', async () => {
+    it('broadcasts tab:content-updated event', async () => {
       await executor.executeTool(
-        'write_canvas',
-        { content: 'Hello canvas' },
+        'write_tab',
+        { content: 'Hello tab' },
         context
       )
 
-      const writes = broadcasts.filter((b) => b.channel === 'canvas:stream-write')
+      const writes = broadcasts.filter((b) => b.channel === 'tab:content-updated')
       expect(writes).toHaveLength(1)
-      expect(writes[0].args[0]).toEqual({ episodeId, content: 'Hello canvas' })
+      const payload = writes[0].args[0] as { episodeId: string; content: string }
+      expect(payload.episodeId).toBe(episodeId)
+      expect(payload.content).toBe('Hello tab')
+    })
+
+    it('broadcasts tab:created when creating a new tab', async () => {
+      await executor.executeTool(
+        'write_tab',
+        { content: 'Hello' },
+        context
+      )
+
+      const created = broadcasts.filter((b) => b.channel === 'tab:created')
+      expect(created).toHaveLength(1)
+      const payload = created[0].args[0] as { episodeId: string; tabName: string }
+      expect(payload.episodeId).toBe(episodeId)
+      expect(payload.tabName).toBe('Canvas')
     })
 
     it('returns error when content parameter is missing', async () => {
-      const result = await executor.executeTool('write_canvas', {}, context)
+      const result = await executor.executeTool('write_tab', {}, context)
       const parsed = JSON.parse(result)
       expect(parsed.error).toContain('Missing required parameter: content')
     })
 
-    it('overwrites existing canvas content', async () => {
-      db.saveCanvas(episodeId, 'old content')
+    it('overwrites existing tab content', async () => {
+      tabService.createTab(episodeId, { tab_name: 'Canvas', content: 'old content' })
 
       await executor.executeTool(
-        'write_canvas',
+        'write_tab',
         { content: 'new content' },
         context
       )
 
-      const saved = db.getCanvas(episodeId)
-      expect(saved).toBe('new content')
+      const tabs = tabService.getTabs(episodeId)
+      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')
+      expect(canvasTab?.content).toBe('new content')
+    })
+
+    it('writes to a custom-named tab', async () => {
+      const result = await executor.executeTool(
+        'write_tab',
+        { content: 'Blog draft', tab_name: 'Blog Post' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      expect(parsed.message).toContain('Blog Post')
+
+      const tabs = tabService.getTabs(episodeId)
+      const blogTab = tabs.find((t) => t.tab_name === 'Blog Post')
+      expect(blogTab?.content).toBe('Blog draft')
     })
   })
 
-  describe('edit_canvas', () => {
+  describe('edit_tab', () => {
     beforeEach(() => {
-      db.saveCanvas(episodeId, '# Notes\n\n- First point\n- Second point\n- Third point')
+      tabService.createTab(episodeId, { tab_name: 'Canvas', content: '# Notes\n\n- First point\n- Second point\n- Third point' })
     })
 
     it('applies find-and-replace correctly', async () => {
       const result = await executor.executeTool(
-        'edit_canvas',
+        'edit_tab',
         { old_text: 'Second point', new_text: 'Updated second point' },
         context
       )
       const parsed = JSON.parse(result)
       expect(parsed.success).toBe(true)
 
-      const saved = db.getCanvas(episodeId)
-      expect(saved).toContain('Updated second point')
-      expect(saved).not.toContain('Second point')
-      expect(saved).toContain('First point')
-      expect(saved).toContain('Third point')
+      const tabs = tabService.getTabs(episodeId)
+      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')
+      expect(canvasTab?.content).toContain('Updated second point')
+      expect(canvasTab?.content).not.toContain('Second point')
+      expect(canvasTab?.content).toContain('First point')
+      expect(canvasTab?.content).toContain('Third point')
     })
 
-    it('broadcasts canvas:edit event with updated content', async () => {
+    it('broadcasts tab:content-updated event with updated content', async () => {
       await executor.executeTool(
-        'edit_canvas',
+        'edit_tab',
         { old_text: 'First point', new_text: 'Modified first' },
         context
       )
 
-      const edits = broadcasts.filter((b) => b.channel === 'canvas:edit')
-      expect(edits).toHaveLength(1)
-      const payload = edits[0].args[0] as { episodeId: string; content: string; oldText: string; newText: string }
+      const updates = broadcasts.filter((b) => b.channel === 'tab:content-updated')
+      expect(updates).toHaveLength(1)
+      const payload = updates[0].args[0] as { episodeId: string; content: string }
       expect(payload.episodeId).toBe(episodeId)
-      expect(payload.oldText).toBe('First point')
-      expect(payload.newText).toBe('Modified first')
       expect(payload.content).toContain('Modified first')
     })
 
-    it('returns error when old_text is not found in canvas', async () => {
+    it('returns error when old_text is not found in tab', async () => {
       const result = await executor.executeTool(
-        'edit_canvas',
+        'edit_tab',
         { old_text: 'nonexistent text', new_text: 'replacement' },
         context
       )
@@ -509,7 +547,7 @@ describe('ChatToolExecutor', () => {
 
     it('returns error when parameters are missing', async () => {
       const result = await executor.executeTool(
-        'edit_canvas',
+        'edit_tab',
         { old_text: 'First point' },
         context
       )
@@ -517,11 +555,13 @@ describe('ChatToolExecutor', () => {
       expect(parsed.error).toContain('Missing required parameters')
     })
 
-    it('works on empty canvas (old_text not found)', async () => {
-      db.saveCanvas(episodeId, '')
+    it('works on empty tab (old_text not found)', async () => {
+      const tabs = tabService.getTabs(episodeId)
+      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')!
+      tabService.updateTabContent(canvasTab.id, '')
 
       const result = await executor.executeTool(
-        'edit_canvas',
+        'edit_tab',
         { old_text: 'anything', new_text: 'replacement' },
         context
       )
@@ -530,45 +570,41 @@ describe('ChatToolExecutor', () => {
     })
   })
 
-  describe('navigate_view', () => {
-    it('broadcasts canvas:navigate with episode view', async () => {
+  describe('navigate_tab', () => {
+    it('broadcasts tab:navigate for existing tab', async () => {
+      tabService.createTab(episodeId, { tab_name: 'Notes', content: 'some content' })
+
       const result = await executor.executeTool(
-        'navigate_view',
-        { view: 'episode' },
+        'navigate_tab',
+        { tab_name: 'Notes' },
         context
       )
       const parsed = JSON.parse(result)
       expect(parsed.success).toBe(true)
-      expect(parsed.message).toContain('episode')
+      expect(parsed.message).toContain('Notes')
 
-      const navs = broadcasts.filter((b) => b.channel === 'canvas:navigate')
+      const navs = broadcasts.filter((b) => b.channel === 'tab:navigate')
       expect(navs).toHaveLength(1)
-      expect(navs[0].args[0]).toEqual({ view: 'episode' })
     })
 
-    it('broadcasts canvas:navigate with canvas view', async () => {
+    it('returns error when tab_name is missing', async () => {
       const result = await executor.executeTool(
-        'navigate_view',
-        { view: 'canvas' },
+        'navigate_tab',
+        {},
         context
       )
       const parsed = JSON.parse(result)
-      expect(parsed.success).toBe(true)
-      expect(parsed.message).toContain('canvas')
-
-      const navs = broadcasts.filter((b) => b.channel === 'canvas:navigate')
-      expect(navs).toHaveLength(1)
-      expect(navs[0].args[0]).toEqual({ view: 'canvas' })
+      expect(parsed.error).toContain('Missing required parameter: tab_name')
     })
 
-    it('returns error for invalid view value', async () => {
+    it('returns error when tab does not exist', async () => {
       const result = await executor.executeTool(
-        'navigate_view',
-        { view: 'invalid' },
+        'navigate_tab',
+        { tab_name: 'Nonexistent' },
         context
       )
       const parsed = JSON.parse(result)
-      expect(parsed.error).toContain('Invalid parameter: view must be')
+      expect(parsed.error).toContain('not found')
     })
   })
 })

@@ -240,8 +240,8 @@ export class DatabaseService {
     return this.db
       .prepare(
         `SELECT DISTINCT e.* FROM episodes e
-         LEFT JOIN episode_summaries es ON es.episode_id = e.id
-         WHERE e.title LIKE ? OR es.content LIKE ?
+         LEFT JOIN episode_tabs et ON et.episode_id = e.id
+         WHERE e.title LIKE ? OR et.content LIKE ?
          ORDER BY e.created_at DESC`
       )
       .all(pattern, pattern) as Episode[]

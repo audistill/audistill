@@ -100,14 +100,14 @@ const TOOL_DEFINITIONS = [
     type: 'function' as const,
     function: {
       name: 'read_summary',
-      description: 'Read a specific summary (brief, detailed, or full) for an episode',
+      description: 'Read the content of a tab (summary or other generated content) for an episode. Can look up by tab name or legacy view type.',
       parameters: {
         type: 'object',
         properties: {
           episode_id: { type: 'string', description: 'Episode ID (defaults to current episode)' },
-          view_type: { type: 'string', enum: ['brief', 'detailed', 'full'], description: 'Summary view type' },
+          tab_name: { type: 'string', description: 'Name of the tab to read (e.g. "Brief", "Detailed Notes")' },
+          view_type: { type: 'string', enum: ['brief', 'detailed', 'full'], description: 'Legacy summary view type (maps to tab names)' },
         },
-        required: ['view_type'],
       },
     },
   },
@@ -127,12 +127,13 @@ const TOOL_DEFINITIONS = [
   {
     type: 'function' as const,
     function: {
-      name: 'write_canvas',
-      description: 'Write content to the Canvas workspace. The view will auto-switch to Canvas and display the content. Use this when the user asks you to write, draft, or create something (show notes, blog posts, summaries, etc.)',
+      name: 'write_tab',
+      description: 'Write content to a tab. Creates the tab if it does not exist, then switches to it. Use this when the user asks you to write, draft, or create something (show notes, blog posts, summaries, etc.)',
       parameters: {
         type: 'object',
         properties: {
-          content: { type: 'string', description: 'Full markdown content to write to the canvas' },
+          content: { type: 'string', description: 'Full markdown content to write to the tab' },
+          tab_name: { type: 'string', description: 'Name of the tab to write to (defaults to "Canvas")' },
         },
         required: ['content'],
       },
@@ -141,13 +142,14 @@ const TOOL_DEFINITIONS = [
   {
     type: 'function' as const,
     function: {
-      name: 'edit_canvas',
-      description: 'Make a targeted edit to the Canvas content by finding and replacing specific text. Use this when the user asks to change, update, or modify a specific part of the canvas.',
+      name: 'edit_tab',
+      description: 'Make a targeted edit to a tab\'s content by finding and replacing specific text. Use this when the user asks to change, update, or modify a specific part of a tab.',
       parameters: {
         type: 'object',
         properties: {
-          old_text: { type: 'string', description: 'The exact text to find in the canvas' },
+          old_text: { type: 'string', description: 'The exact text to find in the tab' },
           new_text: { type: 'string', description: 'The replacement text' },
+          tab_name: { type: 'string', description: 'Name of the tab to edit (defaults to "Canvas")' },
         },
         required: ['old_text', 'new_text'],
       },
@@ -156,14 +158,14 @@ const TOOL_DEFINITIONS = [
   {
     type: 'function' as const,
     function: {
-      name: 'navigate_view',
-      description: 'Switch the main content area between Episode view and Canvas view',
+      name: 'navigate_tab',
+      description: 'Switch the active tab to a specific tab by name',
       parameters: {
         type: 'object',
         properties: {
-          view: { type: 'string', enum: ['episode', 'canvas'], description: 'The view to switch to' },
+          tab_name: { type: 'string', description: 'The name of the tab to switch to' },
         },
-        required: ['view'],
+        required: ['tab_name'],
       },
     },
   },
@@ -175,7 +177,7 @@ function buildSystemPrompt(context: {
   duration: string | null
   date: string
   activeSummary: string | null
-  canvasContent: string | null
+  tabsContext: string | null
 }): string {
   let prompt = `You are a helpful AI assistant for the Audistill podcast app. You help users understand, explore, and create content from their podcast episodes.
 
@@ -193,25 +195,25 @@ ${context.activeSummary}
 `
   }
 
-  if (context.canvasContent) {
+  if (context.tabsContext) {
     prompt += `
-## Canvas Content
-${context.canvasContent}
+## Episode Tabs
+${context.tabsContext}
 `
   }
 
   prompt += `
 ## Available Tools
-You have access to tools for reading transcripts, searching content, accessing episode data, and writing to the Canvas.
+You have access to tools for reading transcripts, searching content, accessing episode data, and writing to tabs.
 
 When answering questions about the episode content, prefer using the search_transcript tool to find relevant segments rather than relying only on the summary.
 
-When the user asks you to write, draft, or create something (show notes, blog posts, key takeaways, etc.), use the write_canvas tool to put the content in the Canvas workspace. When they ask for a targeted edit ("change X to Y", "update the third bullet"), use edit_canvas for surgical replacement. Use navigate_view to switch between episode and canvas views.
+When the user asks you to write, draft, or create something (show notes, blog posts, key takeaways, etc.), use the write_tab tool to put the content in a tab. When they ask for a targeted edit ("change X to Y", "update the third bullet"), use edit_tab for surgical replacement. Use navigate_tab to switch between tabs.
 
 Be concise and helpful. Format responses with markdown when appropriate.
 
-## Canvas Formatting
-When writing to the Canvas, use only these markdown elements:
+## Tab Content Formatting
+When writing to tabs, use only these markdown elements:
 - Headings (h1-h3) for structure
 - **Bold** and *italic* for emphasis
 - Bullet lists and numbered lists
@@ -221,7 +223,7 @@ When writing to the Canvas, use only these markdown elements:
 - Fenced code blocks for longer excerpts or structured data
 - Horizontal rules (---) to separate major sections
 
-Do not use tables, images, task lists, or nested blockquotes in Canvas content.`
+Do not use tables, images, task lists, or nested blockquotes in tab content.`
 
   return prompt
 }
@@ -410,7 +412,12 @@ export function ChatSidebar(): React.JSX.Element {
 
     const model = selectedModel || (await window.api.getSetting('model_quality')) || 'google/gemini-3.5-flash'
 
-    const canvasContent = await window.api.canvasGetContent(activeTabId)
+    const allTabs = await window.api.tabsGet(activeTabId)
+    const tabsContext = allTabs
+      .map((t: { tab_name: string; content: string }) =>
+        t.content ? `### ${t.tab_name}\n${t.content}` : `### ${t.tab_name}\n(empty)`
+      )
+      .join('\n\n')
 
     const allMessages = [...messages, newMessage]
     const chatMessages = allMessages
@@ -426,7 +433,7 @@ export function ChatSidebar(): React.JSX.Element {
       duration: episode.duration_sec ? formatDuration(episode.duration_sec) : null,
       date: episode.created_at,
       activeSummary,
-      canvasContent: canvasContent || null,
+      tabsContext: tabsContext || null,
     })
 
     setStreaming(true)
@@ -595,7 +602,7 @@ export function ChatSidebar(): React.JSX.Element {
             </svg>
           </button>
           {modelDropdownOpen && (
-            <div className="absolute top-full left-0 mt-1 w-72 max-h-64 overflow-hidden rounded-[10px] bg-[var(--bg)] border border-[var(--surface)] shadow-xl z-50 flex flex-col">
+            <div className="absolute top-full left-0 mt-1 w-72 max-h-64 overflow-hidden rounded-lg bg-[var(--surface)] shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-50 flex flex-col">
               <div className="px-2 pt-2 pb-1">
                 <input
                   type="text"
@@ -603,10 +610,10 @@ export function ChatSidebar(): React.JSX.Element {
                   onChange={(e) => setModelFilter(e.target.value)}
                   placeholder="Search models..."
                   autoFocus
-                  className="w-full px-2 py-1.5 text-xs bg-[var(--surface)] rounded-[6px] outline-none text-[var(--text)] placeholder-[var(--secondary)]"
+                  className="w-full px-2 py-1.5 text-[13px] bg-[var(--bg)] rounded-md outline-none text-[var(--text)] placeholder-[var(--secondary)]"
                 />
               </div>
-              <div className="overflow-y-auto flex-1">
+              <div className="overflow-y-auto flex-1 py-1">
                 {getFilteredModels(models, selectedModel, modelFilter).map((m) => (
                   <button
                     key={m.id}
@@ -615,15 +622,16 @@ export function ChatSidebar(): React.JSX.Element {
                       setModelDropdownOpen(false)
                       setModelFilter('')
                     }}
-                    className={`w-full text-left px-3 py-1.5 text-xs truncate hover:bg-[var(--surface)] transition-colors ${
+                    className={`w-full text-left px-2 py-1 text-[13px] truncate hover:bg-white/[0.08] rounded-md mx-1.5 transition-[background-color] duration-150 ${
                       m.id === selectedModel ? 'text-[var(--accent)]' : 'text-[var(--text)]'
                     }`}
+                    style={{ width: 'calc(100% - 12px)' }}
                   >
                     {m.name || m.id}
                   </button>
                 ))}
                 {getFilteredModels(models, selectedModel, modelFilter).length === 0 && (
-                  <p className="px-3 py-2 text-xs text-[var(--secondary)]">No models found</p>
+                  <p className="px-3 py-2 text-[13px] text-[var(--secondary)]">No models found</p>
                 )}
               </div>
             </div>
@@ -696,17 +704,18 @@ export function ChatSidebar(): React.JSX.Element {
         {slashOpen && filteredSlashRecipes.length > 0 && (
           <div
             ref={slashPopoverRef}
-            className="absolute bottom-full left-4 right-4 mb-1 z-50 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] shadow-lg max-h-[200px] overflow-y-auto"
+            className="absolute bottom-full left-4 right-4 mb-1 z-50 py-1.5 rounded-lg bg-[var(--surface)] shadow-[0_8px_24px_rgba(0,0,0,0.4)] max-h-[200px] overflow-y-auto"
           >
             {filteredSlashRecipes.map((recipe, i) => (
               <button
                 key={recipe.id}
                 onClick={() => handleSlashSelect(recipe)}
-                className={`w-full px-3 py-1.5 text-left text-sm transition-colors ${
+                className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] rounded-md transition-[background-color] duration-150 text-[var(--text)] ${
                   i === slashSelectedIndex
-                    ? 'bg-[var(--accent)]/10 text-[var(--text)]'
-                    : 'text-[var(--text)] hover:bg-[var(--accent)]/10'
+                    ? 'bg-white/[0.08]'
+                    : 'hover:bg-white/[0.08]'
                 }`}
+                style={{ width: 'calc(100% - 12px)' }}
               >
                 {recipe.name}
               </button>

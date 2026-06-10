@@ -66,6 +66,22 @@ const api = {
   // Tab streaming events
   tabsExecuteRecipe: (episodeId: string, tabId: string) => ipcRenderer.invoke('tabs:execute-recipe', episodeId, tabId),
 
+  onTabContentUpdated: (callback: (data: { episodeId: string; tabId: string; content: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; tabId: string; content: string }): void => callback(data)
+    ipcRenderer.on('tab:content-updated', handler)
+    return () => ipcRenderer.removeListener('tab:content-updated', handler)
+  },
+  onTabCreated: (callback: (data: { episodeId: string; tabId: string; tabName: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; tabId: string; tabName: string }): void => callback(data)
+    ipcRenderer.on('tab:created', handler)
+    return () => ipcRenderer.removeListener('tab:created', handler)
+  },
+  onTabNavigate: (callback: (data: { episodeId: string; tabId: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; tabId: string }): void => callback(data)
+    ipcRenderer.on('tab:navigate', handler)
+    return () => ipcRenderer.removeListener('tab:navigate', handler)
+  },
+
   onTabStreamStart: (callback: (data: { episodeId: string; tabId: string }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; tabId: string }): void => callback(data)
     ipcRenderer.on('tab:stream-start', handler)
@@ -87,34 +103,6 @@ const api = {
     return () => ipcRenderer.removeListener('tab:stream-error', handler)
   },
 
-  // Canvas API
-  canvasGetContent: (episodeId: string): Promise<string> => ipcRenderer.invoke('canvas:get-content', episodeId),
-  canvasSaveContent: (episodeId: string, content: string): Promise<void> => ipcRenderer.invoke('canvas:save-content', episodeId, content),
-  onCanvasStreamWrite: (callback: (data: { episodeId: string; content: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; content: string }): void => callback(data)
-    ipcRenderer.on('canvas:stream-write', handler)
-    return () => ipcRenderer.removeListener('canvas:stream-write', handler)
-  },
-  onCanvasStreamDelta: (callback: (data: { content: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: { content: string }): void => callback(data)
-    ipcRenderer.on('canvas:stream-delta', handler)
-    return () => ipcRenderer.removeListener('canvas:stream-delta', handler)
-  },
-  onCanvasStreamStart: (callback: () => void) => {
-    const handler = (): void => callback()
-    ipcRenderer.on('canvas:stream-start', handler)
-    return () => ipcRenderer.removeListener('canvas:stream-start', handler)
-  },
-  onCanvasEdit: (callback: (data: { episodeId: string; content: string; oldText: string; newText: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; content: string; oldText: string; newText: string }): void => callback(data)
-    ipcRenderer.on('canvas:edit', handler)
-    return () => ipcRenderer.removeListener('canvas:edit', handler)
-  },
-  onCanvasNavigate: (callback: (data: { view: 'episode' | 'canvas' }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: { view: 'episode' | 'canvas' }): void => callback(data)
-    ipcRenderer.on('canvas:navigate', handler)
-    return () => ipcRenderer.removeListener('canvas:navigate', handler)
-  },
 
   // Recipes API
   recipesGetAll: () => ipcRenderer.invoke('recipe:get-all'),

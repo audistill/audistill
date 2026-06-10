@@ -145,22 +145,24 @@ function PlusButton({ episodeId }: { episodeId: string }): React.JSX.Element {
       {open && (
         <div
           ref={popoverRef}
-          className="absolute right-0 top-full mt-1 z-50 min-w-[180px] py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] shadow-lg"
+          className="absolute right-0 top-full mt-1 z-50 min-w-[180px] py-1.5 rounded-lg bg-[var(--surface)] shadow-[0_8px_24px_rgba(0,0,0,0.4)]"
         >
           <button
             onClick={handleBlank}
-            className="w-full px-3 py-1.5 text-left text-sm text-[var(--text)] hover:bg-[var(--accent)]/10 transition-colors"
+            className="w-full px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-white/[0.08] rounded-md mx-1.5 transition-[background-color] duration-150"
+            style={{ width: 'calc(100% - 12px)' }}
           >
             Blank
           </button>
           {recipes.length > 0 && (
             <>
-              <div className="my-1 border-t border-[var(--border)]" />
+              <div className="my-1.5 mx-2 border-t border-white/[0.06]" />
               {recipes.map((recipe) => (
                 <button
                   key={recipe.id}
                   onClick={() => handleRecipe(recipe)}
-                  className="w-full px-3 py-1.5 text-left text-sm text-[var(--text)] hover:bg-[var(--accent)]/10 transition-colors"
+                  className="w-full px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-white/[0.08] rounded-md mx-1.5 transition-[background-color] duration-150"
+                  style={{ width: 'calc(100% - 12px)' }}
                 >
                   {recipe.name}
                 </button>
@@ -221,7 +223,7 @@ function TabItem({
     <div
       className={`group relative flex items-center gap-1 px-3 py-1.5 rounded-t-[8px] text-sm font-medium cursor-pointer select-none transition-colors shrink-0 ${
         isActive
-          ? 'bg-[var(--bg)] text-[var(--text)] border-b-2 border-[var(--accent)]'
+          ? `bg-[var(--bg)] text-[var(--text)]${editing ? '' : ' border-b-2 border-[var(--accent)]'}`
           : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]/50'
       }`}
       onClick={onActivate}

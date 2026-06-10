@@ -156,25 +156,28 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     if (!hydrated) return
-    const unsubStreamStart = window.api.onCanvasStreamStart(() => {
-      useAppStore.getState().setActiveContentView('canvas')
+    const unsubContentUpdated = window.api.onTabContentUpdated((data) => {
+      const activeEpisode = useAppStore.getState().activeTabId
+      if (data.episodeId !== activeEpisode) return
+      useContentTabStore.getState().setContentFromMain(data.tabId, data.content)
     })
-    const unsubWrite = window.api.onCanvasStreamWrite(() => {
-      useAppStore.getState().setActiveContentView('canvas')
+    const unsubCreated = window.api.onTabCreated((data) => {
+      const activeEpisode = useAppStore.getState().activeTabId
+      if (data.episodeId !== activeEpisode) return
+      useContentTabStore.getState().loadTabs(data.episodeId)
     })
-    const unsubEdit = window.api.onCanvasEdit(() => {
-      useAppStore.getState().setActiveContentView('canvas')
-    })
-    const unsubNav = window.api.onCanvasNavigate((data) => {
-      useAppStore.getState().setActiveContentView(data.view)
+    const unsubNavigate = window.api.onTabNavigate((data) => {
+      const activeEpisode = useAppStore.getState().activeTabId
+      if (data.episodeId !== activeEpisode) return
+      useContentTabStore.getState().setActiveTab(data.tabId)
     })
     return () => {
-      unsubStreamStart()
-      unsubWrite()
-      unsubEdit()
-      unsubNav()
+      unsubContentUpdated()
+      unsubCreated()
+      unsubNavigate()
     }
   }, [hydrated])
+
 
   const toggleTranscriptPanel = useAppStore((s) => s.toggleTranscriptPanel)
 

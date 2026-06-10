@@ -85,14 +85,6 @@ interface AudistillApi {
   deleteFolder: (id: string) => Promise<void>
   validateApiKey: (key: string) => Promise<boolean>
 
-  // Canvas API
-  canvasGetContent: (episodeId: string) => Promise<string>
-  canvasSaveContent: (episodeId: string, content: string) => Promise<void>
-  onCanvasStreamWrite: (callback: (data: { episodeId: string; content: string }) => void) => () => void
-  onCanvasStreamDelta: (callback: (data: { content: string }) => void) => () => void
-  onCanvasStreamStart: (callback: () => void) => () => void
-  onCanvasEdit: (callback: (data: { episodeId: string; content: string; oldText: string; newText: string }) => void) => () => void
-  onCanvasNavigate: (callback: (data: { view: 'episode' | 'canvas' }) => void) => () => void
 
   // Recipes API
   recipesGetAll: () => Promise<{ id: string; name: string; prompt: string; model_override: string | null; is_builtin: number; sort_order: number; created_at: string }[]>
@@ -110,6 +102,11 @@ interface AudistillApi {
   tabsRename: (tabId: string, name: string) => Promise<void>
   tabsReorder: (episodeId: string, tabIds: string[]) => Promise<void>
   tabsExecuteRecipe: (episodeId: string, tabId: string) => Promise<void>
+
+  // Tab update events (from chat tool executor)
+  onTabContentUpdated: (callback: (data: { episodeId: string; tabId: string; content: string }) => void) => () => void
+  onTabCreated: (callback: (data: { episodeId: string; tabId: string; tabName: string }) => void) => () => void
+  onTabNavigate: (callback: (data: { episodeId: string; tabId: string }) => void) => () => void
 
   // Tab streaming events
   onTabStreamStart: (callback: (data: { episodeId: string; tabId: string }) => void) => () => void

@@ -1,6 +1,7 @@
 import { basename } from 'path'
 import { BrowserWindow } from 'electron'
 import { DatabaseService, Episode } from './database-service'
+import { TabService } from './tab-service'
 
 export interface ToolContext {
   currentEpisodeId: string
@@ -20,9 +21,11 @@ function resolveEpisodeId(args: Record<string, unknown>, context: ToolContext): 
 
 export class ChatToolExecutor {
   private db: DatabaseService
+  private tabService: TabService
 
-  constructor(db: DatabaseService) {
+  constructor(db: DatabaseService, tabService: TabService) {
     this.db = db
+    this.tabService = tabService
   }
 
   async executeTool(
@@ -44,11 +47,13 @@ export class ChatToolExecutor {
       case 'read_episode_metadata':
         return this.readEpisodeMetadata(args, context)
       case 'write_canvas':
-        return this.writeCanvas(args, context)
+      case 'write_tab':
+        return this.writeTab(args, context)
       case 'edit_canvas':
-        return this.editCanvas(args, context)
-      case 'navigate_view':
-        return this.navigateView(args)
+      case 'edit_tab':
+        return this.editTab(args, context)
+      case 'navigate_tab':
+        return this.navigateTab(args, context)
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` })
     }
@@ -153,24 +158,43 @@ export class ChatToolExecutor {
 
   private readSummary(args: Record<string, unknown>, context: ToolContext): string {
     const episodeId = resolveEpisodeId(args, context)
-    const viewType = args.view_type as 'brief' | 'detailed' | 'full'
-    if (!viewType || !['brief', 'detailed', 'full'].includes(viewType)) {
-      return JSON.stringify({ error: 'Missing or invalid parameter: view_type (must be brief, detailed, or full)' })
-    }
+    const tabName = args.tab_name as string | undefined
+    const viewType = args.view_type as string | undefined
 
     const episode = this.db.getEpisode(episodeId)
     if (!episode) {
       return JSON.stringify({ error: `Episode not found: ${episodeId}` })
     }
 
-    const summary = this.db.getSummary(episodeId, viewType)
-    if (!summary || summary.status !== 'complete') {
-      return JSON.stringify({
-        error: `No ${viewType} summary available for episode: ${episode.title || episodeId}`,
-      })
+    const tabs = this.tabService.getTabs(episodeId)
+
+    if (tabName) {
+      const tab = tabs.find((t) => t.tab_name.toLowerCase() === tabName.toLowerCase())
+      if (!tab || !tab.content) {
+        return JSON.stringify({ error: `No tab "${tabName}" found for episode: ${episode.title || episodeId}` })
+      }
+      return JSON.stringify({ content: tab.content, tab_name: tab.tab_name, episode_id: episodeId })
     }
 
-    return JSON.stringify({ content: summary.content, view_type: viewType, episode_id: episodeId })
+    if (viewType && ['brief', 'detailed', 'full'].includes(viewType)) {
+      const nameMap: Record<string, string[]> = {
+        brief: ['Brief'],
+        detailed: ['Detailed Notes', 'Detailed'],
+        full: ['Full Notes', 'Full'],
+      }
+      const candidates = nameMap[viewType] || []
+      const tab = tabs.find((t) => candidates.some((c) => t.tab_name.toLowerCase() === c.toLowerCase()))
+      if (!tab || !tab.content) {
+        return JSON.stringify({ error: `No ${viewType} summary available for episode: ${episode.title || episodeId}` })
+      }
+      return JSON.stringify({ content: tab.content, view_type: viewType, episode_id: episodeId })
+    }
+
+    const firstWithContent = tabs.find((t) => t.content)
+    if (!firstWithContent) {
+      return JSON.stringify({ error: `No summary tabs available for episode: ${episode.title || episodeId}` })
+    }
+    return JSON.stringify({ content: firstWithContent.content, tab_name: firstWithContent.tab_name, episode_id: episodeId })
   }
 
   private readEpisodeMetadata(args: Record<string, unknown>, context: ToolContext): string {
@@ -193,45 +217,65 @@ export class ChatToolExecutor {
     })
   }
 
-  private writeCanvas(args: Record<string, unknown>, context: ToolContext): string {
+  private writeTab(args: Record<string, unknown>, context: ToolContext): string {
     const content = args.content as string
     if (typeof content !== 'string') {
       return JSON.stringify({ error: 'Missing required parameter: content' })
     }
 
+    const tabName = (args.tab_name as string) || 'Canvas'
     const episodeId = context.currentEpisodeId
-    this.db.saveCanvas(episodeId, content)
-    this.broadcast('canvas:stream-write', { episodeId, content })
-    return JSON.stringify({ success: true, message: 'Canvas content written successfully' })
+    const tab = this.getOrCreateTab(episodeId, tabName)
+    this.tabService.updateTabContent(tab.id, content)
+    this.broadcast('tab:content-updated', { episodeId, tabId: tab.id, content })
+    return JSON.stringify({ success: true, message: `Tab "${tabName}" content written successfully` })
   }
 
-  private editCanvas(args: Record<string, unknown>, context: ToolContext): string {
+  private editTab(args: Record<string, unknown>, context: ToolContext): string {
     const oldText = args.old_text as string
     const newText = args.new_text as string
     if (typeof oldText !== 'string' || typeof newText !== 'string') {
       return JSON.stringify({ error: 'Missing required parameters: old_text and new_text' })
     }
 
+    const tabName = (args.tab_name as string) || 'Canvas'
     const episodeId = context.currentEpisodeId
-    const current = this.db.getCanvas(episodeId)
+    const tab = this.getOrCreateTab(episodeId, tabName)
+    const current = tab.content
     if (!current.includes(oldText)) {
-      return JSON.stringify({ error: `Could not find the specified text in the canvas. Make sure old_text matches exactly.` })
+      return JSON.stringify({ error: `Could not find the specified text in tab "${tabName}". Make sure old_text matches exactly.` })
     }
 
     const updated = current.replace(oldText, newText)
-    this.db.saveCanvas(episodeId, updated)
-    this.broadcast('canvas:edit', { episodeId, content: updated, oldText, newText })
-    return JSON.stringify({ success: true, message: 'Canvas content edited successfully' })
+    this.tabService.updateTabContent(tab.id, updated)
+    this.broadcast('tab:content-updated', { episodeId, tabId: tab.id, content: updated })
+    return JSON.stringify({ success: true, message: `Tab "${tabName}" content edited successfully` })
   }
 
-  private navigateView(args: Record<string, unknown>): string {
-    const view = args.view as string
-    if (view !== 'episode' && view !== 'canvas') {
-      return JSON.stringify({ error: 'Invalid parameter: view must be "episode" or "canvas"' })
+  private getOrCreateTab(episodeId: string, tabName: string): { id: string; content: string } {
+    const tabs = this.tabService.getTabs(episodeId)
+    const existing = tabs.find((t) => t.tab_name === tabName && !t.recipe_id)
+    if (existing) return existing
+    const id = this.tabService.createTab(episodeId, { tab_name: tabName })
+    this.broadcast('tab:created', { episodeId, tabId: id, tabName })
+    return { id, content: '' }
+  }
+
+  private navigateTab(args: Record<string, unknown>, context: ToolContext): string {
+    const tabName = args.tab_name as string
+    if (!tabName) {
+      return JSON.stringify({ error: 'Missing required parameter: tab_name' })
     }
 
-    this.broadcast('canvas:navigate', { view })
-    return JSON.stringify({ success: true, message: `Navigated to ${view} view` })
+    const episodeId = context.currentEpisodeId
+    const tabs = this.tabService.getTabs(episodeId)
+    const tab = tabs.find((t) => t.tab_name === tabName)
+    if (!tab) {
+      return JSON.stringify({ error: `Tab "${tabName}" not found` })
+    }
+
+    this.broadcast('tab:navigate', { episodeId, tabId: tab.id })
+    return JSON.stringify({ success: true, message: `Navigated to tab "${tabName}"` })
   }
 
   private broadcast(channel: string, ...args: unknown[]): void {

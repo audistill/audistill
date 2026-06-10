@@ -22,6 +22,7 @@ interface ContentTabState {
   setActiveTab: (tabId: string) => void
   createTab: (episodeId: string, options?: { recipe_id?: string | null; tab_name?: string; is_pipeline?: boolean; content?: string }) => Promise<string>
   updateContent: (tabId: string, content: string) => void
+  setContentFromMain: (tabId: string, content: string) => void
   deleteTab: (tabId: string) => void
   renameTab: (tabId: string, name: string) => void
   clearTabs: () => void
@@ -67,6 +68,13 @@ export const useContentTabStore = create<ContentTabState>((set, get) => ({
     debounceTimer = setTimeout(() => {
       window.api.tabsUpdateContent(tabId, content)
     }, 500)
+  },
+
+  setContentFromMain: (tabId: string, content: string) => {
+    const { tabs } = get()
+    set({
+      tabs: tabs.map((t) => (t.id === tabId ? { ...t, content } : t)),
+    })
   },
 
   deleteTab: (tabId: string) => {
