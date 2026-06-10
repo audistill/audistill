@@ -1,6 +1,6 @@
 ---
 title: YouTube URL import via bring-your-own yt-dlp
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 

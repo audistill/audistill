@@ -110,8 +110,7 @@ describe('IngestPipeline', () => {
 
     vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
       async (_recipeId, _transcript, onToken) => {
-        const response = JSON.stringify({ title: 'Generated Title', summary: '**The Rundown:** Content' })
-        onToken(response)
+        onToken('TITLE: Generated Title\n---\n**The Rundown:** Content')
       }
     )
 
@@ -241,8 +240,7 @@ describe('IngestPipeline', () => {
       // Retry: transcript exists so transcription is skipped
       vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
         async (_recipeId, _transcript, onToken) => {
-          const response = JSON.stringify({ title: 'Retry Title', summary: 'Retry summary' })
-          onToken(response)
+          onToken('TITLE: Retry Title\n---\nRetry summary')
         }
       )
       ;(preprocess as ReturnType<typeof vi.fn>).mockClear()

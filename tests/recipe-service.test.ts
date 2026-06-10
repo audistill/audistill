@@ -323,11 +323,13 @@ describe('RecipeService', () => {
         const brief = service.getRecipes().find((r) => r.name === 'Brief')!
         await service.executeRecipe(brief.id, 'My test transcript', () => {})
         const body = JSON.parse(receivedBody)
-        expect(body.messages).toHaveLength(2)
+        expect(body.messages).toHaveLength(3)
         expect(body.messages[0].role).toBe('system')
-        expect(body.messages[0].content).toContain('concise overview summary')
+        expect(body.messages[0].content).toContain('<output-format>')
         expect(body.messages[1].role).toBe('user')
-        expect(body.messages[1].content).toContain('My test transcript')
+        expect(body.messages[1].content).toContain('concise overview summary')
+        expect(body.messages[2].role).toBe('user')
+        expect(body.messages[2].content).toContain('My test transcript')
       } finally {
         globalThis.fetch = origFetch
       }

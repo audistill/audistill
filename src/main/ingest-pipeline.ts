@@ -374,10 +374,6 @@ export class IngestPipeline {
       const finalContent = summary || content
       this.tabService.updateTabContent(tabId, finalContent)
 
-      if (summary) {
-        this.broadcastTabEvent('tab:content-updated', { episodeId, tabId, content: finalContent })
-      }
-
       if (title) {
         this.db.updateEpisode(episodeId, { title, status: 'complete', error_message: null })
       } else {
@@ -416,10 +412,6 @@ export class IngestPipeline {
       const finalContent = summary || content
       this.tabService.updateTabContent(tabId, finalContent)
 
-      if (summary) {
-        this.broadcastTabEvent('tab:content-updated', { episodeId, tabId, content: finalContent })
-      }
-
       if (title && tab.is_pipeline) {
         this.db.updateEpisode(episodeId, { title })
         this.broadcastEpisodeUpdate(episodeId)
@@ -434,21 +426,13 @@ export class IngestPipeline {
   }
 
   private parseRecipeOutput(content: string): { title: string | null; summary: string | null } {
-    try {
-      const trimmed = content.trim()
-      const fenceMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/)
-      const jsonStr = fenceMatch ? fenceMatch[1].trim() : trimmed
-      const parsed = JSON.parse(jsonStr)
-      if (typeof parsed === 'object' && parsed !== null && 'title' in parsed && 'summary' in parsed) {
-        return {
-          title: typeof parsed.title === 'string' ? parsed.title : null,
-          summary: typeof parsed.summary === 'string' ? parsed.summary : null,
-        }
-      }
-    } catch {
-      // not JSON, treat as plain markdown
-    }
-    return { title: null, summary: null }
+    const separatorIdx = content.indexOf('\n---\n')
+    if (separatorIdx === -1) return { title: null, summary: null }
+
+    const firstLine = content.slice(0, separatorIdx).trim()
+    const title = firstLine.startsWith('TITLE: ') ? firstLine.slice(7).trim() : null
+    const summary = content.slice(separatorIdx + 5)
+    return { title, summary: summary || null }
   }
 
   private broadcastTabEvent(channel: string, data: Record<string, unknown>): void {

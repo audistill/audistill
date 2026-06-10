@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'crypto'
 import { DatabaseService } from './database-service'
-import { MARKDOWN_FORMAT_GUIDANCE } from '../shared/markdown-guidance'
 
 export interface Recipe {
   id: string
@@ -16,6 +15,31 @@ export interface Recipe {
 }
 
 const PROMPTS_DIR = join(__dirname, '..', '..', 'src', 'main', 'prompts')
+
+const RECIPE_SYSTEM_FRAME = `You are a knowledge assistant that summarises audio transcripts.
+
+<output-format>
+Your response MUST use this exact structure:
+
+TITLE: <short descriptive title, under 80 characters>
+---
+<markdown body>
+
+The first line is the title. The separator (---) marks where the body begins.
+Do not wrap output in JSON, code fences, or any other container.
+</output-format>
+
+<markdown-rules>
+Use only these markdown elements:
+- Headings (h2-h3) for structure
+- **Bold** and *italic* for emphasis
+- Bullet lists and numbered lists
+- Blockquotes for notable quotes
+- Inline \`code\` for technical terms
+- Horizontal rules (---) to separate major sections
+
+Do not use tables, images, task lists, or nested blockquotes.
+</markdown-rules>`
 
 const BUILTIN_RECIPES = [
   { name: 'Brief', file: 'brief.txt', sort_order: 0 },
@@ -133,10 +157,16 @@ export class RecipeService {
     }
 
     const model = recipe.model_override ?? this.db.getSetting('model_quality') ?? 'google/gemini-3.5-flash'
+    const customInstructions = this.db.getSetting('custom_instructions') ?? ''
 
-    const systemContent = `${recipe.prompt}\n${MARKDOWN_FORMAT_GUIDANCE}`
+    let templateMessage = `<template>\n${recipe.prompt}\n</template>`
+    if (customInstructions.trim()) {
+      templateMessage = `<instructions>\n${customInstructions.trim()}\n</instructions>\n\n${templateMessage}`
+    }
+
     const messages = [
-      { role: 'system', content: systemContent },
+      { role: 'system', content: RECIPE_SYSTEM_FRAME },
+      { role: 'user', content: templateMessage },
       { role: 'user', content: `<transcript>\n${transcript}\n</transcript>` }
     ]
 

@@ -2,6 +2,12 @@ import { useState, useCallback, useRef } from 'react'
 import Markdown from 'react-markdown'
 import { useContentTabStore } from '../store/content-tab-store'
 
+function getStreamableContent(raw: string): string | null {
+  const separatorIdx = raw.indexOf('\n---\n')
+  if (separatorIdx === -1) return null
+  return raw.slice(separatorIdx + 5)
+}
+
 export function TabContentView(): React.JSX.Element {
   const tabs = useContentTabStore((s) => s.tabs)
   const activeTabId = useContentTabStore((s) => s.activeTabId)
@@ -21,6 +27,7 @@ export function TabContentView(): React.JSX.Element {
   }
 
   if (isStreaming) {
+    const streamContent = getStreamableContent(activeTab.content)
     return (
       <div className="h-full flex flex-col overflow-hidden">
         <div className="flex items-center justify-end px-4 py-1.5">
@@ -33,10 +40,18 @@ export function TabContentView(): React.JSX.Element {
             </button>
           </div>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <div className="w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-[var(--secondary)]">Generating&hellip;</p>
-        </div>
+        {streamContent ? (
+          <div className="flex-1 overflow-y-auto px-12 py-4">
+            <div className="markdown-content text-sm text-[var(--text)] leading-relaxed">
+              <Markdown>{streamContent}</Markdown>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <div className="w-5 h-5 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-[var(--secondary)]">Generating&hellip;</p>
+          </div>
+        )}
       </div>
     )
   }

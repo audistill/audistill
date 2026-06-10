@@ -98,7 +98,7 @@ describe('IngestPipeline - recipe execution on ingest', () => {
       expect(tabs[0].is_pipeline).toBe(1)
     })
 
-    it('updates episode title from recipe output when JSON response detected', async () => {
+    it('extracts title and summary from TITLE:/--- plaintext format', async () => {
       const episodeId = db.createEpisode({
         file_path: '/test.mp3',
         title: 'test.mp3',
@@ -106,10 +106,10 @@ describe('IngestPipeline - recipe execution on ingest', () => {
       })
       db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
 
-      const jsonResponse = JSON.stringify({ title: 'My Great Episode', summary: '# Summary\n\nContent here' })
+      const plaintext = 'TITLE: My Great Episode\n---\n## Summary\n\nContent here'
       vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
         async (_recipeId, _transcript, onToken) => {
-          onToken(jsonResponse)
+          onToken(plaintext)
         }
       )
 
@@ -117,6 +117,31 @@ describe('IngestPipeline - recipe execution on ingest', () => {
 
       const episode = db.getEpisode(episodeId)
       expect(episode?.title).toBe('My Great Episode')
+      const tabs = tabService.getTabs(episodeId)
+      expect(tabs[0].content).toBe('## Summary\n\nContent here')
+    })
+
+    it('graceful degradation: no separator treats entire output as summary', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'test.mp3',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const noSeparator = '## Just a summary\n\nWith no title line'
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken(noSeparator)
+        }
+      )
+
+      await pipeline.runSummarization(episodeId)
+
+      const episode = db.getEpisode(episodeId)
+      expect(episode?.title).toBe('test.mp3')
+      const tabs = tabService.getTabs(episodeId)
+      expect(tabs[0].content).toBe('## Just a summary\n\nWith no title line')
     })
 
     it('sets episode status to complete on success', async () => {
