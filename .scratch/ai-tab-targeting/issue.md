@@ -1,6 +1,6 @@
 ---
 title: "AI tab targeting + edit-vs-create logic"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 

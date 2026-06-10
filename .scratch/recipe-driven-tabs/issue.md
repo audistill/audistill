@@ -1,6 +1,6 @@
 ---
 title: "Recipe-driven tabs: customizable prompt templates with dynamic content tabs"
-status: ready-for-agent
+status: done
 created: 2026-06-09
 ---
 
