@@ -1,6 +1,6 @@
 ---
 title: "YouTube URL import: ytdlp-service module + tests"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 
