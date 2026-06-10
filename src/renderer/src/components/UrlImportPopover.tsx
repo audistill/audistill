@@ -6,19 +6,28 @@ type PopoverState =
   | { step: 'checking' }
   | { step: 'install' }
 
-export function UrlImportPopover({ onClose, onDetected }: {
+export function UrlImportPopover({ anchorRef, onClose, onDetected }: {
+  anchorRef: React.RefObject<HTMLDivElement | null>
   onClose: () => void
   onDetected: (canonicalUrl: string) => void
 }): React.JSX.Element {
   const [state, setState] = useState<PopoverState>({ step: 'input' })
   const [url, setUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 8, left: rect.left })
+    }
+  }, [anchorRef])
+
+  useEffect(() => {
     inputRef.current?.focus()
-  }, [])
+  }, [pos])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent): void {
@@ -81,11 +90,16 @@ export function UrlImportPopover({ onClose, onDetected }: {
     }
   }, [url, onDetected])
 
+  if (!pos) return <div />
+
+  const popoverClass = "fixed w-80 bg-[var(--bg)] border border-[var(--surface)] rounded-[12px] shadow-[0_12px_40px_rgba(0,0,0,0.5)] p-4 z-[9999]"
+
   if (state.step === 'install') {
     return (
       <div
         ref={popoverRef}
-        className="absolute top-full right-0 mt-2 w-80 bg-[var(--bg)] border border-[var(--surface)] rounded-[12px] shadow-[0_12px_40px_rgba(0,0,0,0.5)] p-4 z-50"
+        className={popoverClass}
+        style={{ top: pos.top, left: pos.left }}
       >
         <h3 className="text-sm font-heading font-semibold text-[var(--text)] mb-2">yt-dlp required</h3>
         <p className="text-xs text-[var(--secondary)] mb-3">
@@ -126,7 +140,8 @@ export function UrlImportPopover({ onClose, onDetected }: {
   return (
     <div
       ref={popoverRef}
-      className="absolute top-full right-0 mt-2 w-80 bg-[var(--bg)] border border-[var(--surface)] rounded-[12px] shadow-[0_12px_40px_rgba(0,0,0,0.5)] p-4 z-50"
+      className={popoverClass}
+      style={{ top: pos.top, left: pos.left }}
     >
       <label className="block text-xs font-medium text-[var(--secondary)] mb-1.5">
         YouTube URL

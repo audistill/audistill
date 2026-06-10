@@ -239,6 +239,7 @@ export function Sidebar(): React.JSX.Element {
             )}
             {urlPopoverOpen && (
               <UrlImportPopover
+                anchorRef={addMenuRef}
                 onClose={() => setUrlPopoverOpen(false)}
                 onDetected={(canonicalUrl) => {
                   setUrlPopoverOpen(false)
