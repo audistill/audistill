@@ -246,6 +246,49 @@ function registerExportHandlers(): void {
     if (result.canceled || !result.filePath) return
     await writeFile(result.filePath, content, 'utf-8')
   })
+
+  ipcMain.handle('export:save-episode', async (_event, episodeId: string) => {
+    const { assembleEpisode } = await import('../shared/export-assembler')
+    const { formatTranscript } = await import('../shared/transcript-formatter')
+    const { writeFile } = await import('fs/promises')
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return
+
+    const episode = db.getEpisode(episodeId)
+    if (!episode) return
+
+    const tabs = tabService.getTabs(episodeId)
+
+    let transcript = ''
+    if (episode.transcript) {
+      try {
+        const segments = JSON.parse(episode.transcript)
+        transcript = formatTranscript(segments, {
+          timestamps: true,
+          durationSec: episode.duration_sec ?? 0,
+        })
+      } catch {
+        // skip transcript if unparseable
+      }
+    }
+
+    const { content, suggestedFilename } = assembleEpisode({
+      title: episode.title || 'Untitled',
+      sourceUrl: episode.source_url ?? null,
+      durationSec: episode.duration_sec ?? 0,
+      createdAt: episode.created_at,
+      tabs: tabs.map((t) => ({ name: t.tab_name, content: t.content })),
+      transcript,
+    })
+
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: suggestedFilename,
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    })
+
+    if (result.canceled || !result.filePath) return
+    await writeFile(result.filePath, content, 'utf-8')
+  })
 }
 
 function registerTabHandlers(): void {

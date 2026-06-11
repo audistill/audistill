@@ -119,6 +119,8 @@ const api = {
     ipcRenderer.invoke('export:copy-transcript', episodeId, withTimestamps),
   exportSaveTab: (content: string, episodeTitle: string, tabName: string): Promise<void> =>
     ipcRenderer.invoke('export:save-tab', content, episodeTitle, tabName),
+  exportSaveEpisode: (episodeId: string): Promise<void> =>
+    ipcRenderer.invoke('export:save-episode', episodeId),
 
   // Recipes API
   recipesGetAll: () => ipcRenderer.invoke('recipe:get-all'),

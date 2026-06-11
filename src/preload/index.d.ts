@@ -92,6 +92,7 @@ interface AudistillApi {
   exportCopyTab: (markdown: string) => Promise<void>
   exportCopyTranscript: (episodeId: string, withTimestamps: boolean) => Promise<void>
   exportSaveTab: (content: string, episodeTitle: string, tabName: string) => Promise<void>
+  exportSaveEpisode: (episodeId: string) => Promise<void>
 
   // Recipes API
   recipesGetAll: () => Promise<{ id: string; name: string; prompt: string; model_override: string | null; is_builtin: number; sort_order: number; created_at: string }[]>

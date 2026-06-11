@@ -166,6 +166,11 @@ export function Sidebar(): React.JSX.Element {
     window.api.retryEpisode(episodeId)
   }
 
+  const handleExportEpisode = (episodeId: string): void => {
+    setContextMenu(null)
+    window.api.exportSaveEpisode(episodeId)
+  }
+
   const handleClearSearch = (): void => {
     setSearchQuery('')
     searchInputRef.current?.focus()
@@ -415,6 +420,7 @@ export function Sidebar(): React.JSX.Element {
           onDelete={handleDeleteEpisode}
           onCancel={handleCancelEpisode}
           onRetry={handleRetryEpisode}
+          onExportEpisode={handleExportEpisode}
           onClose={() => setContextMenu(null)}
         />
       )}
@@ -538,6 +544,7 @@ function EpisodeContextMenu({
   onDelete,
   onCancel,
   onRetry,
+  onExportEpisode,
   onClose,
 }: {
   x: number
@@ -550,6 +557,7 @@ function EpisodeContextMenu({
   onDelete: (id: string) => void
   onCancel: (id: string) => void
   onRetry: (id: string) => void
+  onExportEpisode: (id: string) => void
   onClose: () => void
 }): React.JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null)
@@ -564,6 +572,7 @@ function EpisodeContextMenu({
   const isDownloading = episode?.status === 'downloading'
   const isCancelled = episode?.status === 'cancelled'
   const isError = episode?.status === 'error'
+  const isComplete = episode?.status === 'complete'
 
   type ActionItem = { key: string; label: string; action: () => void; danger?: boolean; hasFlyout?: boolean }
   const actions: ActionItem[] = []
@@ -580,6 +589,9 @@ function EpisodeContextMenu({
     actions.push({ key: 'retry', label: 'Retry', action: () => onRetry(episodeId) })
   }
 
+  if (isComplete) {
+    actions.push({ key: 'export-episode', label: 'Export Episode as Markdown', action: () => onExportEpisode(episodeId) })
+  }
   actions.push({ key: 'rename', label: 'Rename', action: () => onRename(episodeId) })
   actions.push({ key: 'move', label: 'Move to...', action: () => {}, hasFlyout: true })
   actions.push({ key: 'delete', label: 'Delete', action: () => onDelete(episodeId), danger: true })
