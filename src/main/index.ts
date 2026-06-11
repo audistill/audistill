@@ -209,6 +209,27 @@ function registerExportHandlers(): void {
     const html = await marked(markdown)
     clipboard.write({ text: markdown, html })
   })
+
+  ipcMain.handle('export:copy-transcript', async (_event, episodeId: string, withTimestamps: boolean) => {
+    const { formatTranscript } = await import('../shared/transcript-formatter')
+    const { marked } = await import('marked')
+    const episode = db.getEpisode(episodeId)
+    if (!episode || !episode.transcript) return
+
+    let segments: { start: number; end: number; text: string }[]
+    try {
+      segments = JSON.parse(episode.transcript)
+    } catch {
+      return
+    }
+
+    const text = formatTranscript(segments, {
+      timestamps: withTimestamps,
+      durationSec: episode.duration_sec ?? 0,
+    })
+    const html = await marked(text)
+    clipboard.write({ text, html })
+  })
 }
 
 function registerTabHandlers(): void {

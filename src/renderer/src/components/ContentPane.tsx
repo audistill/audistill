@@ -75,6 +75,7 @@ function EpisodeContentWithTabs({ episodeId }: { episodeId: string }): React.JSX
         </div>
         {transcriptPanelOpen && (
           <TranscriptPanel
+            episodeId={episodeId}
             transcript={episode?.transcript ?? null}
             duration={episode?.duration_sec ?? null}
           />
@@ -92,6 +93,7 @@ function EpisodeContentWithTabs({ episodeId }: { episodeId: string }): React.JSX
         </div>
         {transcriptPanelOpen && (
           <TranscriptPanel
+            episodeId={episodeId}
             transcript={episode?.transcript ?? null}
             duration={episode?.duration_sec ?? null}
           />

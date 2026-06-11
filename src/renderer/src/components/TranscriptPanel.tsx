@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAppStore } from '../store/app-store'
 import { parseTranscript, formatDuration } from '../lib/transcript-utils'
 
-export function TranscriptPanel({ transcript, duration }: { transcript: string | null; duration: number | null }): React.JSX.Element {
+export function TranscriptPanel({ episodeId, transcript, duration }: { episodeId: string; transcript: string | null; duration: number | null }): React.JSX.Element {
   const transcriptPanelOpen = useAppStore((s) => s.transcriptPanelOpen)
   const transcriptPanelRatio = useAppStore((s) => s.transcriptPanelRatio)
   const setTranscriptPanelRatio = useAppStore((s) => s.setTranscriptPanelRatio)
@@ -231,6 +231,31 @@ export function TranscriptPanel({ transcript, duration }: { transcript: string |
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.35-4.35" />
+          </svg>
+        </button>
+
+        <button
+          onClick={() => window.api.exportCopyTranscript(episodeId, true)}
+          className="p-1 rounded text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors"
+          aria-label="Copy transcript with timestamps"
+          title="Copy with timestamps"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+          </svg>
+        </button>
+
+        <button
+          onClick={() => window.api.exportCopyTranscript(episodeId, false)}
+          className="p-1 rounded text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-colors"
+          aria-label="Copy transcript as plain text"
+          title="Copy plain"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 7V4h16v3" />
+            <path d="M9 20h6" />
+            <path d="M12 4v16" />
           </svg>
         </button>
       </div>
