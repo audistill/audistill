@@ -80,6 +80,42 @@ function ExportButton({
   )
 }
 
+function RegenerateButton({
+  episodeId,
+  tabId,
+  disabled,
+}: {
+  episodeId: string
+  tabId: string
+  disabled: boolean
+}): React.JSX.Element {
+  const regenerateTab = useContentTabStore((s) => s.regenerateTab)
+
+  const handleRegenerate = async () => {
+    if (disabled) return
+    await regenerateTab(episodeId, tabId)
+  }
+
+  return (
+    <button
+      onClick={handleRegenerate}
+      disabled={disabled}
+      className={`p-1.5 rounded-md transition-colors ${
+        disabled
+          ? 'text-[var(--secondary)] opacity-40 cursor-not-allowed'
+          : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
+      }`}
+      aria-label="Regenerate"
+      title="Regenerate with current recipe"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="23 4 23 10 17 10" />
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+      </svg>
+    </button>
+  )
+}
+
 function getStreamableContent(raw: string): string | null {
   const separatorIdx = raw.indexOf('\n---\n')
   if (separatorIdx === -1) return null
@@ -115,6 +151,9 @@ export function TabContentView(): React.JSX.Element {
           <div className="flex items-center">
             <CopyButton content="" disabled={true} />
             <ExportButton content="" episodeTitle={episodeTitle} tabName={activeTab.tab_name} disabled={true} />
+            {activeTab.recipe_id && (
+              <RegenerateButton episodeId={activeTab.episode_id} tabId={activeTab.id} disabled={true} />
+            )}
           </div>
           <div className="inline-flex rounded-[8px] bg-[var(--surface)] p-0.5">
             <button className="px-3 py-1 rounded-[6px] text-xs font-medium bg-[var(--accent)] text-white">
@@ -147,6 +186,9 @@ export function TabContentView(): React.JSX.Element {
         <div className="flex items-center">
           <CopyButton content={activeTab.content} disabled={false} />
           <ExportButton content={activeTab.content} episodeTitle={episodeTitle} tabName={activeTab.tab_name} disabled={false} />
+          {activeTab.recipe_id && (
+            <RegenerateButton episodeId={activeTab.episode_id} tabId={activeTab.id} disabled={false} />
+          )}
         </div>
         <div className="inline-flex rounded-[8px] bg-[var(--surface)] p-0.5">
           <button

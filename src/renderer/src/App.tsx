@@ -154,7 +154,7 @@ function App(): React.JSX.Element {
       useContentTabStore.getState().endStreaming(data.tabId)
     })
     const unsubError = window.api.onTabStreamError((data) => {
-      useContentTabStore.getState().endStreaming(data.tabId)
+      useContentTabStore.getState().restoreSnapshot(data.tabId)
     })
     return () => {
       unsubStart()

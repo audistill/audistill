@@ -17,6 +17,7 @@ interface ContentTabState {
   activeTabId: string | null
   loading: boolean
   streamingTabId: string | null
+  snapshotContent: string | null
 
   loadTabs: (episodeId: string) => Promise<void>
   setActiveTab: (tabId: string) => void
@@ -29,6 +30,7 @@ interface ContentTabState {
   appendStreamToken: (tabId: string, token: string) => void
   startStreaming: (tabId: string) => void
   endStreaming: (tabId: string) => void
+  restoreSnapshot: (tabId: string) => void
   regenerateTab: (episodeId: string, tabId: string) => Promise<void>
 }
 
@@ -39,6 +41,7 @@ export const useContentTabStore = create<ContentTabState>((set, get) => ({
   activeTabId: null,
   loading: false,
   streamingTabId: null,
+  snapshotContent: null,
 
   loadTabs: async (episodeId: string) => {
     set({ loading: true })
@@ -111,15 +114,28 @@ export const useContentTabStore = create<ContentTabState>((set, get) => ({
 
   startStreaming: (tabId: string) => {
     const { tabs } = get()
+    const currentTab = tabs.find((t) => t.id === tabId)
     set({
       streamingTabId: tabId,
+      snapshotContent: currentTab?.content ?? null,
       tabs: tabs.map((t) => (t.id === tabId ? { ...t, content: '' } : t)),
       activeTabId: tabId,
     })
   },
 
   endStreaming: (_tabId: string) => {
-    set({ streamingTabId: null })
+    set({ streamingTabId: null, snapshotContent: null })
+  },
+
+  restoreSnapshot: (tabId: string) => {
+    const { snapshotContent, tabs } = get()
+    if (snapshotContent === null) return
+    set({
+      streamingTabId: null,
+      snapshotContent: null,
+      tabs: tabs.map((t) => (t.id === tabId ? { ...t, content: snapshotContent } : t)),
+    })
+    window.api.tabsUpdateContent(tabId, snapshotContent)
   },
 
   regenerateTab: async (episodeId: string, tabId: string) => {
