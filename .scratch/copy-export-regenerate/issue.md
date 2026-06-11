@@ -1,6 +1,6 @@
 ---
 title: "PRD: Copy, Export & Regenerate — getting distilled content out of Audistill"
-status: ready-for-agent
+status: done
 created: 2026-06-10
 ---
 

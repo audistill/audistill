@@ -52,7 +52,6 @@ function seedTab(overrides: Partial<{
 
 describe('content-tab-store — regenerate snapshot', () => {
   beforeEach(() => {
-    const store = useContentTabStore.getState()
     useContentTabStore.setState({
       tabs: [seedTab()],
       activeTabId: 'tab-1',

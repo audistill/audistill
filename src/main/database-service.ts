@@ -127,6 +127,18 @@ export class DatabaseService {
         content TEXT NOT NULL DEFAULT '',
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS episode_tabs (
+        id TEXT PRIMARY KEY,
+        episode_id TEXT NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+        recipe_id TEXT,
+        tab_name TEXT NOT NULL,
+        content TEXT NOT NULL DEFAULT '',
+        is_pipeline INTEGER NOT NULL DEFAULT 0,
+        position INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
     `)
   }
 
@@ -293,11 +305,12 @@ export class DatabaseService {
     return this.db
       .prepare(
         `SELECT DISTINCT e.* FROM episodes e
+         LEFT JOIN episode_summaries es ON es.episode_id = e.id
          LEFT JOIN episode_tabs et ON et.episode_id = e.id
-         WHERE e.title LIKE ? OR et.content LIKE ?
+         WHERE e.title LIKE ? OR es.content LIKE ? OR et.content LIKE ?
          ORDER BY e.created_at DESC`
       )
-      .all(pattern, pattern) as Episode[]
+      .all(pattern, pattern, pattern) as Episode[]
   }
 
   createSummary(episodeId: string, viewType: 'brief' | 'detailed' | 'full', status: 'generating' | 'complete' | 'error' = 'generating'): string {
