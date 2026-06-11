@@ -113,6 +113,9 @@ const api = {
   },
 
 
+  // Export API
+  exportCopyTab: (markdown: string): Promise<void> => ipcRenderer.invoke('export:copy-tab', markdown),
+
   // Recipes API
   recipesGetAll: () => ipcRenderer.invoke('recipe:get-all'),
   recipesGet: (id: string) => ipcRenderer.invoke('recipe:get', id),

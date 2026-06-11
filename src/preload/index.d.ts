@@ -88,6 +88,9 @@ interface AudistillApi {
   validateApiKey: (key: string) => Promise<boolean>
 
 
+  // Export API
+  exportCopyTab: (markdown: string) => Promise<void>
+
   // Recipes API
   recipesGetAll: () => Promise<{ id: string; name: string; prompt: string; model_override: string | null; is_builtin: number; sort_order: number; created_at: string }[]>
   recipesGet: (id: string) => Promise<{ id: string; name: string; prompt: string; model_override: string | null; is_builtin: number; sort_order: number; created_at: string } | undefined>

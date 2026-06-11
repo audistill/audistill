@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, nativeTheme, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, nativeTheme, ipcMain, dialog, clipboard } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ModelManager } from './model-manager'
@@ -203,6 +203,14 @@ function registerYtdlpHandlers(): void {
   })
 }
 
+function registerExportHandlers(): void {
+  ipcMain.handle('export:copy-tab', async (_event, markdown: string) => {
+    const { marked } = await import('marked')
+    const html = await marked(markdown)
+    clipboard.write({ text: markdown, html })
+  })
+}
+
 function registerTabHandlers(): void {
   ipcMain.handle('tabs:get', (_event, episodeId: string) => {
     return tabService.getTabs(episodeId)
@@ -292,6 +300,7 @@ app.whenReady().then(() => {
   registerChatHandlers()
   registerRecipeHandlers()
   registerTabHandlers()
+  registerExportHandlers()
   registerYtdlpHandlers()
 
   const modelManager = new ModelManager()
