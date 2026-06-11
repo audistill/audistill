@@ -230,6 +230,22 @@ function registerExportHandlers(): void {
     const html = await marked(text)
     clipboard.write({ text, html })
   })
+
+  ipcMain.handle('export:save-tab', async (_event, content: string, episodeTitle: string, tabName: string) => {
+    const { buildTabFilename } = await import('../shared/export-assembler')
+    const { writeFile } = await import('fs/promises')
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return
+
+    const suggestedFilename = buildTabFilename(episodeTitle, tabName)
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: suggestedFilename,
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    })
+
+    if (result.canceled || !result.filePath) return
+    await writeFile(result.filePath, content, 'utf-8')
+  })
 }
 
 function registerTabHandlers(): void {

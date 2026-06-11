@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import Markdown from 'react-markdown'
 import { useContentTabStore } from '../store/content-tab-store'
+import { useAppStore } from '../store/app-store'
 
 type CopyState = 'idle' | 'copied'
 
@@ -42,6 +43,43 @@ function CopyButton({ content, disabled }: { content: string; disabled: boolean 
   )
 }
 
+function ExportButton({
+  content,
+  episodeTitle,
+  tabName,
+  disabled,
+}: {
+  content: string
+  episodeTitle: string
+  tabName: string
+  disabled: boolean
+}): React.JSX.Element {
+  const handleExport = async () => {
+    if (disabled || !content) return
+    await window.api.exportSaveTab(content, episodeTitle, tabName)
+  }
+
+  return (
+    <button
+      onClick={handleExport}
+      disabled={disabled || !content}
+      className={`p-1.5 rounded-md transition-colors ${
+        disabled || !content
+          ? 'text-[var(--secondary)] opacity-40 cursor-not-allowed'
+          : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
+      }`}
+      aria-label="Export as file"
+      title="Export as .md file"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </svg>
+    </button>
+  )
+}
+
 function getStreamableContent(raw: string): string | null {
   const separatorIdx = raw.indexOf('\n---\n')
   if (separatorIdx === -1) return null
@@ -57,6 +95,9 @@ export function TabContentView(): React.JSX.Element {
 
   const activeTab = tabs.find((t) => t.id === activeTabId)
   const isStreaming = streamingTabId === activeTabId
+  const episodeTitle = useAppStore(
+    (s) => s.episodes.find((e) => e.id === activeTab?.episode_id)?.title ?? 'untitled'
+  )
 
   if (!activeTab) {
     return (
@@ -73,6 +114,7 @@ export function TabContentView(): React.JSX.Element {
         <div className="flex items-center justify-between px-4 py-1.5">
           <div className="flex items-center">
             <CopyButton content="" disabled={true} />
+            <ExportButton content="" episodeTitle={episodeTitle} tabName={activeTab.tab_name} disabled={true} />
           </div>
           <div className="inline-flex rounded-[8px] bg-[var(--surface)] p-0.5">
             <button className="px-3 py-1 rounded-[6px] text-xs font-medium bg-[var(--accent)] text-white">
@@ -104,6 +146,7 @@ export function TabContentView(): React.JSX.Element {
       <div className="flex items-center justify-between px-4 py-1.5">
         <div className="flex items-center">
           <CopyButton content={activeTab.content} disabled={false} />
+          <ExportButton content={activeTab.content} episodeTitle={episodeTitle} tabName={activeTab.tab_name} disabled={false} />
         </div>
         <div className="inline-flex rounded-[8px] bg-[var(--surface)] p-0.5">
           <button
