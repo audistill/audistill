@@ -28,6 +28,47 @@ let chatService: ChatService
 let ytdlpService: YtdlpService
 let licenseService: LicenseService
 
+function getLicenseSnapshot(): { state: string; trialDaysRemaining?: number; maskedKey?: string; activationLabel?: string } {
+  const state = licenseService.getState()
+  const snapshot: { state: string; trialDaysRemaining?: number; maskedKey?: string; activationLabel?: string } = { state }
+  if (state === 'trial') {
+    snapshot.trialDaysRemaining = licenseService.getTrialDaysRemaining()
+  }
+  const record = db.getLicenseRecord()
+  if (record?.license_key && (state === 'licensed' || state === 'license-invalid')) {
+    snapshot.maskedKey = '****-' + record.license_key.slice(-6)
+  }
+  return snapshot
+}
+
+function registerLicenseHandlers(): void {
+  ipcMain.handle('license:get-state', () => {
+    return getLicenseSnapshot()
+  })
+
+  ipcMain.handle('license:activate', async (_event, key: string) => {
+    try {
+      await licenseService.activate(key)
+      return { success: true }
+    } catch (err: unknown) {
+      const error = err as { type?: string; message?: string }
+      return { success: false, error: { type: error.type ?? 'unknown', message: error.message ?? 'Activation failed' } }
+    }
+  })
+
+  ipcMain.handle('license:deactivate', async () => {
+    await licenseService.deactivate()
+  })
+
+  licenseService.onStateChange(() => {
+    const snapshot = getLicenseSnapshot()
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('license:state-changed', snapshot)
+      }
+    }
+  })
+}
 
 function registerDatabaseHandlers(): void {
   ipcMain.handle('db:get-episodes', (_event, folderId?: string | null) => {
@@ -405,6 +446,7 @@ app.whenReady().then(() => {
   registerTabHandlers()
   registerExportHandlers()
   registerYtdlpHandlers()
+  registerLicenseHandlers()
 
   const modelManager = new ModelManager()
   modelManager.on('progress', (percent) => {

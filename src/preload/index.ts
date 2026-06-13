@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
+export interface LicenseStateSnapshot {
+  state: 'trial' | 'trial-expired' | 'licensed' | 'license-invalid'
+  trialDaysRemaining?: number
+  maskedKey?: string
+  activationLabel?: string
+}
+
+
 const api = {
   selectFile: (): Promise<string | null> => ipcRenderer.invoke('select-file'),
   startTranscription: (filePath: string): void => {
@@ -187,6 +195,19 @@ const api = {
     const handler = (_event: Electron.IpcRendererEvent, data: { episodeId: string; stage: string; percent: number }): void => callback(data)
     ipcRenderer.on('ingest-progress', handler)
     return () => ipcRenderer.removeListener('ingest-progress', handler)
+  },
+
+  // License API
+  license: {
+    getState: (): Promise<LicenseStateSnapshot> => ipcRenderer.invoke('license:get-state'),
+    activate: (key: string): Promise<{ success: boolean; error?: { type: string; message: string } }> =>
+      ipcRenderer.invoke('license:activate', key),
+    deactivate: (): Promise<void> => ipcRenderer.invoke('license:deactivate'),
+    onStateChange: (callback: (snapshot: LicenseStateSnapshot) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, snapshot: LicenseStateSnapshot): void => callback(snapshot)
+      ipcRenderer.on('license:state-changed', handler)
+      return () => ipcRenderer.removeListener('license:state-changed', handler)
+    },
   },
 }
 
