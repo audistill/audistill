@@ -10,6 +10,8 @@ import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
 import { YtdlpService } from './ytdlp-service'
 import { SUPPORTED_FILE_FILTER } from '../shared/supported-formats'
+import { LicenseService } from './license-service'
+import { requireLicense } from './license-guard'
 
 const TMP_DIR = join(homedir(), '.audistill', 'tmp')
 
@@ -19,6 +21,7 @@ export class IngestPipeline {
   private recipeService: RecipeService
   private tabService: TabService
   private ytdlpService: YtdlpService
+  private licenseService: LicenseService | null = null
   private processing = false
   private queue: string[] = []
   private activeWorkers = new Map<string, Worker>()
@@ -29,6 +32,10 @@ export class IngestPipeline {
     this.recipeService = recipeService
     this.tabService = tabService
     this.ytdlpService = ytdlpService
+  }
+
+  setLicenseService(licenseService: LicenseService): void {
+    this.licenseService = licenseService
   }
 
   recoverOrphanedEpisodes(): void {
@@ -66,6 +73,7 @@ export class IngestPipeline {
 
   registerIPC(): void {
     ipcMain.handle('ingest:add-files', async (_event, filePaths: string[]) => {
+      if (this.licenseService) requireLicense(this.licenseService)
       const ids: string[] = []
       for (const filePath of filePaths) {
         if (!filePath) continue
@@ -83,6 +91,7 @@ export class IngestPipeline {
     })
 
     ipcMain.handle('ingest:add-url', async (_event, canonicalUrl: string, metadata: { title: string; channel: string; duration: number; thumbnail: string; uploadDate: string }) => {
+      if (this.licenseService) requireLicense(this.licenseService)
       const id = this.db.createEpisode({
         title: metadata.title,
         source_url: canonicalUrl,
@@ -109,6 +118,7 @@ export class IngestPipeline {
     })
 
     ipcMain.handle('ingest:retry', async (_event, episodeId: string) => {
+      if (this.licenseService) requireLicense(this.licenseService)
       const episode = this.db.getEpisode(episodeId)
       if (!episode || (episode.status !== 'error' && episode.status !== 'cancelled')) return
 
@@ -150,6 +160,7 @@ export class IngestPipeline {
     })
 
     ipcMain.handle('tabs:execute-recipe', async (_event, episodeId: string, tabId: string) => {
+      if (this.licenseService) requireLicense(this.licenseService)
       await this.regenerateTab(episodeId, tabId)
     })
   }

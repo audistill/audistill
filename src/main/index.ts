@@ -13,6 +13,9 @@ import { ChatToolExecutor } from './chat-tool-executor'
 import { MigrationService } from './migration-service'
 import { YtdlpService } from './ytdlp-service'
 import { getWindowOptions, trackWindowState, getSavedBounds } from './window-state'
+import { LicenseService } from './license-service'
+import { PolarClient } from './polar-client'
+import { requireLicense } from './license-guard'
 
 nativeTheme.themeSource = 'system'
 
@@ -23,6 +26,7 @@ let tabService: TabService
 let ingestPipeline: IngestPipeline
 let chatService: ChatService
 let ytdlpService: YtdlpService
+let licenseService: LicenseService
 
 
 function registerDatabaseHandlers(): void {
@@ -110,6 +114,7 @@ function registerChatHandlers(): void {
   })
 
   ipcMain.handle('chat:send-message', (_event, request) => {
+    requireLicense(licenseService)
     const episodeId = request.episodeId || ''
     chatService.setToolExecutor((toolName, args) =>
       chatToolExecutor.executeTool(toolName, args, { currentEpisodeId: episodeId })
@@ -160,6 +165,7 @@ function registerRecipeHandlers(): void {
   })
 
   ipcMain.handle('recipe:execute', async (event, recipeId: string, transcript: string) => {
+    requireLicense(licenseService)
     await recipeService.executeRecipe(recipeId, transcript, (token) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (win && !win.isDestroyed()) {
@@ -376,6 +382,23 @@ app.whenReady().then(() => {
   new MigrationService(db, recipeService, tabService).run()
   chatService = new ChatService(db)
   ytdlpService = new YtdlpService(db)
+
+  const polarBaseUrl = process.env.POLAR_SANDBOX
+    ? 'https://sandbox-api.polar.sh'
+    : 'https://api.polar.sh'
+  const polarOrgId = process.env.POLAR_SANDBOX
+    ? (process.env.POLAR_SANDBOX_ORG_ID ?? '')
+    : (process.env.POLAR_ORG_ID ?? '')
+  const polar = new PolarClient({ baseUrl: polarBaseUrl, organizationId: polarOrgId })
+
+  licenseService = new LicenseService({
+    db,
+    polar,
+    clock: () => Date.now(),
+    machineId: '',
+    officialBuild: typeof __OFFICIAL_BUILD__ !== 'undefined' ? __OFFICIAL_BUILD__ : false,
+  })
+
   registerDatabaseHandlers()
   registerChatHandlers()
   registerRecipeHandlers()
@@ -392,10 +415,13 @@ app.whenReady().then(() => {
   })
 
   ingestPipeline = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService)
+  ingestPipeline.setLicenseService(licenseService)
   ingestPipeline.recoverOrphanedEpisodes()
   ingestPipeline.registerIPC()
 
   registerTranscriptionService(modelManager)
+
+  licenseService.init().catch(() => {})
 
   createWindow()
 
