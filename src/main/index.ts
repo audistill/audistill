@@ -16,6 +16,7 @@ import { getWindowOptions, trackWindowState, getSavedBounds } from './window-sta
 import { LicenseService } from './license-service'
 import { PolarClient } from './polar-client'
 import { requireLicense } from './license-guard'
+import { machineIdSync } from 'node-machine-id'
 
 nativeTheme.themeSource = 'system'
 
@@ -440,7 +441,7 @@ app.whenReady().then(() => {
     db,
     polar,
     clock: () => Date.now(),
-    machineId: '',
+    machineId: machineIdSync(),
     officialBuild: typeof __OFFICIAL_BUILD__ !== 'undefined' ? __OFFICIAL_BUILD__ : false,
   })
 
