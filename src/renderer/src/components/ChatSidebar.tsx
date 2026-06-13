@@ -3,6 +3,7 @@ import Markdown from 'react-markdown'
 import { useAppStore } from '../store/app-store'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
+import { LicenseBlockedPrompt, isLicenseError } from './LicenseBlockedPrompt'
 import type { DbChatMessage } from '../../../preload/index.d'
 
 interface ChatMessage {
@@ -445,6 +446,11 @@ export function ChatSidebar(): React.JSX.Element {
       messages: chatMessages,
       tools: TOOL_DEFINITIONS,
       episodeId: activeTabId,
+    }).catch((err: unknown) => {
+      setStreaming(false)
+      setStreamingState(null)
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(msg)
     })
   }
 
@@ -689,11 +695,15 @@ export function ChatSidebar(): React.JSX.Element {
         )}
 
         {error && (
-          <div className="flex justify-start">
-            <div className="max-w-[85%] rounded-[12px] bg-red-500/10 border border-red-500/20 px-3 py-2">
-              <p className="text-sm text-red-400">{error}</p>
+          isLicenseError(error) ? (
+            <LicenseBlockedPrompt />
+          ) : (
+            <div className="flex justify-start">
+              <div className="max-w-[85%] rounded-[12px] bg-red-500/10 border border-red-500/20 px-3 py-2">
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
             </div>
-          </div>
+          )
         )}
 
         <div ref={messagesEndRef} />

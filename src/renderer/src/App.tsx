@@ -6,6 +6,7 @@ import { ChatSidebar } from './components/ChatSidebar'
 import { OnboardingView } from './components/OnboardingView'
 import { DropOverlay } from './components/DropOverlay'
 import { TrialBanner } from './components/TrialBanner'
+import { isLicenseError } from './components/LicenseBlockedPrompt'
 import {
   ResizeHandle,
   LEFT_SIDEBAR_MIN,
@@ -89,7 +90,11 @@ function App(): React.JSX.Element {
       return
     }
 
-    window.api.addFiles(validPaths)
+    window.api.addFiles(validPaths).catch((err: unknown) => {
+      if (isLicenseError(err)) {
+        showToast('Trial ended — purchase a license to ingest new files')
+      }
+    })
 
     if (skippedNames.length > 0) {
       if (skippedNames.length <= 3) {
