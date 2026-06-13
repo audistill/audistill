@@ -52,6 +52,14 @@ export interface ChatMessage {
   created_at: string
 }
 
+export interface LicenseRecord {
+  trial_started_at: string | null
+  license_key: string | null
+  activation_id: string | null
+  last_validated_at: string | null
+  machine_id: string | null
+}
+
 export class DatabaseService {
   private db: Database.Database
 
@@ -138,6 +146,15 @@ export class DatabaseService {
         position INTEGER NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS license (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        trial_started_at TEXT,
+        license_key TEXT,
+        activation_id TEXT,
+        last_validated_at TEXT,
+        machine_id TEXT
       );
     `)
   }
@@ -397,6 +414,37 @@ export class DatabaseService {
 
   queryOne<T>(sql: string, ...params: unknown[]): T | undefined {
     return this.db.prepare(sql).get(...params) as T | undefined
+  }
+
+  getLicenseRecord(): LicenseRecord | null {
+    const row = this.db.prepare('SELECT * FROM license WHERE id = 1').get() as (LicenseRecord & { id: number }) | undefined
+    if (!row) return null
+    const { id: _, ...record } = row
+    return record
+  }
+
+  upsertLicenseRecord(fields: Partial<LicenseRecord>): void {
+    const existing = this.db.prepare('SELECT id FROM license WHERE id = 1').get()
+    if (!existing) {
+      this.db.prepare(
+        `INSERT INTO license (id, trial_started_at, license_key, activation_id, last_validated_at, machine_id)
+         VALUES (1, ?, ?, ?, ?, ?)`
+      ).run(
+        fields.trial_started_at ?? null,
+        fields.license_key ?? null,
+        fields.activation_id ?? null,
+        fields.last_validated_at ?? null,
+        fields.machine_id ?? null
+      )
+    } else {
+      const entries = Object.entries(fields).filter(([key]) =>
+        ['trial_started_at', 'license_key', 'activation_id', 'last_validated_at', 'machine_id'].includes(key)
+      )
+      if (entries.length === 0) return
+      const sets = entries.map(([key]) => `${key} = ?`).join(', ')
+      const values = entries.map(([, val]) => val ?? null)
+      this.db.prepare(`UPDATE license SET ${sets} WHERE id = 1`).run(...values)
+    }
   }
 
   close(): void {
