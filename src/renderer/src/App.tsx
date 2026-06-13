@@ -5,6 +5,7 @@ import { ContentPane } from './components/ContentPane'
 import { ChatSidebar } from './components/ChatSidebar'
 import { OnboardingView } from './components/OnboardingView'
 import { DropOverlay } from './components/DropOverlay'
+import { TrialBanner } from './components/TrialBanner'
 import {
   ResizeHandle,
   LEFT_SIDEBAR_MIN,
@@ -234,6 +235,7 @@ function App(): React.JSX.Element {
 
   return (
     <div className="flex flex-col h-screen">
+      <TrialBanner />
       <div
         className="flex items-center h-12 px-4 bg-[var(--bg)] border-b border-[var(--surface)] select-none shrink-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}

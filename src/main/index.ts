@@ -42,6 +42,10 @@ function getLicenseSnapshot(): { state: string; trialDaysRemaining?: number; mas
 }
 
 function registerLicenseHandlers(): void {
+  ipcMain.handle('shell:open-external', (_event, url: string) => {
+    shell.openExternal(url)
+  })
+
   ipcMain.handle('license:get-state', () => {
     return getLicenseSnapshot()
   })
