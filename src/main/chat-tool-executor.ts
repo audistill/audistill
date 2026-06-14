@@ -69,6 +69,14 @@ export class ChatToolExecutor {
         return this.readTranscriptRange(args, context)
       case 'filter_episodes':
         return this.filterEpisodes(args)
+      case 'list_folders':
+        return this.listFolders()
+      case 'create_folder':
+        return this.createFolder(args)
+      case 'move_episode':
+        return this.moveEpisode(args, context)
+      case 'rename_episode':
+        return this.renameEpisode(args, context)
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` })
     }
@@ -361,6 +369,48 @@ export class ChatToolExecutor {
       source_type: ep.source_type,
     }))
     return JSON.stringify({ results })
+  }
+
+  private listFolders(): string {
+    const folders = this.db.getFolders()
+    return JSON.stringify({
+      folders: folders.map((f) => ({ id: f.id, name: f.name, parent_id: f.parent_id })),
+    })
+  }
+
+  private createFolder(args: Record<string, unknown>): string {
+    const name = args.name as string
+    if (!name) {
+      return JSON.stringify({ error: 'Missing required parameter: name' })
+    }
+    const parentId = args.parent_id as string | undefined
+    const id = this.db.createFolder(name, parentId)
+    return JSON.stringify({ id, name })
+  }
+
+  private moveEpisode(args: Record<string, unknown>, context: ToolContext): string {
+    const episodeId = resolveEpisodeId(args, context)
+    const episode = this.db.getEpisode(episodeId)
+    if (!episode) {
+      return JSON.stringify({ error: `Episode not found: ${episodeId}` })
+    }
+    const folderId = ('folder_id' in args) ? args.folder_id as string | null : undefined
+    this.db.updateEpisode(episodeId, { folder_id: folderId ?? null })
+    return JSON.stringify({ success: true, message: `Episode moved successfully` })
+  }
+
+  private renameEpisode(args: Record<string, unknown>, context: ToolContext): string {
+    const title = args.title as string
+    if (!title) {
+      return JSON.stringify({ error: 'Missing required parameter: title' })
+    }
+    const episodeId = resolveEpisodeId(args, context)
+    const episode = this.db.getEpisode(episodeId)
+    if (!episode) {
+      return JSON.stringify({ error: `Episode not found: ${episodeId}` })
+    }
+    this.db.updateEpisode(episodeId, { title })
+    return JSON.stringify({ success: true, message: `Episode renamed to "${title}"` })
   }
 
   private grepTranscripts(args: Record<string, unknown>): string {

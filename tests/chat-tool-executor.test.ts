@@ -1028,4 +1028,138 @@ describe('ChatToolExecutor', () => {
       expect(parsed.results.length).toBeGreaterThanOrEqual(3)
     })
   })
+
+  describe('list_folders', () => {
+    it('returns all folders', async () => {
+      db.createFolder('Folder A')
+      db.createFolder('Folder B')
+
+      const result = await executor.executeTool('list_folders', {}, context)
+      const parsed = JSON.parse(result)
+      expect(parsed.folders.length).toBeGreaterThanOrEqual(2)
+      expect(parsed.folders[0]).toHaveProperty('id')
+      expect(parsed.folders[0]).toHaveProperty('name')
+      expect(parsed.folders[0]).toHaveProperty('parent_id')
+    })
+  })
+
+  describe('create_folder', () => {
+    it('creates a folder and returns its ID', async () => {
+      const result = await executor.executeTool(
+        'create_folder',
+        { name: 'New Folder' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.id).toBeDefined()
+      const folders = db.getFolders()
+      expect(folders.some((f) => f.name === 'New Folder')).toBe(true)
+    })
+
+    it('supports parent_id for nested folders', async () => {
+      const parentId = db.createFolder('Parent')
+      const result = await executor.executeTool(
+        'create_folder',
+        { name: 'Child', parent_id: parentId },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const folders = db.getFolders()
+      const child = folders.find((f) => f.id === parsed.id)
+      expect(child?.parent_id).toBe(parentId)
+    })
+
+    it('returns error when name is missing', async () => {
+      const result = await executor.executeTool('create_folder', {}, context)
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameter: name')
+    })
+  })
+
+  describe('move_episode', () => {
+    it('moves episode to a folder', async () => {
+      const folderId = db.createFolder('Target')
+      const result = await executor.executeTool(
+        'move_episode',
+        { folder_id: folderId },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      const ep = db.getEpisode(episodeId)
+      expect(ep?.folder_id).toBe(folderId)
+    })
+
+    it('moves episode to inbox with null folder_id', async () => {
+      const folderId = db.createFolder('Temp')
+      db.updateEpisode(episodeId, { folder_id: folderId })
+
+      const result = await executor.executeTool(
+        'move_episode',
+        { folder_id: null },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      const ep = db.getEpisode(episodeId)
+      expect(ep?.folder_id).toBeNull()
+    })
+
+    it('returns error for non-existent episode', async () => {
+      const result = await executor.executeTool(
+        'move_episode',
+        { episode_id: 'nonexistent', folder_id: 'abc' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Episode not found')
+    })
+  })
+
+  describe('rename_episode', () => {
+    it('renames the current episode', async () => {
+      const result = await executor.executeTool(
+        'rename_episode',
+        { title: 'Better Title' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      const ep = db.getEpisode(episodeId)
+      expect(ep?.title).toBe('Better Title')
+    })
+
+    it('renames a specified episode', async () => {
+      const otherId = db.createEpisode({
+        title: 'Other',
+        file_path: '/path/to/other.mp3',
+        status: 'complete',
+      })
+      const result = await executor.executeTool(
+        'rename_episode',
+        { episode_id: otherId, title: 'Renamed' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      const ep = db.getEpisode(otherId)
+      expect(ep?.title).toBe('Renamed')
+    })
+
+    it('returns error when title is missing', async () => {
+      const result = await executor.executeTool('rename_episode', {}, context)
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameter: title')
+    })
+
+    it('returns error for non-existent episode', async () => {
+      const result = await executor.executeTool(
+        'rename_episode',
+        { episode_id: 'nonexistent', title: 'New' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Episode not found')
+    })
+  })
 })
