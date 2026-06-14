@@ -89,6 +89,8 @@ export function Sidebar(): React.JSX.Element {
   const [pulsingFolderId, setPulsingFolderId] = useState<string | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const treeRef = useRef<HTMLDivElement>(null)
+  const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     const handler = (): void => setContextMenu(null)
@@ -185,6 +187,50 @@ export function Sidebar(): React.JSX.Element {
     emptyCanvas.height = 1
     e.dataTransfer.setDragImage(emptyCanvas, 0, 0)
     window.dispatchEvent(new CustomEvent('audistill-drag-start', { detail: { title: dragTitle, count: dragCount } }))
+  }
+
+  const handleTreeDragOver = (e: React.DragEvent): void => {
+    if (!e.dataTransfer.types.includes(DRAG_MIME)) return
+    const container = treeRef.current
+    if (!container) return
+
+    const rect = container.getBoundingClientRect()
+    const y = e.clientY
+    const edgeZone = 40
+    const scrollSpeed = 8
+
+    if (y - rect.top < edgeZone) {
+      if (!scrollIntervalRef.current) {
+        scrollIntervalRef.current = setInterval(() => {
+          container.scrollTop -= scrollSpeed
+        }, 16)
+      }
+    } else if (rect.bottom - y < edgeZone) {
+      if (!scrollIntervalRef.current) {
+        scrollIntervalRef.current = setInterval(() => {
+          container.scrollTop += scrollSpeed
+        }, 16)
+      }
+    } else {
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current)
+        scrollIntervalRef.current = null
+      }
+    }
+  }
+
+  const handleTreeDragLeave = (): void => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current)
+      scrollIntervalRef.current = null
+    }
+  }
+
+  const handleTreeDrop = (): void => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current)
+      scrollIntervalRef.current = null
+    }
   }
 
   const handleFolderDragEnter = (e: React.DragEvent, targetId: string): void => {
@@ -444,12 +490,16 @@ export function Sidebar(): React.JSX.Element {
 
       {/* Tree */}
       <div
+        ref={treeRef}
         className="flex-1 overflow-y-auto px-2 pb-4"
         onClick={(e) => {
           if (e.target === e.currentTarget && selectedEpisodeIds.size > 0) {
             clearSelection()
           }
         }}
+        onDragOver={handleTreeDragOver}
+        onDragLeave={handleTreeDragLeave}
+        onDrop={handleTreeDrop}
       >
         {/* Inbox */}
         <div className="mb-4">
