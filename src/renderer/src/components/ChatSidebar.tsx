@@ -198,7 +198,7 @@ ${context.activeSummary}
 
   if (context.tabsContext) {
     prompt += `
-## Episode Tabs
+## Other Tabs
 ${context.tabsContext}
 `
   }
@@ -208,6 +208,8 @@ ${context.tabsContext}
 You have access to tools for reading transcripts, searching content, accessing episode data, and writing to tabs.
 
 When answering questions about the episode content, prefer using the search_transcript tool to find relevant segments rather than relying only on the summary.
+
+To read the full content of a non-active tab listed above, use the read_summary tool with the tab_name parameter.
 
 When the user asks you to write, draft, or create something (show notes, blog posts, key takeaways, etc.), use the write_tab tool to put the content in a tab. When they ask for a targeted edit ("change X to Y", "update the third bullet"), use edit_tab for surgical replacement. Use navigate_tab to switch between tabs.
 
@@ -415,10 +417,11 @@ export function ChatSidebar(): React.JSX.Element {
 
     const allTabs = await window.api.tabsGet(activeTabId)
     const tabsContext = allTabs
+      .filter((t: { tab_name: string; content: string; id: string }) => t.id !== activeContentTabId)
       .map((t: { tab_name: string; content: string }) =>
-        t.content ? `### ${t.tab_name}\n${t.content}` : `### ${t.tab_name}\n(empty)`
+        t.content ? `- ${t.tab_name} (${t.content.length.toLocaleString()} chars)` : `- ${t.tab_name} (empty)`
       )
-      .join('\n\n')
+      .join('\n')
 
     const allMessages = [...messages, newMessage]
     const chatMessages = allMessages
