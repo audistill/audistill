@@ -454,7 +454,7 @@ export function Sidebar(): React.JSX.Element {
         {/* Inbox */}
         <div className="mb-4">
           <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150 ${dropTargetId === '__inbox__' ? 'bg-[var(--accent)]/15' : ''} ${pulsingFolderId === null && fadingEpisodeIds.size > 0 ? 'animate-pulse' : ''}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150 ${dropTargetId === '__inbox__' ? 'bg-[var(--accent)]/25 ring-1 ring-[var(--accent)]/50' : ''} ${pulsingFolderId === null && fadingEpisodeIds.size > 0 ? 'animate-pulse' : ''}`}
             onClick={toggleInboxCollapsed}
             onDragEnter={(e) => handleFolderDragEnter(e, '__inbox__')}
             onDragOver={(e) => handleFolderDragOver(e, '__inbox__')}
@@ -956,7 +956,7 @@ function FolderNode({
   return (
     <div className="mb-1" style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}>
       <div
-        className={`sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text)] cursor-pointer transition-[background-color] duration-150 ${dropTargetId === folder.id ? 'bg-[var(--accent)]/15' : ''} ${pulsingFolderId === folder.id ? 'animate-pulse' : ''}`}
+        className={`sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text)] cursor-pointer transition-[background-color] duration-150 ${dropTargetId === folder.id ? 'bg-[var(--accent)]/25 ring-1 ring-[var(--accent)]/50' : ''} ${pulsingFolderId === folder.id ? 'animate-pulse' : ''}`}
         onClick={() => toggleFolder(folder.id)}
         onContextMenu={(e) => onContextMenu(e, folder.id)}
         onDragEnter={(e) => onFolderDragEnter(e, folder.id)}
