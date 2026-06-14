@@ -63,6 +63,8 @@ export class ChatToolExecutor {
         return this.editTab(args, context)
       case 'navigate_tab':
         return this.navigateTab(args, context)
+      case 'grep_transcripts':
+        return this.grepTranscripts(args)
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` })
     }
@@ -324,6 +326,92 @@ export class ChatToolExecutor {
 
     this.broadcast('tab:navigate', { episodeId, tabId: tab.id })
     return JSON.stringify({ success: true, message: `Navigated to tab "${tabName}"` })
+  }
+
+  private grepTranscripts(args: Record<string, unknown>): string {
+    const pattern = args.pattern as string
+    if (!pattern) {
+      return JSON.stringify({ error: 'Missing required parameter: pattern' })
+    }
+
+    const isRegex = (args.is_regex as boolean) || false
+    const contextSegments = (args.context_segments as number) ?? 2
+    const episodeIds = args.episode_ids as string[] | undefined
+    const folderId = args.folder_id as string | undefined
+    const maxResults = (args.max_results as number) || 20
+
+    let regex: RegExp
+    if (isRegex) {
+      try {
+        regex = new RegExp(pattern, 'i')
+      } catch (e) {
+        return JSON.stringify({ error: `Invalid regex: ${(e as Error).message}` })
+      }
+    } else {
+      regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+    }
+
+    let episodes: Episode[]
+    if (episodeIds) {
+      episodes = episodeIds
+        .map((id) => this.db.getEpisode(id))
+        .filter((ep): ep is Episode => !!ep)
+    } else if (folderId) {
+      episodes = this.db.getEpisodes(folderId)
+    } else {
+      episodes = this.db.getEpisodes()
+    }
+
+    const results: {
+      episode_id: string
+      episode_title: string
+      timestamp: string | null
+      matched_text: string
+      context_before: string
+      context_after: string
+    }[] = []
+
+    for (const ep of episodes) {
+      if (!ep.transcript || results.length >= maxResults) break
+
+      let segments: { timestamp?: string; text: string }[]
+      try {
+        const parsed = JSON.parse(ep.transcript)
+        if (Array.isArray(parsed)) {
+          segments = parsed.map((s) => ({
+            timestamp: s.timestamp || null,
+            text: typeof s === 'string' ? s : s.text || '',
+          }))
+        } else {
+          continue
+        }
+      } catch {
+        segments = ep.transcript.split('\n').map((line) => ({ text: line }))
+      }
+
+      for (let i = 0; i < segments.length && results.length < maxResults; i++) {
+        if (regex.test(segments[i].text)) {
+          const before = segments
+            .slice(Math.max(0, i - contextSegments), i)
+            .map((s) => s.text)
+            .join(' ')
+          const after = segments
+            .slice(i + 1, i + 1 + contextSegments)
+            .map((s) => s.text)
+            .join(' ')
+          results.push({
+            episode_id: ep.id,
+            episode_title: ep.title || 'Untitled',
+            timestamp: segments[i].timestamp || null,
+            matched_text: segments[i].text,
+            context_before: before,
+            context_after: after,
+          })
+        }
+      }
+    }
+
+    return JSON.stringify({ results, pattern, total: results.length })
   }
 
   private broadcast(channel: string, ...args: unknown[]): void {

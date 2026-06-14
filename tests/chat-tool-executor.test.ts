@@ -658,4 +658,161 @@ describe('ChatToolExecutor', () => {
       expect(parsed.error).toContain('not found')
     })
   })
+
+  describe('grep_transcripts', () => {
+    let ep2Id: string
+
+    beforeEach(() => {
+      ep2Id = db.createEpisode({
+        title: 'Second Episode',
+        file_path: '/path/to/ep2.mp3',
+        status: 'complete',
+      })
+      db.updateEpisode(ep2Id, {
+        transcript: JSON.stringify([
+          { timestamp: '00:00:00', text: 'Introduction to deep learning.' },
+          { timestamp: '00:02:00', text: 'Machine learning is a subset of AI.' },
+          { timestamp: '00:04:00', text: 'Transformers changed NLP forever.' },
+        ]),
+      })
+    })
+
+    it('finds matches across multiple episodes', async () => {
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'machine learning' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results.length).toBe(2)
+      const epIds = parsed.results.map((r: { episode_id: string }) => r.episode_id)
+      expect(epIds).toContain(episodeId)
+      expect(epIds).toContain(ep2Id)
+    })
+
+    it('returns timestamp, matched_text, and context', async () => {
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'deep learning' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results).toHaveLength(1)
+      expect(parsed.results[0].timestamp).toBe('00:00:00')
+      expect(parsed.results[0].matched_text).toContain('deep learning')
+      expect(parsed.results[0].episode_title).toBe('Second Episode')
+    })
+
+    it('supports regex search', async () => {
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'LLM|NLP', is_regex: true },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results.length).toBeGreaterThanOrEqual(1)
+      expect(parsed.results[0].matched_text).toContain('NLP')
+    })
+
+    it('returns error for invalid regex', async () => {
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: '[invalid', is_regex: true },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Invalid regex')
+    })
+
+    it('limits results to episode_ids when specified', async () => {
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'machine learning', episode_ids: [ep2Id] },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results).toHaveLength(1)
+      expect(parsed.results[0].episode_id).toBe(ep2Id)
+    })
+
+    it('limits results to folder when specified', async () => {
+      const folderId = db.createFolder('ML Folder')
+      db.updateEpisode(ep2Id, { folder_id: folderId })
+
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'machine learning', folder_id: folderId },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results).toHaveLength(1)
+      expect(parsed.results[0].episode_id).toBe(ep2Id)
+    })
+
+    it('caps results at max_results', async () => {
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'machine learning', max_results: 1 },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results).toHaveLength(1)
+    })
+
+    it('includes context_segments before and after match', async () => {
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'Machine learning', context_segments: 1 },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const ep2Result = parsed.results.find((r: { episode_id: string }) => r.episode_id === ep2Id)
+      expect(ep2Result.context_before).toBeDefined()
+      expect(ep2Result.context_after).toBeDefined()
+    })
+
+    it('skips episodes with no transcript', async () => {
+      db.createEpisode({
+        title: 'No Transcript Episode',
+        file_path: '/path/to/empty.mp3',
+        status: 'complete',
+      })
+
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'machine learning' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const epIds = parsed.results.map((r: { episode_id: string }) => r.episode_id)
+      expect(epIds).not.toContain(expect.stringContaining('No Transcript'))
+    })
+
+    it('handles plain-text transcripts', async () => {
+      const plainId = db.createEpisode({
+        title: 'Plain Text Ep',
+        file_path: '/path/to/plain.mp3',
+        status: 'complete',
+      })
+      db.updateEpisode(plainId, {
+        transcript: 'Line about cats\nLine about dogs\nLine about machine learning',
+      })
+
+      const result = await executor.executeTool(
+        'grep_transcripts',
+        { pattern: 'machine learning' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const plainResult = parsed.results.find((r: { episode_id: string }) => r.episode_id === plainId)
+      expect(plainResult).toBeDefined()
+      expect(plainResult.matched_text).toContain('machine learning')
+    })
+
+    it('returns error when pattern is missing', async () => {
+      const result = await executor.executeTool('grep_transcripts', {}, context)
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameter: pattern')
+    })
+  })
 })
