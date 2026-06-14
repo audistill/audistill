@@ -48,30 +48,34 @@ type PopoverState =
   | { step: 'duplicate'; episode: DuplicateEpisode }
   | { step: 'error'; message: string }
 
-export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect, onImportRss }: {
-  anchorRef: React.RefObject<HTMLDivElement | null>
+export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect, onImportRss, initialUrl }: {
+  anchorRef?: React.RefObject<HTMLDivElement | null>
   onClose: () => void
   onImport: (canonicalUrl: string, metadata: YouTubeMetadata) => void
   onImportDirect?: (url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }) => void
   onImportRss?: (items: { title: string; enclosureUrl: string; guid: string | null; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => void
+  initialUrl?: string
 }): React.JSX.Element {
-  const [state, setState] = useState<PopoverState>({ step: 'input' })
-  const [url, setUrl] = useState('')
+  const [state, setState] = useState<PopoverState>(initialUrl ? { step: 'input' } : { step: 'input' })
+  const [url, setUrl] = useState(initialUrl || '')
   const [error, setError] = useState<string | null>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
+  const autoSubmitted = useRef(false)
 
   useEffect(() => {
-    if (anchorRef.current) {
+    if (anchorRef?.current) {
       const rect = anchorRef.current.getBoundingClientRect()
       setPos({ top: rect.bottom + 8, left: rect.left })
+    } else {
+      setPos({ top: Math.round(window.innerHeight / 2 - 100), left: Math.round(window.innerWidth / 2 - 160) })
     }
   }, [anchorRef])
 
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [pos])
+    if (!initialUrl) inputRef.current?.focus()
+  }, [pos, initialUrl])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent): void {
@@ -82,6 +86,15 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [onClose])
+
+  useEffect(() => {
+    if (initialUrl && pos && !autoSubmitted.current) {
+      autoSubmitted.current = true
+      handleSubmitRef.current()
+    }
+  }, [initialUrl, pos])
+
+  const handleSubmitRef = useRef<() => void>(() => {})
 
   const fetchYouTubePreview = useCallback(async (canonicalUrl: string) => {
     setState({ step: 'loading', url: canonicalUrl })
@@ -184,6 +197,8 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
       setState({ step: 'error', message })
     }
   }, [url, fetchYouTubePreview, fetchDirectPreview])
+
+  handleSubmitRef.current = handleSubmit
 
   const handleCheckAgain = useCallback(async () => {
     const detected = await window.api.ytdlpDetect()
