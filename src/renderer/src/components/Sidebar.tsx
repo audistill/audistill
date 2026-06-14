@@ -4,6 +4,7 @@ import { useSelectionStore } from '../store/selection-store'
 import { SelectionActionBar } from './SelectionActionBar'
 import { DragDropLayer, DRAG_MIME } from './DragDropLayer'
 import { FolderTreePopover } from './FolderTreePopover'
+import { DeleteConfirmModal } from './DeleteConfirmModal'
 import { UrlImportPopover } from './UrlImportPopover'
 import { sortInboxEpisodes, groupInboxEpisodes } from '../lib/sort-inbox'
 
@@ -83,6 +84,7 @@ export function Sidebar(): React.JSX.Element {
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [urlPopoverOpen, setUrlPopoverOpen] = useState(false)
   const [movePopoverEpisodeId, setMovePopoverEpisodeId] = useState<string | null>(null)
+  const [deleteModalEpisodeId, setDeleteModalEpisodeId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [pulsingFolderId, setPulsingFolderId] = useState<string | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
@@ -278,11 +280,13 @@ export function Sidebar(): React.JSX.Element {
 
   const handleDeleteEpisode = (episodeId: string): void => {
     setContextMenu(null)
-    const ep = episodes.find((e) => e.id === episodeId)
-    const title = ep?.title || ep?.file_path?.split('/').pop() || 'this episode'
-    if (window.confirm(`Delete "${title}"? This cannot be undone.`)) {
-      deleteEpisode(episodeId)
-    }
+    setDeleteModalEpisodeId(episodeId)
+  }
+
+  const handleDeleteModalConfirm = async (): Promise<void> => {
+    if (!deleteModalEpisodeId) return
+    setDeleteModalEpisodeId(null)
+    await deleteEpisode(deleteModalEpisodeId)
   }
 
   const handleRenameEpisode = (episodeId: string): void => {
@@ -616,6 +620,18 @@ export function Sidebar(): React.JSX.Element {
           onClose={() => setMovePopoverEpisodeId(null)}
         />
       )}
+
+      {deleteModalEpisodeId && (() => {
+        const ep = episodes.find((e) => e.id === deleteModalEpisodeId)
+        const title = ep?.title || ep?.file_path?.split('/').pop() || 'Untitled'
+        return (
+          <DeleteConfirmModal
+            titles={[title]}
+            onConfirm={handleDeleteModalConfirm}
+            onCancel={() => setDeleteModalEpisodeId(null)}
+          />
+        )
+      })()}
 
       {/* Context Menu */}
       {contextMenu && contextMenu.type === 'episode' && (

@@ -1,16 +1,54 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '../store/app-store'
 import { useSelectionStore } from '../store/selection-store'
 import { FolderTreePopover } from './FolderTreePopover'
+import { DeleteConfirmModal } from './DeleteConfirmModal'
 
 export function SelectionActionBar(): React.JSX.Element | null {
   const selectedIds = useSelectionStore((s) => s.selectedEpisodeIds)
   const selectionContainer = useSelectionStore((s) => s.selectionContainer)
   const clearSelection = useSelectionStore((s) => s.clearSelection)
+  const episodes = useAppStore((s) => s.episodes)
   const [movePopoverOpen, setMovePopoverOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
 
   const selectedCount = selectedIds.size
+
+  useEffect(() => {
+    if (selectedCount === 0) return
+    const handler = (e: KeyboardEvent): void => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        setDeleteModalOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selectedCount])
+
   if (selectedCount === 0) return null
+
+  const selectedTitles = [...selectedIds].map((id) => {
+    const ep = episodes.find((e) => e.id === id)
+    return ep?.title || ep?.file_path?.split('/').pop() || 'Untitled'
+  })
+
+  const handleDeleteConfirm = async (): Promise<void> => {
+    const ids = [...selectedIds]
+    setDeleteModalOpen(false)
+    await window.api.deleteEpisodes(ids)
+    const { episodes: currentEps, tabs, activeTabId } = useAppStore.getState()
+    const idSet = new Set(ids)
+    const newEpisodes = currentEps.filter((ep) => !idSet.has(ep.id))
+    const newTabs = tabs.filter((t) => !idSet.has(t.episodeId))
+    let newActive = activeTabId
+    if (newActive && idSet.has(newActive)) {
+      newActive = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null
+    }
+    useAppStore.setState({ episodes: newEpisodes, tabs: newTabs, activeTabId: newActive })
+    useAppStore.getState().persistTabs()
+    clearSelection()
+  }
 
   const handleMoveSelect = async (folderId: string | null): Promise<void> => {
     const ids = [...selectedIds]
@@ -32,6 +70,13 @@ export function SelectionActionBar(): React.JSX.Element | null {
           onClose={() => setMovePopoverOpen(false)}
         />
       )}
+      {deleteModalOpen && (
+        <DeleteConfirmModal
+          titles={selectedTitles}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteModalOpen(false)}
+        />
+      )}
       <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-[0_4px_16px_rgba(0,0,0,0.3)] z-40">
         <span className="text-xs font-medium text-[var(--text)] whitespace-nowrap">
           {selectedCount} selected
@@ -49,7 +94,7 @@ export function SelectionActionBar(): React.JSX.Element | null {
 
         <button
           className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-red-400 hover:bg-white/[0.08] transition-[background-color] duration-150"
-          onClick={() => {}}
+          onClick={() => setDeleteModalOpen(true)}
           title="Delete selected"
         >
           Delete
