@@ -65,6 +65,8 @@ export class ChatToolExecutor {
         return this.navigateTab(args, context)
       case 'grep_transcripts':
         return this.grepTranscripts(args)
+      case 'read_transcript_range':
+        return this.readTranscriptRange(args, context)
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` })
     }
@@ -412,6 +414,72 @@ export class ChatToolExecutor {
     }
 
     return JSON.stringify({ results, pattern, total: results.length })
+  }
+
+  private readTranscriptRange(args: Record<string, unknown>, context: ToolContext): string {
+    const start = args.start as string
+    if (start === undefined || start === null) {
+      return JSON.stringify({ error: 'Missing required parameter: start' })
+    }
+
+    const episodeId = resolveEpisodeId(args, context)
+    const episode = this.db.getEpisode(episodeId)
+    if (!episode) {
+      return JSON.stringify({ error: `Episode not found: ${episodeId}` })
+    }
+    if (!episode.transcript) {
+      return JSON.stringify({ error: `No transcript available for episode: ${episode.title || episodeId}` })
+    }
+
+    const limit = (args.limit as number) || 50
+    const end = args.end as string | undefined
+
+    let segments: { timestamp?: string; text: string }[]
+    try {
+      const parsed = JSON.parse(episode.transcript)
+      if (Array.isArray(parsed)) {
+        segments = parsed.map((s) => ({
+          timestamp: s.timestamp || undefined,
+          text: typeof s === 'string' ? s : s.text || '',
+        }))
+      } else {
+        segments = episode.transcript.split('\n').map((line) => ({ text: line }))
+      }
+    } catch {
+      segments = episode.transcript.split('\n').map((line) => ({ text: line }))
+    }
+
+    const totalSegments = segments.length
+    const isTimestamp = (v: string) => /^\d{2}:\d{2}:\d{2}$/.test(v)
+
+    let startIdx: number
+    let endIdx: number
+
+    if (isTimestamp(start)) {
+      startIdx = segments.findIndex((s) => s.timestamp && s.timestamp >= start)
+      if (startIdx === -1) startIdx = totalSegments
+      if (end && isTimestamp(end)) {
+        endIdx = segments.findIndex((s, i) => i > startIdx && s.timestamp && s.timestamp > end)
+        if (endIdx === -1) endIdx = totalSegments
+      } else {
+        endIdx = Math.min(startIdx + limit, totalSegments)
+      }
+    } else {
+      startIdx = parseInt(start, 10) || 0
+      if (end !== undefined) {
+        endIdx = (parseInt(end, 10) || 0) + 1
+      } else {
+        endIdx = Math.min(startIdx + limit, totalSegments)
+      }
+    }
+
+    const sliced = segments.slice(startIdx, endIdx).map((s, i) => ({
+      index: startIdx + i,
+      timestamp: s.timestamp || null,
+      text: s.text,
+    }))
+
+    return JSON.stringify({ segments: sliced, total_segments: totalSegments })
   }
 
   private broadcast(channel: string, ...args: unknown[]): void {

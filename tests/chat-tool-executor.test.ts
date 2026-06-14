@@ -815,4 +815,101 @@ describe('ChatToolExecutor', () => {
       expect(parsed.error).toContain('Missing required parameter: pattern')
     })
   })
+
+  describe('read_transcript_range', () => {
+    it('returns segments by index range', async () => {
+      const result = await executor.executeTool(
+        'read_transcript_range',
+        { start: '0', end: '1' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.segments).toHaveLength(2)
+      expect(parsed.segments[0].index).toBe(0)
+      expect(parsed.segments[0].text).toContain('Welcome')
+      expect(parsed.segments[1].index).toBe(1)
+      expect(parsed.total_segments).toBe(3)
+    })
+
+    it('returns segments by timestamp range', async () => {
+      const result = await executor.executeTool(
+        'read_transcript_range',
+        { start: '00:01:00', end: '00:05:00' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.segments.length).toBeGreaterThanOrEqual(1)
+      expect(parsed.segments[0].timestamp).toBe('00:01:30')
+    })
+
+    it('respects limit parameter', async () => {
+      const result = await executor.executeTool(
+        'read_transcript_range',
+        { start: '0', limit: 1 },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.segments).toHaveLength(1)
+    })
+
+    it('includes total_segments in response', async () => {
+      const result = await executor.executeTool(
+        'read_transcript_range',
+        { start: '0' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.total_segments).toBe(3)
+    })
+
+    it('handles plain-text transcripts', async () => {
+      const plainId = db.createEpisode({
+        title: 'Plain',
+        file_path: '/path/to/p.mp3',
+        status: 'complete',
+      })
+      db.updateEpisode(plainId, { transcript: 'Line one\nLine two\nLine three' })
+
+      const result = await executor.executeTool(
+        'read_transcript_range',
+        { start: '1', end: '2' },
+        { currentEpisodeId: plainId }
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.segments).toHaveLength(2)
+      expect(parsed.segments[0].text).toBe('Line two')
+    })
+
+    it('returns error for non-existent episode', async () => {
+      const result = await executor.executeTool(
+        'read_transcript_range',
+        { start: '0', episode_id: 'nonexistent' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Episode not found')
+    })
+
+    it('returns error when transcript is missing', async () => {
+      const noTrId = db.createEpisode({
+        title: 'No Tr',
+        file_path: '/path/to/nt.mp3',
+        status: 'complete',
+      })
+
+      const result = await executor.executeTool(
+        'read_transcript_range',
+        { start: '0' },
+        { currentEpisodeId: noTrId }
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('No transcript')
+    })
+
+    it('returns error when start is missing', async () => {
+      const result = await executor.executeTool('read_transcript_range', {}, context)
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameter: start')
+    })
+  })
 })
