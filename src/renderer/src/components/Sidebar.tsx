@@ -3,6 +3,7 @@ import { useAppStore, Episode, Folder } from '../store/app-store'
 import { useSelectionStore } from '../store/selection-store'
 import { SelectionActionBar } from './SelectionActionBar'
 import { DragDropLayer, DRAG_MIME } from './DragDropLayer'
+import { FolderTreePopover } from './FolderTreePopover'
 import { UrlImportPopover } from './UrlImportPopover'
 import { sortInboxEpisodes, groupInboxEpisodes } from '../lib/sort-inbox'
 
@@ -81,6 +82,7 @@ export function Sidebar(): React.JSX.Element {
   const [creatingFolder, setCreatingFolder] = useState<{ parentId: string | null } | null>(null)
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [urlPopoverOpen, setUrlPopoverOpen] = useState(false)
+  const [movePopoverEpisodeId, setMovePopoverEpisodeId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [pulsingFolderId, setPulsingFolderId] = useState<string | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
@@ -261,6 +263,17 @@ export function Sidebar(): React.JSX.Element {
   const handleMoveEpisode = (episodeId: string, folderId: string | null): void => {
     setContextMenu(null)
     moveEpisode(episodeId, folderId)
+  }
+
+  const handleMoveEpisodePopover = (episodeId: string): void => {
+    setContextMenu(null)
+    setMovePopoverEpisodeId(episodeId)
+  }
+
+  const handleMovePopoverSelect = async (folderId: string | null): Promise<void> => {
+    if (!movePopoverEpisodeId) return
+    setMovePopoverEpisodeId(null)
+    await moveEpisode(movePopoverEpisodeId, folderId)
   }
 
   const handleDeleteEpisode = (episodeId: string): void => {
@@ -596,6 +609,14 @@ export function Sidebar(): React.JSX.Element {
       <SelectionActionBar />
       <DragDropLayer />
 
+      {movePopoverEpisodeId && (
+        <FolderTreePopover
+          sourceContainer={episodes.find((ep) => ep.id === movePopoverEpisodeId)?.folder_id ?? null}
+          onSelect={handleMovePopoverSelect}
+          onClose={() => setMovePopoverEpisodeId(null)}
+        />
+      )}
+
       {/* Context Menu */}
       {contextMenu && contextMenu.type === 'episode' && (
         <EpisodeContextMenu
@@ -603,9 +624,8 @@ export function Sidebar(): React.JSX.Element {
           y={contextMenu.y}
           episodeId={contextMenu.episodeId!}
           episodes={episodes}
-          getChildFolders={getChildFolders}
           onRename={handleRenameEpisode}
-          onMove={handleMoveEpisode}
+          onMovePopover={handleMoveEpisodePopover}
           onDelete={handleDeleteEpisode}
           onCancel={handleCancelEpisode}
           onRetry={handleRetryEpisode}
@@ -638,17 +658,10 @@ export function Sidebar(): React.JSX.Element {
   )
 }
 
-// --- Context Menu with flyout submenu ---
+// --- Context Menu ---
 
 type MenuItemAction = { type: 'action'; label: string; action: () => void; danger?: boolean }
 type MenuItemSeparator = { type: 'separator' }
-
-type SubmenuChild = {
-  label: string
-  action: () => void
-  disabled?: boolean
-  depth: number
-}
 
 function ContextMenu({
   x,
@@ -727,9 +740,8 @@ function EpisodeContextMenu({
   y,
   episodeId,
   episodes,
-  getChildFolders,
   onRename,
-  onMove,
+  onMovePopover,
   onDelete,
   onCancel,
   onRetry,
@@ -740,9 +752,8 @@ function EpisodeContextMenu({
   y: number
   episodeId: string
   episodes: Episode[]
-  getChildFolders: (parentId: string | null) => Folder[]
   onRename: (id: string) => void
-  onMove: (episodeId: string, folderId: string | null) => void
+  onMovePopover: (id: string) => void
   onDelete: (id: string) => void
   onCancel: (id: string) => void
   onRetry: (id: string) => void
@@ -751,19 +762,15 @@ function EpisodeContextMenu({
 }): React.JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null)
   const [focusedIndex, setFocusedIndex] = useState(0)
-  const [flyoutOpen, setFlyoutOpen] = useState(false)
-  const [flyoutFocusedIndex, setFlyoutFocusedIndex] = useState(0)
-  const flyoutTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const episode = episodes.find((e) => e.id === episodeId)
-  const currentFolderId = episode?.folder_id ?? null
   const isTranscribing = episode?.status === 'transcribing'
   const isDownloading = episode?.status === 'downloading'
   const isCancelled = episode?.status === 'cancelled'
   const isError = episode?.status === 'error'
   const isComplete = episode?.status === 'complete'
 
-  type ActionItem = { key: string; label: string; action: () => void; danger?: boolean; hasFlyout?: boolean }
+  type ActionItem = { key: string; label: string; action: () => void; danger?: boolean }
   const actions: ActionItem[] = []
 
   if (isDownloading) {
@@ -782,88 +789,23 @@ function EpisodeContextMenu({
     actions.push({ key: 'export-episode', label: 'Export Episode as Markdown', action: () => onExportEpisode(episodeId) })
   }
   actions.push({ key: 'rename', label: 'Rename', action: () => onRename(episodeId) })
-  actions.push({ key: 'move', label: 'Move to...', action: () => {}, hasFlyout: true })
+  actions.push({ key: 'move', label: 'Move to...', action: () => onMovePopover(episodeId) })
   actions.push({ key: 'delete', label: 'Delete', action: () => onDelete(episodeId), danger: true })
-
-  const moveIndex = actions.findIndex((a) => a.key === 'move')
 
   useEffect(() => {
     menuRef.current?.focus()
   }, [])
 
-  const buildFolderList = (): SubmenuChild[] => {
-    const result: SubmenuChild[] = []
-    const walk = (parentId: string | null, depth: number): void => {
-      const children = getChildFolders(parentId)
-      for (const f of children) {
-        result.push({
-          label: f.name + (f.id === currentFolderId ? ' (current)' : ''),
-          action: () => onMove(episodeId, f.id),
-          disabled: f.id === currentFolderId,
-          depth,
-        })
-        walk(f.id, depth + 1)
-      }
-    }
-    walk(null, 0)
-    result.push({
-      label: 'Inbox' + (currentFolderId === null ? ' (current)' : ''),
-      action: () => onMove(episodeId, null),
-      disabled: currentFolderId === null,
-      depth: 0,
-    })
-    return result
-  }
-
-  const folderList = buildFolderList()
-
-  const openFlyout = (): void => {
-    if (flyoutTimeout.current) clearTimeout(flyoutTimeout.current)
-    flyoutTimeout.current = setTimeout(() => setFlyoutOpen(true), 150)
-  }
-
-  const closeFlyout = (): void => {
-    if (flyoutTimeout.current) clearTimeout(flyoutTimeout.current)
-    flyoutTimeout.current = setTimeout(() => setFlyoutOpen(false), 150)
-  }
-
-  const cancelClose = (): void => {
-    if (flyoutTimeout.current) clearTimeout(flyoutTimeout.current)
-  }
-
   const handleKeyDown = (e: React.KeyboardEvent): void => {
     e.preventDefault()
     e.stopPropagation()
-
-    if (flyoutOpen) {
-      if (e.key === 'ArrowDown') {
-        setFlyoutFocusedIndex((prev) => (prev + 1) % folderList.length)
-      } else if (e.key === 'ArrowUp') {
-        setFlyoutFocusedIndex((prev) => (prev - 1 + folderList.length) % folderList.length)
-      } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
-        setFlyoutOpen(false)
-      } else if (e.key === 'Enter') {
-        const item = folderList[flyoutFocusedIndex]
-        if (item && !item.disabled) item.action()
-      }
-      return
-    }
-
     if (e.key === 'ArrowDown') {
       setFocusedIndex((prev) => (prev + 1) % actions.length)
     } else if (e.key === 'ArrowUp') {
       setFocusedIndex((prev) => (prev - 1 + actions.length) % actions.length)
-    } else if (e.key === 'ArrowRight' && focusedIndex === moveIndex) {
-      setFlyoutOpen(true)
-      setFlyoutFocusedIndex(0)
     } else if (e.key === 'Enter') {
       const action = actions[focusedIndex]
-      if (action?.hasFlyout) {
-        setFlyoutOpen(true)
-        setFlyoutFocusedIndex(0)
-      } else if (action) {
-        action.action()
-      }
+      if (action) action.action()
     } else if (e.key === 'Escape') {
       onClose()
     }
@@ -891,53 +833,6 @@ function EpisodeContextMenu({
               >
                 {action.label}
               </button>
-            </div>
-          )
-        }
-
-        if (action.hasFlyout) {
-          return (
-            <div
-              key={action.key}
-              className="relative"
-              onMouseEnter={() => {
-                setFocusedIndex(i)
-                openFlyout()
-              }}
-              onMouseLeave={closeFlyout}
-            >
-              <button
-                className={`w-full text-left mx-1.5 px-2 py-1 text-[13px] text-[var(--text)] flex items-center justify-between rounded-md transition-[background-color] duration-150 ${focusedIndex === i ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
-                style={{ width: 'calc(100% - 12px)' }}
-              >
-                <span>{action.label}</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              </button>
-
-              {flyoutOpen && (
-                <div
-                  className="absolute left-full top-0 ml-1 bg-[var(--surface)] rounded-lg shadow-[0_8px_24px_rgba(0,0,0,0.4)] py-1.5 min-w-[160px] max-h-[300px] overflow-y-auto"
-                  onMouseEnter={cancelClose}
-                  onMouseLeave={closeFlyout}
-                >
-                  {folderList.map((item, fi) => (
-                    <button
-                      key={fi}
-                      className={`text-left mx-1.5 py-1 text-[13px] text-[var(--text)] rounded-md transition-[background-color] duration-150 ${
-                        item.disabled ? 'opacity-50 cursor-default' : 'cursor-pointer'
-                      } ${fi === flyoutFocusedIndex ? 'bg-white/[0.08]' : 'hover:bg-white/[0.08]'}`}
-                      style={{ paddingLeft: `${8 + item.depth * 14}px`, paddingRight: '8px', width: 'calc(100% - 12px)' }}
-                      onClick={() => { if (!item.disabled) item.action() }}
-                      onMouseEnter={() => setFlyoutFocusedIndex(fi)}
-                      disabled={item.disabled}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           )
         }

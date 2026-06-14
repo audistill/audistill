@@ -1,6 +1,6 @@
 ---
 title: "Bulk move with folder-tree popover"
-status: ready-for-agent
+status: done
 created: 2026-06-14
 ---
 
