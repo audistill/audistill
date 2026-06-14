@@ -102,7 +102,11 @@ export function SelectionActionBar(): React.JSX.Element | null {
 
         <button
           className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-[var(--text)] hover:bg-white/[0.08] transition-[background-color] duration-150"
-          onClick={() => {}}
+          onClick={async () => {
+            const ids = [...selectedIds]
+            const exported = await window.api.exportSaveEpisodes(ids)
+            if (exported) clearSelection()
+          }}
           title="Export selected"
         >
           Export

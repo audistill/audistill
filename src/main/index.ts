@@ -369,6 +369,55 @@ function registerExportHandlers(): void {
     if (result.canceled || !result.filePath) return
     await writeFile(result.filePath, content, 'utf-8')
   })
+
+  ipcMain.handle('export:save-episodes', async (_event, episodeIds: string[]) => {
+    const { assembleEpisode } = await import('../shared/export-assembler')
+    const { formatTranscript } = await import('../shared/transcript-formatter')
+    const { writeFile } = await import('fs/promises')
+    const { join: joinPath } = await import('path')
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return false
+
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Export episodes to folder',
+    })
+
+    if (result.canceled || !result.filePaths[0]) return false
+    const dir = result.filePaths[0]
+
+    for (const episodeId of episodeIds) {
+      const episode = db.getEpisode(episodeId)
+      if (!episode) continue
+
+      const tabs = tabService.getTabs(episodeId)
+
+      let transcript = ''
+      if (episode.transcript) {
+        try {
+          const segments = JSON.parse(episode.transcript)
+          transcript = formatTranscript(segments, {
+            timestamps: true,
+            durationSec: episode.duration_sec ?? 0,
+          })
+        } catch {
+          // skip transcript if unparseable
+        }
+      }
+
+      const { content, suggestedFilename } = assembleEpisode({
+        title: episode.title || 'Untitled',
+        sourceUrl: episode.source_url ?? null,
+        durationSec: episode.duration_sec ?? 0,
+        createdAt: episode.created_at,
+        tabs: tabs.map((t) => ({ name: t.tab_name, content: t.content })),
+        transcript,
+      })
+
+      await writeFile(joinPath(dir, suggestedFilename), content, 'utf-8')
+    }
+    return true
+  })
 }
 
 function registerTabHandlers(): void {

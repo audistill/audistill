@@ -148,6 +148,8 @@ const api = {
     ipcRenderer.invoke('export:save-tab', content, episodeTitle, tabName),
   exportSaveEpisode: (episodeId: string): Promise<void> =>
     ipcRenderer.invoke('export:save-episode', episodeId),
+  exportSaveEpisodes: (episodeIds: string[]): Promise<boolean> =>
+    ipcRenderer.invoke('export:save-episodes', episodeIds),
 
   // Recipes API
   recipesGetAll: () => ipcRenderer.invoke('recipe:get-all'),
