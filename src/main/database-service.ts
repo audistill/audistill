@@ -281,6 +281,28 @@ export class DatabaseService {
     this.db.prepare('DELETE FROM episodes WHERE id = ?').run(id)
   }
 
+  moveEpisodes(ids: string[], folderId: string | null): void {
+    if (ids.length === 0) return
+    const txn = this.db.transaction(() => {
+      const stmt = this.db.prepare("UPDATE episodes SET folder_id = ?, updated_at = datetime('now') WHERE id = ?")
+      for (const id of ids) {
+        stmt.run(folderId, id)
+      }
+    })
+    txn()
+  }
+
+  deleteEpisodes(ids: string[]): void {
+    if (ids.length === 0) return
+    const txn = this.db.transaction(() => {
+      const stmt = this.db.prepare('DELETE FROM episodes WHERE id = ?')
+      for (const id of ids) {
+        stmt.run(id)
+      }
+    })
+    txn()
+  }
+
   getFolders(): Folder[] {
     return this.db.prepare('SELECT * FROM folders ORDER BY sort_order, name').all() as Folder[]
   }

@@ -60,6 +60,9 @@ const api = {
   moveEpisode: (id: string, folderId: string | null): Promise<void> =>
     ipcRenderer.invoke('db:move-episode', id, folderId),
   deleteEpisode: (id: string): Promise<void> => ipcRenderer.invoke('db:delete-episode', id),
+  moveEpisodes: (ids: string[], folderId: string | null): Promise<void> =>
+    ipcRenderer.invoke('db:move-episodes', ids, folderId),
+  deleteEpisodes: (ids: string[]): Promise<void> => ipcRenderer.invoke('db:delete-episodes', ids),
   validateApiKey: (key: string): Promise<boolean> => ipcRenderer.invoke('validate-api-key', key),
 
   // File utilities

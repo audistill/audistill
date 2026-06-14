@@ -121,6 +121,17 @@ function registerDatabaseHandlers(): void {
     db.deleteEpisode(id)
   })
 
+  ipcMain.handle('db:move-episodes', (_event, ids: string[], folderId: string | null) => {
+    db.moveEpisodes(ids, folderId)
+  })
+
+  ipcMain.handle('db:delete-episodes', (_event, ids: string[]) => {
+    for (const id of ids) {
+      ingestPipeline.terminateWorkerForEpisode(id)
+    }
+    db.deleteEpisodes(ids)
+  })
+
   ipcMain.handle('db:create-folder', (_event, name: string, parentId?: string | null) => {
     return db.createFolder(name, parentId)
   })

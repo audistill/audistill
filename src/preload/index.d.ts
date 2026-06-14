@@ -83,6 +83,8 @@ interface AudistillApi {
   renameEpisode: (id: string, title: string) => Promise<void>
   moveEpisode: (id: string, folderId: string | null) => Promise<void>
   deleteEpisode: (id: string) => Promise<void>
+  moveEpisodes: (ids: string[], folderId: string | null) => Promise<void>
+  deleteEpisodes: (ids: string[]) => Promise<void>
   createFolder: (name: string, parentId?: string | null) => Promise<string>
   renameFolder: (id: string, name: string) => Promise<void>
   deleteFolder: (id: string) => Promise<void>

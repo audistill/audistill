@@ -1,6 +1,6 @@
 ---
 title: "Database batch operations for move and delete"
-status: ready-for-agent
+status: done
 created: 2026-06-14
 ---
 
