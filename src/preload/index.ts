@@ -80,6 +80,10 @@ const api = {
   ytdlpFetchMetadata: (url: string) => ipcRenderer.invoke('ytdlp:fetch-metadata', url),
   ytdlpCheckDuplicate: (url: string) => ipcRenderer.invoke('ytdlp:check-duplicate', url),
 
+  // URL classification
+  urlHead: (url: string): Promise<{ contentType: string | null; contentLength: number | null }> =>
+    ipcRenderer.invoke('url:head', url),
+
   // Tab streaming events
   tabsExecuteRecipe: (episodeId: string, tabId: string) => ipcRenderer.invoke('tabs:execute-recipe', episodeId, tabId),
 

@@ -9,6 +9,7 @@ export interface DbEpisode {
   transcript: string | null
   source_url: string | null
   source_meta: string | null
+  source_type: string | null
   status: string
   error_message: string | null
   created_at: string
@@ -151,6 +152,9 @@ interface AudistillApi {
   selectDirectory: () => Promise<string | null>
   ytdlpFetchMetadata: (url: string) => Promise<{ title: string; channel: string; duration: number; thumbnail: string; uploadDate: string } | { code: string; message: string }>
   ytdlpCheckDuplicate: (url: string) => Promise<DbEpisode | null>
+
+  // URL classification
+  urlHead: (url: string) => Promise<{ contentType: string | null; contentLength: number | null }>
 
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
   onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => () => void

@@ -12,6 +12,7 @@ export interface Episode {
   transcript: string | null
   source_url: string | null
   source_meta: string | null
+  source_type: string | null
   status: string
   error_message: string | null
   created_at: string
@@ -91,6 +92,7 @@ export class DatabaseService {
         transcript TEXT,
         source_url TEXT,
         source_meta TEXT,
+        source_type TEXT,
         status TEXT NOT NULL DEFAULT 'queued',
         error_message TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -189,14 +191,26 @@ export class DatabaseService {
           transcript TEXT,
           source_url TEXT,
           source_meta TEXT,
+          source_type TEXT,
           status TEXT NOT NULL DEFAULT 'queued',
           error_message TEXT,
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
-        INSERT INTO episodes_new SELECT id, title, file_path, folder_id, duration_sec, transcript, source_url, source_meta, status, error_message, created_at, updated_at FROM episodes;
+        INSERT INTO episodes_new SELECT id, title, file_path, folder_id, duration_sec, transcript, source_url, source_meta, NULL, status, error_message, created_at, updated_at FROM episodes;
         DROP TABLE episodes;
         ALTER TABLE episodes_new RENAME TO episodes;
+      `)
+    }
+
+    const colNamesAfter = new Set(
+      (this.db.prepare("PRAGMA table_info('episodes')").all() as { name: string }[]).map((c) => c.name)
+    )
+    if (!colNamesAfter.has('source_type')) {
+      this.db.exec("ALTER TABLE episodes ADD COLUMN source_type TEXT")
+      this.db.exec(`
+        UPDATE episodes SET source_type = 'youtube' WHERE source_url IS NOT NULL;
+        UPDATE episodes SET source_type = 'local' WHERE source_url IS NULL;
       `)
     }
   }
@@ -223,6 +237,14 @@ export class DatabaseService {
     return this.db.prepare('SELECT * FROM episodes WHERE source_url = ?').get(url) as Episode | undefined
   }
 
+  getEpisodesBySourceUrls(urls: string[]): Episode[] {
+    if (urls.length === 0) return []
+    const placeholders = urls.map(() => '?').join(', ')
+    return this.db
+      .prepare(`SELECT * FROM episodes WHERE source_url IN (${placeholders})`)
+      .all(...urls) as Episode[]
+  }
+
   createEpisode(data: {
     title?: string | null
     file_path?: string | null
@@ -230,20 +252,21 @@ export class DatabaseService {
     duration_sec?: number | null
     source_url?: string | null
     source_meta?: string | null
+    source_type?: string | null
     status?: string
   }): string {
     const id = randomUUID()
     this.db
       .prepare(
-        `INSERT INTO episodes (id, title, file_path, folder_id, duration_sec, source_url, source_meta, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO episodes (id, title, file_path, folder_id, duration_sec, source_url, source_meta, source_type, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(id, data.title ?? null, data.file_path ?? null, data.folder_id ?? null, data.duration_sec ?? null, data.source_url ?? null, data.source_meta ?? null, data.status ?? 'queued')
+      .run(id, data.title ?? null, data.file_path ?? null, data.folder_id ?? null, data.duration_sec ?? null, data.source_url ?? null, data.source_meta ?? null, data.source_type ?? null, data.status ?? 'queued')
     return id
   }
 
   updateEpisode(id: string, fields: Partial<Omit<Episode, 'id' | 'created_at'>>): void {
-    const allowed = ['title', 'file_path', 'folder_id', 'duration_sec', 'transcript', 'source_url', 'source_meta', 'status', 'error_message']
+    const allowed = ['title', 'file_path', 'folder_id', 'duration_sec', 'transcript', 'source_url', 'source_meta', 'source_type', 'status', 'error_message']
     const entries = Object.entries(fields).filter(([key]) => allowed.includes(key))
     if (entries.length === 0) return
 

@@ -12,6 +12,7 @@ import { ChatService } from './chat-service'
 import { ChatToolExecutor } from './chat-tool-executor'
 import { MigrationService } from './migration-service'
 import { YtdlpService } from './ytdlp-service'
+import { fetchUrlHead } from './url-head-service'
 import { getWindowOptions, trackWindowState, getSavedBounds } from './window-state'
 import { LicenseService } from './license-service'
 import { PolarClient } from './polar-client'
@@ -255,6 +256,12 @@ function registerYtdlpHandlers(): void {
   })
 }
 
+function registerUrlHandlers(): void {
+  ipcMain.handle('url:head', async (_event, url: string) => {
+    return fetchUrlHead(url)
+  })
+}
+
 function registerExportHandlers(): void {
   ipcMain.handle('export:copy-tab', async (_event, markdown: string) => {
     const { marked } = await import('marked')
@@ -451,6 +458,7 @@ app.whenReady().then(() => {
   registerTabHandlers()
   registerExportHandlers()
   registerYtdlpHandlers()
+  registerUrlHandlers()
   registerLicenseHandlers()
 
   const modelManager = new ModelManager()
