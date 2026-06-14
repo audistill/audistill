@@ -214,29 +214,32 @@ describe('DatabaseService', () => {
       expect(db.searchEpisodes('nonexistent')).toHaveLength(0)
     })
 
-    it('matches on summary content across view types', () => {
+    it('matches on transcript content', () => {
       const epId = db.createEpisode({ file_path: '/a.mp3', title: 'Ep 1' })
-      db.createSummary(epId, 'brief', 'complete')
-      db.updateSummary(epId, 'brief', { content: 'Discussion about quantum computing' })
+      db.updateEpisode(epId, { transcript: 'Discussion about quantum computing' })
 
       const results = db.searchEpisodes('quantum')
       expect(results).toHaveLength(1)
       expect(results[0].id).toBe(epId)
     })
 
-    it('deduplicates episodes when multiple views match', () => {
+    it('deduplicates episodes when multiple tabs match', () => {
       const epId = db.createEpisode({ file_path: '/a.mp3', title: 'Ep 1' })
-      db.createSummary(epId, 'brief', 'complete')
-      db.updateSummary(epId, 'brief', { content: 'AI and machine learning overview' })
-      db.createSummary(epId, 'detailed', 'complete')
-      db.updateSummary(epId, 'detailed', { content: 'Detailed AI and machine learning analysis' })
+      db.run(
+        `INSERT INTO episode_tabs (id, episode_id, tab_name, content, position) VALUES (?, ?, ?, ?, ?)`,
+        'tab1', epId, 'Brief', 'AI and machine learning overview', 0
+      )
+      db.run(
+        `INSERT INTO episode_tabs (id, episode_id, tab_name, content, position) VALUES (?, ?, ?, ?, ?)`,
+        'tab2', epId, 'Detailed', 'Detailed AI and machine learning analysis', 1
+      )
 
       const results = db.searchEpisodes('machine learning')
       expect(results).toHaveLength(1)
       expect(results[0].id).toBe(epId)
     })
 
-    it('episodes without summaries still appear when title matches', () => {
+    it('episodes without tabs still appear when title matches', () => {
       db.createEpisode({ file_path: '/a.mp3', title: 'Quantum Physics Lecture' })
 
       const results = db.searchEpisodes('Quantum')
@@ -244,11 +247,13 @@ describe('DatabaseService', () => {
       expect(results[0].title).toBe('Quantum Physics Lecture')
     })
 
-    it('matches across both title and summary content', () => {
+    it('matches across both title and tab content', () => {
       const ep1 = db.createEpisode({ file_path: '/a.mp3', title: 'Episode Alpha' })
       const ep2 = db.createEpisode({ file_path: '/b.mp3', title: 'Episode Beta' })
-      db.createSummary(ep2, 'full', 'complete')
-      db.updateSummary(ep2, 'full', { content: 'This episode covers Alpha waves in the brain' })
+      db.run(
+        `INSERT INTO episode_tabs (id, episode_id, tab_name, content, position) VALUES (?, ?, ?, ?, ?)`,
+        'tab3', ep2, 'Full', 'This episode covers Alpha waves in the brain', 0
+      )
 
       const results = db.searchEpisodes('Alpha')
       expect(results).toHaveLength(2)
