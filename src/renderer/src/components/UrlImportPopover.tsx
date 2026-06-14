@@ -53,7 +53,7 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
   onClose: () => void
   onImport: (canonicalUrl: string, metadata: YouTubeMetadata) => void
   onImportDirect?: (url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }) => void
-  onImportRss?: (items: { title: string; enclosureUrl: string; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => void
+  onImportRss?: (items: { title: string; enclosureUrl: string; guid: string | null; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => void
 }): React.JSX.Element {
   const [state, setState] = useState<PopoverState>({ step: 'input' })
   const [url, setUrl] = useState('')
@@ -107,9 +107,9 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
       return
     }
 
-    const duplicate = await window.api.ytdlpCheckDuplicate(inputUrl)
-    if (duplicate) {
-      setState({ step: 'duplicate', episode: { id: duplicate.id, title: duplicate.title } })
+    const existingUrls = await window.api.checkDuplicates([inputUrl])
+    if (existingUrls.length > 0) {
+      setState({ step: 'duplicate', episode: { id: '', title: null } })
       return
     }
 
@@ -392,6 +392,7 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
           onImportRss?.(selectedItems.map((item) => ({
             title: item.title,
             enclosureUrl: item.enclosureUrl,
+            guid: item.guid,
             feedUrl: state.feed.feedUrl,
             feedTitle: state.feed.title,
             feedImage: state.feed.image,
@@ -508,11 +509,25 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
 }): React.JSX.Element {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [showAll, setShowAll] = useState(false)
+  const [duplicateUrls, setDuplicateUrls] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const urls = feed.items.map((item) => item.enclosureUrl)
+    window.api.checkDuplicates(urls).then((existing) => {
+      setDuplicateUrls(new Set(existing))
+    })
+  }, [feed])
 
   const visibleItems = showAll ? feed.items : feed.items.slice(0, DEFAULT_VISIBLE_ITEMS)
   const hasMore = feed.items.length > DEFAULT_VISIBLE_ITEMS
 
+  const selectableIndices = visibleItems
+    .map((item, i) => ({ item, i }))
+    .filter(({ item }) => !duplicateUrls.has(item.enclosureUrl))
+    .map(({ i }) => i)
+
   const toggleItem = (index: number) => {
+    if (duplicateUrls.has(visibleItems[index].enclosureUrl)) return
     setSelected((prev) => {
       const next = new Set(prev)
       if (next.has(index)) next.delete(index)
@@ -522,10 +537,10 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
   }
 
   const toggleAll = () => {
-    if (selected.size === visibleItems.length) {
+    if (selected.size === selectableIndices.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(visibleItems.map((_, i) => i)))
+      setSelected(new Set(selectableIndices))
     }
   }
 
@@ -567,26 +582,33 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
       </div>
 
       <div className="overflow-y-auto flex-1 -mx-1 px-1 min-h-0">
-        {visibleItems.map((item, index) => (
-          <label
-            key={item.enclosureUrl}
-            className="flex items-start gap-2 py-1.5 px-1 rounded hover:bg-white/[0.04] cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              checked={selected.has(index)}
-              onChange={() => toggleItem(index)}
-              className="mt-0.5 rounded border-[var(--surface)] accent-[var(--accent)]"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-[var(--text)] truncate">{item.title}</p>
-              <p className="text-[10px] text-[var(--secondary)]">
-                {item.pubDate ? formatDate(item.pubDate) : ''}
-                {item.duration ? ` · ${item.duration}` : ''}
-              </p>
-            </div>
-          </label>
-        ))}
+        {visibleItems.map((item, index) => {
+          const isDuplicate = duplicateUrls.has(item.enclosureUrl)
+          return (
+            <label
+              key={item.enclosureUrl}
+              className={`flex items-start gap-2 py-1.5 px-1 rounded ${isDuplicate ? 'opacity-40 cursor-default' : 'hover:bg-white/[0.04] cursor-pointer'}`}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(index)}
+                onChange={() => toggleItem(index)}
+                disabled={isDuplicate}
+                className="mt-0.5 rounded border-[var(--surface)] accent-[var(--accent)] disabled:opacity-50"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-[var(--text)] truncate">
+                  {item.title}
+                  {isDuplicate && <span className="ml-1 text-[10px] text-[var(--secondary)]">(imported)</span>}
+                </p>
+                <p className="text-[10px] text-[var(--secondary)]">
+                  {item.pubDate ? formatDate(item.pubDate) : ''}
+                  {item.duration ? ` · ${item.duration}` : ''}
+                </p>
+              </div>
+            </label>
+          )
+        })}
       </div>
 
       <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--surface)] shrink-0">

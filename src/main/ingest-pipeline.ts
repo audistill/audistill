@@ -123,7 +123,7 @@ export class IngestPipeline {
       return id
     })
 
-    ipcMain.handle('ingest:add-rss-items', async (_event, items: { title: string; enclosureUrl: string; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => {
+    ipcMain.handle('ingest:add-rss-items', async (_event, items: { title: string; enclosureUrl: string; guid: string | null; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => {
       if (this.licenseService) requireLicense(this.licenseService)
       const ids: string[] = []
       for (const item of items) {
@@ -138,6 +138,7 @@ export class IngestPipeline {
             pubDate: item.pubDate,
             description: item.description,
             duration: item.duration,
+            guid: item.guid,
           }),
           status: 'downloading',
         })

@@ -264,6 +264,11 @@ function registerUrlHandlers(): void {
     return fetchUrlHead(url)
   })
 
+  ipcMain.handle('ingest:check-duplicates', async (_event, urls: string[]) => {
+    const episodes = db.getEpisodesBySourceUrls(urls)
+    return episodes.map((e) => e.source_url)
+  })
+
   ipcMain.handle('feed:fetch-metadata', async (_event, url: string) => {
     return feedService.fetchFeed(url)
   })
