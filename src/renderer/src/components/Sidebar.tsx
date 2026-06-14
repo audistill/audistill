@@ -180,8 +180,18 @@ export function Sidebar(): React.JSX.Element {
 
     e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ ids: dragIds, sourceContainer: episode.folder_id }))
     e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setDragImage(new Image(), 0, 0)
+    const emptyCanvas = document.createElement('canvas')
+    emptyCanvas.width = 1
+    emptyCanvas.height = 1
+    e.dataTransfer.setDragImage(emptyCanvas, 0, 0)
     window.dispatchEvent(new CustomEvent('audistill-drag-start', { detail: { title: dragTitle, count: dragCount } }))
+  }
+
+  const handleFolderDragEnter = (e: React.DragEvent, targetId: string): void => {
+    if (!e.dataTransfer.types.includes(DRAG_MIME)) return
+    e.preventDefault()
+    e.stopPropagation()
+    setDropTargetId(targetId)
   }
 
   const handleFolderDragOver = (e: React.DragEvent, targetId: string): void => {
@@ -446,6 +456,7 @@ export function Sidebar(): React.JSX.Element {
           <div
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150 ${dropTargetId === '__inbox__' ? 'bg-[var(--accent)]/15' : ''} ${pulsingFolderId === null && fadingEpisodeIds.size > 0 ? 'animate-pulse' : ''}`}
             onClick={toggleInboxCollapsed}
+            onDragEnter={(e) => handleFolderDragEnter(e, '__inbox__')}
             onDragOver={(e) => handleFolderDragOver(e, '__inbox__')}
             onDragLeave={handleFolderDragLeave}
             onDrop={(e) => handleFolderDrop(e, null)}
@@ -575,6 +586,7 @@ export function Sidebar(): React.JSX.Element {
             toggleFolder={toggleFolder}
             onEpisodeClick={handleEpisodeClick}
             onEpisodeDragStart={handleEpisodeDragStart}
+            onFolderDragEnter={handleFolderDragEnter}
             onFolderDragOver={handleFolderDragOver}
             onFolderDragLeave={handleFolderDragLeave}
             onFolderDrop={handleFolderDrop}
@@ -890,6 +902,7 @@ function FolderNode({
   toggleFolder,
   onEpisodeClick,
   onEpisodeDragStart,
+  onFolderDragEnter,
   onFolderDragOver,
   onFolderDragLeave,
   onFolderDrop,
@@ -921,6 +934,7 @@ function FolderNode({
   toggleFolder: (id: string) => void
   onEpisodeClick: (e: React.MouseEvent, episodeId: string, container: string, visibleIds: string[]) => void
   onEpisodeDragStart: (e: React.DragEvent, episode: Episode) => void
+  onFolderDragEnter: (e: React.DragEvent, targetId: string) => void
   onFolderDragOver: (e: React.DragEvent, targetId: string) => void
   onFolderDragLeave: (e: React.DragEvent) => void
   onFolderDrop: (e: React.DragEvent, targetFolderId: string | null) => void
@@ -945,6 +959,7 @@ function FolderNode({
         className={`sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text)] cursor-pointer transition-[background-color] duration-150 ${dropTargetId === folder.id ? 'bg-[var(--accent)]/15' : ''} ${pulsingFolderId === folder.id ? 'animate-pulse' : ''}`}
         onClick={() => toggleFolder(folder.id)}
         onContextMenu={(e) => onContextMenu(e, folder.id)}
+        onDragEnter={(e) => onFolderDragEnter(e, folder.id)}
         onDragOver={(e) => onFolderDragOver(e, folder.id)}
         onDragLeave={onFolderDragLeave}
         onDrop={(e) => onFolderDrop(e, folder.id)}
@@ -1012,6 +1027,7 @@ function FolderNode({
             toggleFolder={toggleFolder}
             onEpisodeClick={onEpisodeClick}
             onEpisodeDragStart={onEpisodeDragStart}
+            onFolderDragEnter={onFolderDragEnter}
             onFolderDragOver={onFolderDragOver}
             onFolderDragLeave={onFolderDragLeave}
             onFolderDrop={onFolderDrop}
