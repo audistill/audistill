@@ -52,12 +52,14 @@ function App(): React.JSX.Element {
   }, [])
 
   const handleDragEnter = useCallback((e: DragEvent) => {
+    if (e.dataTransfer?.types.includes('application/x-audistill-episode')) return
     e.preventDefault()
     dragCounter.current++
     if (dragCounter.current === 1) setDropActive(true)
   }, [])
 
   const handleDragOver = useCallback((e: DragEvent) => {
+    if (e.dataTransfer?.types.includes('application/x-audistill-episode')) return
     e.preventDefault()
   }, [])
 
@@ -68,6 +70,7 @@ function App(): React.JSX.Element {
   }, [])
 
   const handleDrop = useCallback((e: DragEvent) => {
+    if (e.dataTransfer?.types.includes('application/x-audistill-episode')) return
     e.preventDefault()
     dragCounter.current = 0
     setDropActive(false)
