@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { DbEpisode, DbFolder, DbOpenTab } from '../../../preload/index.d'
+import type { InboxSortMode } from '../lib/sort-inbox'
 
 export interface Episode {
   id: string
@@ -51,6 +52,8 @@ interface AppState {
   activeContentView: 'episode' | 'canvas'
   transcriptPanelOpen: boolean
   transcriptPanelRatio: number
+  inboxSort: InboxSortMode
+  inboxCollapsed: boolean
 
   hydrate: () => Promise<void>
   selectEpisode: (id: string) => void
@@ -80,6 +83,8 @@ interface AppState {
   setActiveContentView: (view: 'episode' | 'canvas') => void
   toggleTranscriptPanel: () => void
   setTranscriptPanelRatio: (ratio: number) => void
+  cycleInboxSort: () => void
+  toggleInboxCollapsed: () => void
 }
 
 function dbEpisodeToEpisode(row: DbEpisode): Episode {
@@ -125,6 +130,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeContentView: 'episode',
   transcriptPanelOpen: false,
   transcriptPanelRatio: 0.4,
+  inboxSort: (localStorage.getItem('inboxSort') as InboxSortMode) || 'newest',
+  inboxCollapsed: localStorage.getItem('inboxCollapsed') === 'true',
 
   hydrate: async () => {
     const [dbEpisodes, dbFolders, dbTabs, savedRatio] = await Promise.all([
@@ -364,5 +371,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     const clamped = Math.max(0.25, Math.min(0.65, ratio))
     set({ transcriptPanelRatio: clamped })
     window.api.setSetting('transcript_panel_ratio', String(clamped))
+  },
+
+  cycleInboxSort: () => {
+    const cycle: Record<InboxSortMode, InboxSortMode> = { newest: 'oldest', oldest: 'longest', longest: 'newest' }
+    const next = cycle[get().inboxSort]
+    localStorage.setItem('inboxSort', next)
+    set({ inboxSort: next })
+  },
+
+  toggleInboxCollapsed: () => {
+    const next = !get().inboxCollapsed
+    localStorage.setItem('inboxCollapsed', String(next))
+    set({ inboxCollapsed: next })
   },
 }))
