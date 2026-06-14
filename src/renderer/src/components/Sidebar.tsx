@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAppStore, Episode, Folder } from '../store/app-store'
 import { useSelectionStore } from '../store/selection-store'
 import { SelectionActionBar } from './SelectionActionBar'
+import { DragDropLayer, DRAG_MIME } from './DragDropLayer'
 import { UrlImportPopover } from './UrlImportPopover'
 import { sortInboxEpisodes, groupInboxEpisodes } from '../lib/sort-inbox'
 
@@ -80,6 +81,9 @@ export function Sidebar(): React.JSX.Element {
   const [creatingFolder, setCreatingFolder] = useState<{ parentId: string | null } | null>(null)
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [urlPopoverOpen, setUrlPopoverOpen] = useState(false)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const [fadingEpisodeId, setFadingEpisodeId] = useState<string | null>(null)
+  const [pulsingFolderId, setPulsingFolderId] = useState<string | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -151,6 +155,53 @@ export function Sidebar(): React.JSX.Element {
       }
       selectEpisode(episodeId)
     }
+  }
+
+  const handleEpisodeDragStart = (e: React.DragEvent, episode: Episode): void => {
+    if (selectedEpisodeIds.size > 0) {
+      clearSelection()
+    }
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ ids: [episode.id], sourceContainer: episode.folder_id }))
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setDragImage(new Image(), 0, 0)
+    const title = episode.title || episode.file_path?.split('/').pop() || 'Untitled'
+    window.dispatchEvent(new CustomEvent('audistill-drag-start', { detail: { title } }))
+  }
+
+  const handleFolderDragOver = (e: React.DragEvent, targetId: string): void => {
+    if (!e.dataTransfer.types.includes(DRAG_MIME)) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+    setDropTargetId(targetId)
+  }
+
+  const handleFolderDragLeave = (e: React.DragEvent): void => {
+    e.stopPropagation()
+    setDropTargetId(null)
+  }
+
+  const handleFolderDrop = async (e: React.DragEvent, targetFolderId: string | null): Promise<void> => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDropTargetId(null)
+
+    const raw = e.dataTransfer.getData(DRAG_MIME)
+    if (!raw) return
+    const { ids, sourceContainer } = JSON.parse(raw) as { ids: string[]; sourceContainer: string | null }
+    if (targetFolderId === sourceContainer) return
+
+    setFadingEpisodeId(ids[0])
+    setPulsingFolderId(targetFolderId)
+
+    await window.api.moveEpisodes(ids, targetFolderId)
+    const { episodes: currentEpisodes } = useAppStore.getState()
+    useAppStore.getState().setEpisodes(
+      currentEpisodes.map((ep) => ids.includes(ep.id) ? { ...ep, folder_id: targetFolderId } : ep)
+    )
+
+    setTimeout(() => setFadingEpisodeId(null), 150)
+    setTimeout(() => setPulsingFolderId(null), 300)
   }
 
   const getChildFolders = (parentId: string | null) =>
@@ -361,8 +412,11 @@ export function Sidebar(): React.JSX.Element {
         {/* Inbox */}
         <div className="mb-4">
           <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer"
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150 ${dropTargetId === '__inbox__' ? 'bg-[var(--accent)]/15' : ''} ${pulsingFolderId === null && pulsingFolderId !== undefined && fadingEpisodeId ? 'animate-pulse' : ''}`}
             onClick={toggleInboxCollapsed}
+            onDragOver={(e) => handleFolderDragOver(e, '__inbox__')}
+            onDragLeave={handleFolderDragLeave}
+            onDrop={(e) => handleFolderDrop(e, null)}
           >
             <svg
               width="12"
@@ -412,7 +466,9 @@ export function Sidebar(): React.JSX.Element {
                     isActive={activeTabId === ep.id && !settingsOpen}
                     isSelected={selectedEpisodeIds.has(ep.id)}
                     isEditing={editingEpisodeId === ep.id}
+                    isFading={fadingEpisodeId === ep.id}
                     onClick={(e) => handleEpisodeClick(e, ep.id, 'inbox', inboxVisibleIds)}
+                    onDragStart={(e) => handleEpisodeDragStart(e, ep)}
                     onPin={pinEpisode}
                     onContextMenu={handleEpisodeContextMenu}
                     onRenameSubmit={async (id, name) => {
@@ -479,10 +535,17 @@ export function Sidebar(): React.JSX.Element {
             editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
             selectedEpisodeIds={selectedEpisodeIds}
+            fadingEpisodeId={fadingEpisodeId}
+            dropTargetId={dropTargetId}
+            pulsingFolderId={pulsingFolderId}
             folderEpisodes={folderEpisodes}
             getChildFolders={getChildFolders}
             toggleFolder={toggleFolder}
             onEpisodeClick={handleEpisodeClick}
+            onEpisodeDragStart={handleEpisodeDragStart}
+            onFolderDragOver={handleFolderDragOver}
+            onFolderDragLeave={handleFolderDragLeave}
+            onFolderDrop={handleFolderDrop}
             pinEpisode={pinEpisode}
             onContextMenu={handleFolderContextMenu}
             onEpisodeContextMenu={handleEpisodeContextMenu}
@@ -516,6 +579,7 @@ export function Sidebar(): React.JSX.Element {
       </div>
 
       <SelectionActionBar />
+      <DragDropLayer />
 
       {/* Context Menu */}
       {contextMenu && contextMenu.type === 'episode' && (
@@ -892,10 +956,17 @@ function FolderNode({
   editingEpisodeId,
   creatingFolder,
   selectedEpisodeIds,
+  fadingEpisodeId,
+  dropTargetId,
+  pulsingFolderId,
   folderEpisodes,
   getChildFolders,
   toggleFolder,
   onEpisodeClick,
+  onEpisodeDragStart,
+  onFolderDragOver,
+  onFolderDragLeave,
+  onFolderDrop,
   pinEpisode,
   onContextMenu,
   onEpisodeContextMenu,
@@ -916,10 +987,17 @@ function FolderNode({
   editingEpisodeId: string | null
   creatingFolder: { parentId: string | null } | null
   selectedEpisodeIds: Set<string>
+  fadingEpisodeId: string | null
+  dropTargetId: string | null
+  pulsingFolderId: string | null
   folderEpisodes: (folderId: string) => Episode[]
   getChildFolders: (parentId: string | null) => Folder[]
   toggleFolder: (id: string) => void
   onEpisodeClick: (e: React.MouseEvent, episodeId: string, container: string, visibleIds: string[]) => void
+  onEpisodeDragStart: (e: React.DragEvent, episode: Episode) => void
+  onFolderDragOver: (e: React.DragEvent, targetId: string) => void
+  onFolderDragLeave: (e: React.DragEvent) => void
+  onFolderDrop: (e: React.DragEvent, targetFolderId: string | null) => void
   pinEpisode: (id: string) => void
   onContextMenu: (e: React.MouseEvent, folderId: string) => void
   onEpisodeContextMenu: (e: React.MouseEvent, episodeId: string) => void
@@ -938,9 +1016,12 @@ function FolderNode({
   return (
     <div className="mb-1" style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}>
       <div
-        className="sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text)] cursor-pointer"
+        className={`sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text)] cursor-pointer transition-[background-color] duration-150 ${dropTargetId === folder.id ? 'bg-[var(--accent)]/15' : ''} ${pulsingFolderId === folder.id ? 'animate-pulse' : ''}`}
         onClick={() => toggleFolder(folder.id)}
         onContextMenu={(e) => onContextMenu(e, folder.id)}
+        onDragOver={(e) => onFolderDragOver(e, folder.id)}
+        onDragLeave={onFolderDragLeave}
+        onDrop={(e) => onFolderDrop(e, folder.id)}
         tabIndex={0}
       >
         <svg
@@ -997,10 +1078,17 @@ function FolderNode({
             editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
             selectedEpisodeIds={selectedEpisodeIds}
+            fadingEpisodeId={fadingEpisodeId}
+            dropTargetId={dropTargetId}
+            pulsingFolderId={pulsingFolderId}
             folderEpisodes={folderEpisodes}
             getChildFolders={getChildFolders}
             toggleFolder={toggleFolder}
             onEpisodeClick={onEpisodeClick}
+            onEpisodeDragStart={onEpisodeDragStart}
+            onFolderDragOver={onFolderDragOver}
+            onFolderDragLeave={onFolderDragLeave}
+            onFolderDrop={onFolderDrop}
             pinEpisode={pinEpisode}
             onContextMenu={onContextMenu}
             onEpisodeContextMenu={onEpisodeContextMenu}
@@ -1021,7 +1109,9 @@ function FolderNode({
               isActive={activeTabId === ep.id && !settingsOpen}
               isSelected={selectedEpisodeIds.has(ep.id)}
               isEditing={editingEpisodeId === ep.id}
+              isFading={fadingEpisodeId === ep.id}
               onClick={(e) => onEpisodeClick(e, ep.id, folder.id, children.map((c) => c.id))}
+              onDragStart={(e) => onEpisodeDragStart(e, ep)}
               onPin={pinEpisode}
               onContextMenu={onEpisodeContextMenu}
               onRenameSubmit={onEpisodeRenameSubmit}
@@ -1140,7 +1230,9 @@ function SidebarEpisode({
   isActive,
   isSelected,
   isEditing,
+  isFading,
   onClick,
+  onDragStart,
   onPin,
   onContextMenu,
   onRenameSubmit,
@@ -1150,7 +1242,9 @@ function SidebarEpisode({
   isActive: boolean
   isSelected: boolean
   isEditing: boolean
+  isFading?: boolean
   onClick: (e: React.MouseEvent) => void
+  onDragStart: (e: React.DragEvent) => void
   onPin: (id: string) => void
   onContextMenu: (e: React.MouseEvent, episodeId: string) => void
   onRenameSubmit: (id: string, name: string) => Promise<void>
@@ -1218,8 +1312,10 @@ function SidebarEpisode({
 
   return (
     <div
-      className={`sidebar-item flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''} ${isSelected ? 'bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/30' : ''}`}
+      className={`sidebar-item flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''} ${isSelected ? 'bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/30' : ''} ${isFading ? 'opacity-0 transition-[opacity] duration-150' : ''}`}
+      draggable
       onClick={onClick}
+      onDragStart={onDragStart}
       onDoubleClick={() => onPin(episode.id)}
       onContextMenu={(e) => onContextMenu(e, episode.id)}
       tabIndex={0}

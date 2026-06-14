@@ -1,6 +1,6 @@
 ---
 title: "Drag-and-drop single Episode"
-status: ready-for-agent
+status: done
 created: 2026-06-14
 ---
 
