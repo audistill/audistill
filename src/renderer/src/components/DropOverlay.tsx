@@ -2,7 +2,7 @@ export function DropOverlay({ visible }: { visible: boolean }): React.JSX.Elemen
   if (!visible) return null
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center transition-[opacity] duration-150">
+    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-center justify-center transition-[opacity] duration-150">
       <div className="border-2 border-dashed border-[var(--accent)] rounded-[16px] px-12 py-10 flex flex-col items-center gap-4">
         <svg
           width="48"
@@ -17,8 +17,8 @@ export function DropOverlay({ visible }: { visible: boolean }): React.JSX.Elemen
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        <p className="text-[var(--text)] text-sm font-medium">Drop audio files to import</p>
-        <p className="text-[var(--secondary)] text-xs">MP3, M4A, WAV, FLAC, MP4</p>
+        <p className="text-[var(--text)] text-sm font-medium">Drop to import</p>
+        <p className="text-[var(--secondary)] text-xs">Audio files, YouTube links, podcast feeds</p>
       </div>
     </div>
   )

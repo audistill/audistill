@@ -5,6 +5,7 @@ import { ContentPane } from './components/ContentPane'
 import { ChatSidebar } from './components/ChatSidebar'
 import { OnboardingView } from './components/OnboardingView'
 import { DropOverlay } from './components/DropOverlay'
+import { UrlImportPopover } from './components/UrlImportPopover'
 import { TrialBanner } from './components/TrialBanner'
 import { isLicenseError } from './components/LicenseBlockedPrompt'
 import {
@@ -40,6 +41,7 @@ function App(): React.JSX.Element {
   const [dropActive, setDropActive] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [resizing, setResizing] = useState(false)
+  const [droppedUrl, setDroppedUrl] = useState<string | null>(null)
   const dragCounter = useRef(0)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -71,36 +73,48 @@ function App(): React.JSX.Element {
     setDropActive(false)
 
     const files = e.dataTransfer?.files
-    if (!files || files.length === 0) return
-
-    const validPaths: string[] = []
-    const skippedNames: string[] = []
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      if (SUPPORTED_EXTENSIONS.has(getExtension(file.name))) {
-        const filePath = window.api.getPathForFile(file)
-        if (filePath) validPaths.push(filePath)
-      } else {
-        skippedNames.push(file.name)
+    if (files && files.length > 0) {
+      const validPaths: string[] = []
+      const skippedNames: string[] = []
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        if (SUPPORTED_EXTENSIONS.has(getExtension(file.name))) {
+          const filePath = window.api.getPathForFile(file)
+          if (filePath) validPaths.push(filePath)
+        } else {
+          skippedNames.push(file.name)
+        }
       }
-    }
 
-    if (validPaths.length === 0) {
-      showToast('No supported audio files found')
+      if (validPaths.length === 0) {
+        showToast('No supported audio files found')
+        return
+      }
+
+      window.api.addFiles(validPaths).catch((err: unknown) => {
+        if (isLicenseError(err)) {
+          showToast('Trial ended — purchase a license to ingest new files')
+        }
+      })
+
+      if (skippedNames.length > 0) {
+        if (skippedNames.length <= 3) {
+          showToast(`${skippedNames.length} file${skippedNames.length > 1 ? 's' : ''} skipped (unsupported format): ${skippedNames.join(', ')}`)
+        } else {
+          showToast(`${skippedNames.length} files skipped (unsupported format)`)
+        }
+      }
       return
     }
 
-    window.api.addFiles(validPaths).catch((err: unknown) => {
-      if (isLicenseError(err)) {
-        showToast('Trial ended — purchase a license to ingest new files')
-      }
-    })
-
-    if (skippedNames.length > 0) {
-      if (skippedNames.length <= 3) {
-        showToast(`${skippedNames.length} file${skippedNames.length > 1 ? 's' : ''} skipped (unsupported format): ${skippedNames.join(', ')}`)
-      } else {
-        showToast(`${skippedNames.length} files skipped (unsupported format)`)
+    const urlData = e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain') || ''
+    const trimmed = urlData.trim()
+    if (trimmed) {
+      try {
+        new URL(trimmed)
+        setDroppedUrl(trimmed)
+      } catch {
+        showToast('Unsupported content dropped')
       }
     }
   }, [showToast])
@@ -302,6 +316,24 @@ function App(): React.JSX.Element {
       </div>
 
       <DropOverlay visible={dropActive} />
+      {droppedUrl && (
+        <UrlImportPopover
+          initialUrl={droppedUrl}
+          onClose={() => setDroppedUrl(null)}
+          onImport={(canonicalUrl, metadata) => {
+            setDroppedUrl(null)
+            window.api.addUrl(canonicalUrl, metadata)
+          }}
+          onImportDirect={(url, metadata) => {
+            setDroppedUrl(null)
+            window.api.addDirectUrl(url, metadata)
+          }}
+          onImportRss={(items) => {
+            setDroppedUrl(null)
+            window.api.addRssItems(items)
+          }}
+        />
+      )}
       {toast && <Toast message={toast} />}
     </div>
   )
