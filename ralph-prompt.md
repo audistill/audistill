@@ -1,8 +1,8 @@
 @.scratch/ @CLAUDE.md
 Load skills as required: 
 
-/tdd
-/frontend-design
+Use the /tdd during the development.
+If UI component has to be designed, use the /frontend-design skill. 
 
 
 1. Read all issues in .scratch/*/issue.md. Find the highest-priority issue with status 'ready-for-agent' whose blockers (if any) are all 'done'. Work only on that one issue.
