@@ -77,6 +77,12 @@ export class ChatToolExecutor {
         return this.moveEpisode(args, context)
       case 'rename_episode':
         return this.renameEpisode(args, context)
+      case 'list_recipes':
+        return this.listRecipes()
+      case 'create_recipe':
+        return this.createRecipe(args)
+      case 'update_recipe':
+        return this.updateRecipe(args)
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` })
     }
@@ -411,6 +417,47 @@ export class ChatToolExecutor {
     }
     this.db.updateEpisode(episodeId, { title })
     return JSON.stringify({ success: true, message: `Episode renamed to "${title}"` })
+  }
+
+  private listRecipes(): string {
+    const recipes = this.recipeService.getRecipes()
+    return JSON.stringify({
+      recipes: recipes.map((r) => ({ id: r.id, name: r.name, is_builtin: r.is_builtin })),
+    })
+  }
+
+  private createRecipe(args: Record<string, unknown>): string {
+    const name = args.name as string
+    if (!name) {
+      return JSON.stringify({ error: 'Missing required parameter: name' })
+    }
+    const prompt = args.prompt as string
+    if (!prompt) {
+      return JSON.stringify({ error: 'Missing required parameter: prompt' })
+    }
+    const modelOverride = args.model_override as string | undefined
+    const id = this.recipeService.createRecipe({ name, prompt, model_override: modelOverride })
+    return JSON.stringify({ id, name })
+  }
+
+  private updateRecipe(args: Record<string, unknown>): string {
+    const recipeId = args.recipe_id as string
+    if (!recipeId) {
+      return JSON.stringify({ error: 'Missing required parameter: recipe_id' })
+    }
+    const recipe = this.recipeService.getRecipe(recipeId)
+    if (!recipe) {
+      return JSON.stringify({ error: `Recipe not found: ${recipeId}` })
+    }
+    if (recipe.is_builtin) {
+      return JSON.stringify({ error: 'Cannot update a built-in recipe' })
+    }
+    const fields: { name?: string; prompt?: string; model_override?: string } = {}
+    if (args.name) fields.name = args.name as string
+    if (args.prompt) fields.prompt = args.prompt as string
+    if (args.model_override !== undefined) fields.model_override = args.model_override as string
+    this.recipeService.updateRecipe(recipeId, fields)
+    return JSON.stringify({ success: true, message: `Recipe "${recipe.name}" updated` })
   }
 
   private grepTranscripts(args: Record<string, unknown>): string {

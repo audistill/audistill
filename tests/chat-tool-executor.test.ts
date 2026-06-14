@@ -1162,4 +1162,128 @@ describe('ChatToolExecutor', () => {
       expect(parsed.error).toContain('Episode not found')
     })
   })
+
+  describe('list_recipes', () => {
+    it('returns all recipes with id, name, and is_builtin', async () => {
+      const result = await executor.executeTool('list_recipes', {}, context)
+      const parsed = JSON.parse(result)
+      expect(parsed.recipes.length).toBeGreaterThanOrEqual(3)
+      expect(parsed.recipes[0]).toHaveProperty('id')
+      expect(parsed.recipes[0]).toHaveProperty('name')
+      expect(parsed.recipes[0]).toHaveProperty('is_builtin')
+    })
+  })
+
+  describe('create_recipe', () => {
+    it('creates a recipe and returns its ID', async () => {
+      const result = await executor.executeTool(
+        'create_recipe',
+        { name: 'Action Items', prompt: 'Extract action items from the transcript' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.id).toBeDefined()
+      const recipe = recipeService.getRecipe(parsed.id)
+      expect(recipe?.name).toBe('Action Items')
+      expect(recipe?.prompt).toBe('Extract action items from the transcript')
+      expect(recipe?.is_builtin).toBe(0)
+    })
+
+    it('supports model_override', async () => {
+      const result = await executor.executeTool(
+        'create_recipe',
+        { name: 'With Model', prompt: 'Some prompt', model_override: 'gpt-4' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const recipe = recipeService.getRecipe(parsed.id)
+      expect(recipe?.model_override).toBe('gpt-4')
+    })
+
+    it('returns error when name is missing', async () => {
+      const result = await executor.executeTool(
+        'create_recipe',
+        { prompt: 'A prompt' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameter: name')
+    })
+
+    it('returns error when prompt is missing', async () => {
+      const result = await executor.executeTool(
+        'create_recipe',
+        { name: 'No Prompt' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameter: prompt')
+    })
+  })
+
+  describe('update_recipe', () => {
+    let customRecipeId: string
+
+    beforeEach(() => {
+      customRecipeId = recipeService.createRecipe({
+        name: 'Custom Recipe',
+        prompt: 'Original prompt',
+      })
+    })
+
+    it('updates recipe name', async () => {
+      const result = await executor.executeTool(
+        'update_recipe',
+        { recipe_id: customRecipeId, name: 'Updated Name' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      const recipe = recipeService.getRecipe(customRecipeId)
+      expect(recipe?.name).toBe('Updated Name')
+    })
+
+    it('updates recipe prompt', async () => {
+      const result = await executor.executeTool(
+        'update_recipe',
+        { recipe_id: customRecipeId, prompt: 'New prompt text' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.success).toBe(true)
+      const recipe = recipeService.getRecipe(customRecipeId)
+      expect(recipe?.prompt).toBe('New prompt text')
+    })
+
+    it('rejects updates to built-in recipes', async () => {
+      const builtins = recipeService.getRecipes().filter((r) => r.is_builtin === 1)
+      const result = await executor.executeTool(
+        'update_recipe',
+        { recipe_id: builtins[0].id, name: 'Hacked' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('built-in')
+    })
+
+    it('returns error when recipe_id is missing', async () => {
+      const result = await executor.executeTool(
+        'update_recipe',
+        { name: 'No ID' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Missing required parameter: recipe_id')
+    })
+
+    it('returns error for non-existent recipe', async () => {
+      const result = await executor.executeTool(
+        'update_recipe',
+        { recipe_id: 'nonexistent', name: 'X' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.error).toContain('Recipe not found')
+    })
+  })
 })
