@@ -340,17 +340,25 @@ export class DatabaseService {
       .run(key, value)
   }
 
-  searchEpisodes(query: string): Episode[] {
+  searchEpisodes(query: string): (Episode & { matched_in: string; matched_tab_name?: string })[] {
     const pattern = `%${query}%`
-    return this.db
+    const rows = this.db
       .prepare(
-        `SELECT DISTINCT e.* FROM episodes e
-         LEFT JOIN episode_summaries es ON es.episode_id = e.id
-         LEFT JOIN episode_tabs et ON et.episode_id = e.id
-         WHERE e.title LIKE ? OR es.content LIKE ? OR et.content LIKE ?
+        `SELECT e.*,
+           CASE
+             WHEN e.title LIKE ? THEN 'title'
+             WHEN e.transcript LIKE ? THEN 'transcript'
+             ELSE 'tab'
+           END AS matched_in,
+           et.tab_name AS matched_tab_name
+         FROM episodes e
+         LEFT JOIN episode_tabs et ON et.episode_id = e.id AND et.content LIKE ?
+         WHERE e.title LIKE ? OR e.transcript LIKE ? OR et.content LIKE ?
+         GROUP BY e.id
          ORDER BY e.created_at DESC`
       )
-      .all(pattern, pattern, pattern) as Episode[]
+      .all(pattern, pattern, pattern, pattern, pattern, pattern) as (Episode & { matched_in: string; matched_tab_name?: string })[]
+    return rows
   }
 
   createSummary(episodeId: string, viewType: 'brief' | 'detailed' | 'full', status: 'generating' | 'complete' | 'error' = 'generating'): string {

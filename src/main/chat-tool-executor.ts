@@ -141,13 +141,52 @@ export class ChatToolExecutor {
     }
 
     const episodes = this.db.searchEpisodes(query)
-    const results = episodes.map((ep: Episode) => ({
-      id: ep.id,
-      title: ep.title || (ep.file_path ? basename(ep.file_path) : 'Untitled'),
-      duration: formatDuration(ep.duration_sec),
-      date: ep.created_at,
-    }))
+    const results = episodes.map((ep) => {
+      const matchedIn = ep.matched_in === 'tab' && ep.matched_tab_name
+        ? `tab:${ep.matched_tab_name}`
+        : ep.matched_in
+      return {
+        id: ep.id,
+        title: ep.title || (ep.file_path ? basename(ep.file_path) : 'Untitled'),
+        duration: formatDuration(ep.duration_sec),
+        date: ep.created_at,
+        matched_in: matchedIn,
+        snippet: this.extractSnippet(ep, query),
+      }
+    })
     return JSON.stringify({ results, query })
+  }
+
+  private extractSnippet(ep: Episode, query: string): string {
+    const lowerQuery = query.toLowerCase()
+    const source = ep.transcript || ep.title || ''
+    const lowerSource = source.toLowerCase()
+
+    let text = source
+    if (ep.transcript) {
+      try {
+        const parsed = JSON.parse(ep.transcript)
+        if (Array.isArray(parsed)) {
+          const segment = parsed.find((s: { text?: string }) =>
+            (s.text || '').toLowerCase().includes(lowerQuery)
+          )
+          if (segment) text = segment.text
+        }
+      } catch {
+        const lines = source.split('\n')
+        const line = lines.find((l) => l.toLowerCase().includes(lowerQuery))
+        if (line) text = line
+      }
+    }
+
+    const idx = text.toLowerCase().indexOf(lowerQuery)
+    if (idx === -1) return text.slice(0, 150)
+    const start = Math.max(0, idx - 60)
+    const end = Math.min(text.length, idx + query.length + 60)
+    let snippet = text.slice(start, end).trim()
+    if (start > 0) snippet = '...' + snippet
+    if (end < text.length) snippet = snippet + '...'
+    return snippet
   }
 
   private listEpisodes(args: Record<string, unknown>): string {

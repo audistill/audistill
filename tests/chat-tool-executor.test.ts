@@ -225,6 +225,51 @@ describe('ChatToolExecutor', () => {
       expect(parsed.error).toContain('Missing required parameter: query')
     })
 
+    it('finds episodes by transcript content', async () => {
+      const result = await executor.executeTool(
+        'search_episodes',
+        { query: 'machine learning' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results.length).toBeGreaterThanOrEqual(1)
+      expect(parsed.results[0].id).toBe(episodeId)
+      expect(parsed.results[0].matched_in).toBe('transcript')
+    })
+
+    it('returns snippet with context around the match', async () => {
+      const result = await executor.executeTool(
+        'search_episodes',
+        { query: 'machine learning' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results[0].snippet).toContain('machine learning')
+      expect(parsed.results[0].snippet.length).toBeLessThanOrEqual(200)
+    })
+
+    it('returns matched_in as title when match is in title', async () => {
+      const result = await executor.executeTool(
+        'search_episodes',
+        { query: 'Test Episode' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results[0].matched_in).toBe('title')
+    })
+
+    it('returns matched_in as tab name when match is in tab content', async () => {
+      tabService.createTab(episodeId, { tab_name: 'Brief', content: 'Unique findable term xylophone' })
+
+      const result = await executor.executeTool(
+        'search_episodes',
+        { query: 'xylophone' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results[0].matched_in).toBe('tab:Brief')
+    })
+
     it('includes duration and date in results', async () => {
       const result = await executor.executeTool(
         'search_episodes',
