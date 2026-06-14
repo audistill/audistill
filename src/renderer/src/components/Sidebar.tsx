@@ -82,7 +82,6 @@ export function Sidebar(): React.JSX.Element {
   const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [urlPopoverOpen, setUrlPopoverOpen] = useState(false)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
-  const [fadingEpisodeId, setFadingEpisodeId] = useState<string | null>(null)
   const [pulsingFolderId, setPulsingFolderId] = useState<string | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -158,14 +157,27 @@ export function Sidebar(): React.JSX.Element {
   }
 
   const handleEpisodeDragStart = (e: React.DragEvent, episode: Episode): void => {
-    if (selectedEpisodeIds.size > 0) {
-      clearSelection()
+    let dragIds: string[]
+    let dragTitle: string
+    let dragCount: number
+
+    if (selectedEpisodeIds.size > 0 && selectedEpisodeIds.has(episode.id)) {
+      dragIds = [...selectedEpisodeIds]
+      dragTitle = episode.title || episode.file_path?.split('/').pop() || 'Untitled'
+      dragCount = dragIds.length
+    } else {
+      if (selectedEpisodeIds.size > 0) {
+        clearSelection()
+      }
+      dragIds = [episode.id]
+      dragTitle = episode.title || episode.file_path?.split('/').pop() || 'Untitled'
+      dragCount = 1
     }
-    e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ ids: [episode.id], sourceContainer: episode.folder_id }))
+
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ ids: dragIds, sourceContainer: episode.folder_id }))
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setDragImage(new Image(), 0, 0)
-    const title = episode.title || episode.file_path?.split('/').pop() || 'Untitled'
-    window.dispatchEvent(new CustomEvent('audistill-drag-start', { detail: { title } }))
+    window.dispatchEvent(new CustomEvent('audistill-drag-start', { detail: { title: dragTitle, count: dragCount } }))
   }
 
   const handleFolderDragOver = (e: React.DragEvent, targetId: string): void => {
@@ -181,6 +193,8 @@ export function Sidebar(): React.JSX.Element {
     setDropTargetId(null)
   }
 
+  const [fadingEpisodeIds, setFadingEpisodeIds] = useState<Set<string>>(new Set())
+
   const handleFolderDrop = async (e: React.DragEvent, targetFolderId: string | null): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
@@ -189,9 +203,9 @@ export function Sidebar(): React.JSX.Element {
     const raw = e.dataTransfer.getData(DRAG_MIME)
     if (!raw) return
     const { ids, sourceContainer } = JSON.parse(raw) as { ids: string[]; sourceContainer: string | null }
-    if (targetFolderId === sourceContainer) return
+    if (targetFolderId === sourceContainer && ids.length === 1) return
 
-    setFadingEpisodeId(ids[0])
+    setFadingEpisodeIds(new Set(ids))
     setPulsingFolderId(targetFolderId)
 
     await window.api.moveEpisodes(ids, targetFolderId)
@@ -199,8 +213,9 @@ export function Sidebar(): React.JSX.Element {
     useAppStore.getState().setEpisodes(
       currentEpisodes.map((ep) => ids.includes(ep.id) ? { ...ep, folder_id: targetFolderId } : ep)
     )
+    clearSelection()
 
-    setTimeout(() => setFadingEpisodeId(null), 150)
+    setTimeout(() => setFadingEpisodeIds(new Set()), 150)
     setTimeout(() => setPulsingFolderId(null), 300)
   }
 
@@ -412,7 +427,7 @@ export function Sidebar(): React.JSX.Element {
         {/* Inbox */}
         <div className="mb-4">
           <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150 ${dropTargetId === '__inbox__' ? 'bg-[var(--accent)]/15' : ''} ${pulsingFolderId === null && pulsingFolderId !== undefined && fadingEpisodeId ? 'animate-pulse' : ''}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150 ${dropTargetId === '__inbox__' ? 'bg-[var(--accent)]/15' : ''} ${pulsingFolderId === null && fadingEpisodeIds.size > 0 ? 'animate-pulse' : ''}`}
             onClick={toggleInboxCollapsed}
             onDragOver={(e) => handleFolderDragOver(e, '__inbox__')}
             onDragLeave={handleFolderDragLeave}
@@ -466,7 +481,7 @@ export function Sidebar(): React.JSX.Element {
                     isActive={activeTabId === ep.id && !settingsOpen}
                     isSelected={selectedEpisodeIds.has(ep.id)}
                     isEditing={editingEpisodeId === ep.id}
-                    isFading={fadingEpisodeId === ep.id}
+                    isFading={fadingEpisodeIds.has(ep.id)}
                     onClick={(e) => handleEpisodeClick(e, ep.id, 'inbox', inboxVisibleIds)}
                     onDragStart={(e) => handleEpisodeDragStart(e, ep)}
                     onPin={pinEpisode}
@@ -535,7 +550,7 @@ export function Sidebar(): React.JSX.Element {
             editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
             selectedEpisodeIds={selectedEpisodeIds}
-            fadingEpisodeId={fadingEpisodeId}
+            fadingEpisodeIds={fadingEpisodeIds}
             dropTargetId={dropTargetId}
             pulsingFolderId={pulsingFolderId}
             folderEpisodes={folderEpisodes}
@@ -956,7 +971,7 @@ function FolderNode({
   editingEpisodeId,
   creatingFolder,
   selectedEpisodeIds,
-  fadingEpisodeId,
+  fadingEpisodeIds,
   dropTargetId,
   pulsingFolderId,
   folderEpisodes,
@@ -987,7 +1002,7 @@ function FolderNode({
   editingEpisodeId: string | null
   creatingFolder: { parentId: string | null } | null
   selectedEpisodeIds: Set<string>
-  fadingEpisodeId: string | null
+  fadingEpisodeIds: Set<string>
   dropTargetId: string | null
   pulsingFolderId: string | null
   folderEpisodes: (folderId: string) => Episode[]
@@ -1078,7 +1093,7 @@ function FolderNode({
             editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
             selectedEpisodeIds={selectedEpisodeIds}
-            fadingEpisodeId={fadingEpisodeId}
+            fadingEpisodeIds={fadingEpisodeIds}
             dropTargetId={dropTargetId}
             pulsingFolderId={pulsingFolderId}
             folderEpisodes={folderEpisodes}
@@ -1109,7 +1124,7 @@ function FolderNode({
               isActive={activeTabId === ep.id && !settingsOpen}
               isSelected={selectedEpisodeIds.has(ep.id)}
               isEditing={editingEpisodeId === ep.id}
-              isFading={fadingEpisodeId === ep.id}
+              isFading={fadingEpisodeIds.has(ep.id)}
               onClick={(e) => onEpisodeClick(e, ep.id, folder.id, children.map((c) => c.id))}
               onDragStart={(e) => onEpisodeDragStart(e, ep)}
               onPin={pinEpisode}

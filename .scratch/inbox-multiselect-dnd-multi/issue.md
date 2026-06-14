@@ -1,6 +1,6 @@
 ---
 title: "Drag-and-drop multi-select"
-status: ready-for-agent
+status: done
 created: 2026-06-14
 ---
 
