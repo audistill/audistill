@@ -71,24 +71,33 @@ export class RecipeService {
   }
 
   private seedBuiltins(promptsDir: string): void {
-    const existing = this.db.queryAll<{ id: string }>(
-      'SELECT id FROM recipes WHERE is_builtin = 1'
+    const existing = this.db.queryAll<{ id: string; name: string; prompt: string }>(
+      'SELECT id, name, prompt FROM recipes WHERE is_builtin = 1'
     )
-    if (existing.length > 0) return
 
-    let firstId: string | null = null
-    for (const builtin of BUILTIN_RECIPES) {
-      const id = randomUUID()
-      if (!firstId) firstId = id
-      const prompt = readFileSync(join(promptsDir, builtin.file), 'utf-8')
-      this.db.run(
-        `INSERT INTO recipes (id, name, prompt, is_builtin, sort_order) VALUES (?, ?, ?, 1, ?)`,
-        id, builtin.name, prompt, builtin.sort_order
-      )
+    if (existing.length === 0) {
+      let firstId: string | null = null
+      for (const builtin of BUILTIN_RECIPES) {
+        const id = randomUUID()
+        if (!firstId) firstId = id
+        const prompt = readFileSync(join(promptsDir, builtin.file), 'utf-8')
+        this.db.run(
+          `INSERT INTO recipes (id, name, prompt, is_builtin, sort_order) VALUES (?, ?, ?, 1, ?)`,
+          id, builtin.name, prompt, builtin.sort_order
+        )
+      }
+      if (firstId && !this.db.getSetting('pipeline_recipe_id')) {
+        this.db.setSetting('pipeline_recipe_id', firstId)
+      }
+      return
     }
 
-    if (firstId && !this.db.getSetting('pipeline_recipe_id')) {
-      this.db.setSetting('pipeline_recipe_id', firstId)
+    for (const builtin of BUILTIN_RECIPES) {
+      const prompt = readFileSync(join(promptsDir, builtin.file), 'utf-8')
+      const row = existing.find((r) => r.name === builtin.name)
+      if (row && row.prompt !== prompt) {
+        this.db.run('UPDATE recipes SET prompt = ? WHERE id = ?', prompt, row.id)
+      }
     }
   }
 
@@ -121,6 +130,18 @@ export class RecipeService {
     const sets = entries.map(([key]) => `${key} = ?`).join(', ')
     const values = entries.map(([, val]) => val ?? null)
     this.db.run(`UPDATE recipes SET ${sets} WHERE id = ?`, ...values, id)
+  }
+
+  async validateApiKey(key: string): Promise<boolean> {
+    try {
+      const response = await net.fetch('https://openrouter.ai/api/v1/models', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${key}` },
+      })
+      return response.status === 200
+    } catch {
+      return false
+    }
   }
 
   deleteRecipe(id: string): void {
