@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAppStore, Episode, Folder } from '../store/app-store'
 import { UrlImportPopover } from './UrlImportPopover'
-import { sortInboxEpisodes } from '../lib/sort-inbox'
+import { sortInboxEpisodes, groupInboxEpisodes } from '../lib/sort-inbox'
 
 function formatRelativeDate(dateStr: string): string {
   const now = Date.now()
@@ -99,10 +99,8 @@ export function Sidebar(): React.JSX.Element {
       })
     : episodes
 
-  const inboxItems = sortInboxEpisodes(
-    filteredEpisodes.filter((e) => e.folder_id === null),
-    inboxSort
-  )
+  const inboxItems = filteredEpisodes.filter((e) => e.folder_id === null)
+  const inboxGroups = groupInboxEpisodes(inboxItems, inboxSort)
   const folderEpisodes = (folderId: string) =>
     filteredEpisodes.filter((e) => e.folder_id === folderId && e.status === 'complete')
 
@@ -342,21 +340,32 @@ export function Sidebar(): React.JSX.Element {
             </button>
           </div>
           <div className={`overflow-hidden transition-[max-height] duration-200 ${inboxCollapsed ? 'max-h-0' : 'max-h-[2000px]'}`}>
-            {inboxItems.map((ep) => (
-              <SidebarEpisode
-                key={ep.id}
-                episode={ep}
-                isActive={activeTabId === ep.id && !settingsOpen}
-                isEditing={editingEpisodeId === ep.id}
-                onSelect={selectEpisode}
-                onPin={pinEpisode}
-                onContextMenu={handleEpisodeContextMenu}
-                onRenameSubmit={async (id, name) => {
-                  await renameEpisode(id, name)
-                  setEditingEpisodeId(null)
-                }}
-                onRenameCancel={() => setEditingEpisodeId(null)}
-              />
+            {inboxGroups.map((group) => (
+              <div key={group.label || 'flat'}>
+                {group.label && (
+                  <div className="flex items-center gap-2 px-3 py-1 my-1">
+                    <div className="flex-1 h-px bg-[var(--border)]" />
+                    <span className="text-[10px] text-[var(--secondary)]">{group.label}</span>
+                    <div className="flex-1 h-px bg-[var(--border)]" />
+                  </div>
+                )}
+                {group.episodes.map((ep) => (
+                  <SidebarEpisode
+                    key={ep.id}
+                    episode={ep}
+                    isActive={activeTabId === ep.id && !settingsOpen}
+                    isEditing={editingEpisodeId === ep.id}
+                    onSelect={selectEpisode}
+                    onPin={pinEpisode}
+                    onContextMenu={handleEpisodeContextMenu}
+                    onRenameSubmit={async (id, name) => {
+                      await renameEpisode(id, name)
+                      setEditingEpisodeId(null)
+                    }}
+                    onRenameCancel={() => setEditingEpisodeId(null)}
+                  />
+                ))}
+              </div>
             ))}
             {inboxItems.length === 0 && !searchQuery && (
               <div className="flex items-center gap-2 px-3 py-3 text-xs text-[var(--secondary)]">
