@@ -254,6 +254,10 @@ export function Sidebar(): React.JSX.Element {
                   setUrlPopoverOpen(false)
                   window.api.addDirectUrl(url, metadata)
                 }}
+                onImportRss={(items) => {
+                  setUrlPopoverOpen(false)
+                  window.api.addRssItems(items)
+                }}
               />
             )}
           </div>

@@ -144,6 +144,7 @@ interface AudistillApi {
   addFiles: (filePaths: string[]) => Promise<string[]>
   addUrl: (canonicalUrl: string, metadata: { title: string; channel: string; duration: number; thumbnail: string; uploadDate: string }) => Promise<string>
   addDirectUrl: (url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }) => Promise<string>
+  addRssItems: (items: { title: string; enclosureUrl: string; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => Promise<string[]>
   retryEpisode: (id: string) => Promise<void>
   cancelEpisode: (id: string) => Promise<void>
 
@@ -156,6 +157,12 @@ interface AudistillApi {
 
   // URL classification
   urlHead: (url: string) => Promise<{ contentType: string | null; contentLength: number | null }>
+  feedFetchMetadata: (url: string) => Promise<{
+    title: string
+    image: string | null
+    feedUrl: string
+    items: { title: string; enclosureUrl: string; guid: string | null; pubDate: string | null; duration: string | null; description: string | null }[]
+  }>
 
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
   onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => () => void

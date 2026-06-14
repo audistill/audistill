@@ -72,6 +72,8 @@ const api = {
     ipcRenderer.invoke('ingest:add-url', canonicalUrl, metadata),
   addDirectUrl: (url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }): Promise<string> =>
     ipcRenderer.invoke('ingest:add-direct-url', url, metadata),
+  addRssItems: (items: { title: string; enclosureUrl: string; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]): Promise<string[]> =>
+    ipcRenderer.invoke('ingest:add-rss-items', items),
   retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
   cancelEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:cancel', id),
 
@@ -85,6 +87,12 @@ const api = {
   // URL classification
   urlHead: (url: string): Promise<{ contentType: string | null; contentLength: number | null }> =>
     ipcRenderer.invoke('url:head', url),
+  feedFetchMetadata: (url: string): Promise<{
+    title: string
+    image: string | null
+    feedUrl: string
+    items: { title: string; enclosureUrl: string; guid: string | null; pubDate: string | null; duration: string | null; description: string | null }[]
+  }> => ipcRenderer.invoke('feed:fetch-metadata', url),
 
   // Tab streaming events
   tabsExecuteRecipe: (episodeId: string, tabId: string) => ipcRenderer.invoke('tabs:execute-recipe', episodeId, tabId),

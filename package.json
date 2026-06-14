@@ -28,6 +28,7 @@
     "node-machine-id": "^1.1.12",
     "onnxruntime-node": "^1.26.0",
     "react-markdown": "^10.1.0",
+    "rss-parser": "^3.13.0",
     "zustand": "^5.0.14"
   },
   "pnpm": {

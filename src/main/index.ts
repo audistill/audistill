@@ -13,6 +13,7 @@ import { ChatToolExecutor } from './chat-tool-executor'
 import { MigrationService } from './migration-service'
 import { YtdlpService } from './ytdlp-service'
 import { fetchUrlHead } from './url-head-service'
+import { FeedService } from './feed-service'
 import { getWindowOptions, trackWindowState, getSavedBounds } from './window-state'
 import { LicenseService } from './license-service'
 import { PolarClient } from './polar-client'
@@ -257,8 +258,14 @@ function registerYtdlpHandlers(): void {
 }
 
 function registerUrlHandlers(): void {
+  const feedService = new FeedService()
+
   ipcMain.handle('url:head', async (_event, url: string) => {
     return fetchUrlHead(url)
+  })
+
+  ipcMain.handle('feed:fetch-metadata', async (_event, url: string) => {
+    return feedService.fetchFeed(url)
   })
 }
 

@@ -21,6 +21,22 @@ interface DuplicateEpisode {
   title: string | null
 }
 
+interface FeedItem {
+  title: string
+  enclosureUrl: string
+  guid: string | null
+  pubDate: string | null
+  duration: string | null
+  description: string | null
+}
+
+interface FeedPreview {
+  title: string
+  image: string | null
+  feedUrl: string
+  items: FeedItem[]
+}
+
 type PopoverState =
   | { step: 'input' }
   | { step: 'checking' }
@@ -28,14 +44,16 @@ type PopoverState =
   | { step: 'loading'; url: string }
   | { step: 'preview-youtube'; canonicalUrl: string; metadata: YouTubeMetadata }
   | { step: 'preview-direct'; url: string; metadata: DirectMetadata; title: string }
+  | { step: 'preview-list'; feed: FeedPreview }
   | { step: 'duplicate'; episode: DuplicateEpisode }
   | { step: 'error'; message: string }
 
-export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect }: {
+export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect, onImportRss }: {
   anchorRef: React.RefObject<HTMLDivElement | null>
   onClose: () => void
   onImport: (canonicalUrl: string, metadata: YouTubeMetadata) => void
   onImportDirect?: (url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }) => void
+  onImportRss?: (items: { title: string; enclosureUrl: string; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => void
 }): React.JSX.Element {
   const [state, setState] = useState<PopoverState>({ step: 'input' })
   const [url, setUrl] = useState('')
@@ -145,7 +163,17 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect 
           fetchDirectPreview(trimmed, contentType, head.contentLength)
           break
         case 'rss':
-          setState({ step: 'error', message: 'RSS feed support coming soon.' })
+          try {
+            const feed = await window.api.feedFetchMetadata(trimmed)
+            if (feed.items.length === 0) {
+              setState({ step: 'error', message: 'This feed has no episodes with audio files.' })
+            } else {
+              setState({ step: 'preview-list', feed })
+            }
+          } catch (feedErr) {
+            const msg = feedErr instanceof Error ? feedErr.message : 'Failed to parse feed'
+            setState({ step: 'error', message: msg })
+          }
           break
         case 'unsupported':
           setState({ step: 'error', message: 'Unsupported URL — paste a direct link to an audio/video file or an RSS feed.' })
@@ -352,6 +380,31 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect 
     )
   }
 
+  if (state.step === 'preview-list') {
+    return (
+      <RssPreviewList
+        feed={state.feed}
+        popoverRef={popoverRef}
+        popoverClass={popoverClass}
+        pos={pos}
+        onClose={onClose}
+        onImport={(selectedItems) => {
+          onImportRss?.(selectedItems.map((item) => ({
+            title: item.title,
+            enclosureUrl: item.enclosureUrl,
+            feedUrl: state.feed.feedUrl,
+            feedTitle: state.feed.title,
+            feedImage: state.feed.image,
+            pubDate: item.pubDate,
+            description: item.description,
+            duration: item.duration,
+          })))
+          onClose()
+        }}
+      />
+    )
+  }
+
   if (state.step === 'duplicate') {
     return (
       <div
@@ -441,6 +494,130 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect 
       )}
     </div>
   )
+}
+
+const DEFAULT_VISIBLE_ITEMS = 50
+
+function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport }: {
+  feed: FeedPreview
+  popoverRef: React.RefObject<HTMLDivElement | null>
+  popoverClass: string
+  pos: { top: number; left: number }
+  onClose: () => void
+  onImport: (items: FeedItem[]) => void
+}): React.JSX.Element {
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [showAll, setShowAll] = useState(false)
+
+  const visibleItems = showAll ? feed.items : feed.items.slice(0, DEFAULT_VISIBLE_ITEMS)
+  const hasMore = feed.items.length > DEFAULT_VISIBLE_ITEMS
+
+  const toggleItem = (index: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    if (selected.size === visibleItems.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(visibleItems.map((_, i) => i)))
+    }
+  }
+
+  return (
+    <div
+      ref={popoverRef}
+      className={`${popoverClass} !w-96 max-h-[480px] flex flex-col`}
+      style={{ top: pos.top, left: pos.left }}
+    >
+      <div className="flex items-center gap-3 mb-3 shrink-0">
+        {feed.image && (
+          <img src={feed.image} alt="" className="w-10 h-10 rounded-[6px] object-cover" />
+        )}
+        <div className="min-w-0">
+          <h3 className="text-sm font-heading font-semibold text-[var(--text)] truncate">
+            {feed.title}
+          </h3>
+          <p className="text-[10px] text-[var(--secondary)]">
+            {feed.items.length} episodes
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-2 shrink-0">
+        <button
+          onClick={toggleAll}
+          className="text-[10px] text-[var(--accent)] hover:underline"
+        >
+          {selected.size === visibleItems.length ? 'Deselect all' : 'Select all'}
+        </button>
+        {hasMore && !showAll && (
+          <button
+            onClick={() => setShowAll(true)}
+            className="text-[10px] text-[var(--accent)] hover:underline"
+          >
+            Show all ({feed.items.length})
+          </button>
+        )}
+      </div>
+
+      <div className="overflow-y-auto flex-1 -mx-1 px-1 min-h-0">
+        {visibleItems.map((item, index) => (
+          <label
+            key={item.enclosureUrl}
+            className="flex items-start gap-2 py-1.5 px-1 rounded hover:bg-white/[0.04] cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              checked={selected.has(index)}
+              onChange={() => toggleItem(index)}
+              className="mt-0.5 rounded border-[var(--surface)] accent-[var(--accent)]"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-[var(--text)] truncate">{item.title}</p>
+              <p className="text-[10px] text-[var(--secondary)]">
+                {item.pubDate ? formatDate(item.pubDate) : ''}
+                {item.duration ? ` · ${item.duration}` : ''}
+              </p>
+            </div>
+          </label>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--surface)] shrink-0">
+        <button
+          onClick={onClose}
+          className="flex-1 px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-white/[0.08] transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            const selectedItems = [...selected].map((i) => visibleItems[i])
+            onImport(selectedItems)
+          }}
+          disabled={selected.size === 0}
+          className="flex-1 px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Import {selected.size > 0 ? `(${selected.size})` : ''}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  } catch {
+    return dateStr
+  }
 }
 
 function formatDuration(seconds: number): string {

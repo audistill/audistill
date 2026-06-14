@@ -123,6 +123,32 @@ export class IngestPipeline {
       return id
     })
 
+    ipcMain.handle('ingest:add-rss-items', async (_event, items: { title: string; enclosureUrl: string; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => {
+      if (this.licenseService) requireLicense(this.licenseService)
+      const ids: string[] = []
+      for (const item of items) {
+        const id = this.db.createEpisode({
+          title: item.title,
+          source_url: item.enclosureUrl,
+          source_type: 'rss',
+          source_meta: JSON.stringify({
+            feedUrl: item.feedUrl,
+            feedTitle: item.feedTitle,
+            feedImage: item.feedImage,
+            pubDate: item.pubDate,
+            description: item.description,
+            duration: item.duration,
+          }),
+          status: 'downloading',
+        })
+        ids.push(id)
+        this.queue.push(id)
+        this.broadcastEpisodeUpdate(id)
+      }
+      this.processQueue()
+      return ids
+    })
+
     ipcMain.handle('ingest:select-files', async () => {
       const win = BrowserWindow.getFocusedWindow()
       if (!win) return null
