@@ -230,6 +230,25 @@ function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [toggleLeftSidebar, toggleRightSidebar, toggleTranscriptPanel])
 
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent): void => {
+      const active = document.activeElement
+      if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || (active as HTMLElement)?.isContentEditable) {
+        return
+      }
+      const text = e.clipboardData?.getData('text/plain')?.trim()
+      if (!text) return
+      try {
+        new URL(text)
+        setDroppedUrl(text)
+      } catch {
+        // Not a URL — ignore silently
+      }
+    }
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [])
+
   if (!hydrated || needsOnboarding === null) {
     return (
       <div className="flex items-center justify-center h-screen bg-[var(--bg)]">
