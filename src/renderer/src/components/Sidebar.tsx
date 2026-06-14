@@ -250,6 +250,10 @@ export function Sidebar(): React.JSX.Element {
                   setUrlPopoverOpen(false)
                   window.api.addUrl(canonicalUrl, metadata)
                 }}
+                onImportDirect={(url, metadata) => {
+                  setUrlPopoverOpen(false)
+                  window.api.addDirectUrl(url, metadata)
+                }}
               />
             )}
           </div>

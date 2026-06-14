@@ -70,6 +70,8 @@ const api = {
   addFiles: (filePaths: string[]): Promise<string[]> => ipcRenderer.invoke('ingest:add-files', filePaths),
   addUrl: (canonicalUrl: string, metadata: { title: string; channel: string; duration: number; thumbnail: string; uploadDate: string }): Promise<string> =>
     ipcRenderer.invoke('ingest:add-url', canonicalUrl, metadata),
+  addDirectUrl: (url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }): Promise<string> =>
+    ipcRenderer.invoke('ingest:add-direct-url', url, metadata),
   retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
   cancelEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:cancel', id),
 

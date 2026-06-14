@@ -4,6 +4,7 @@ import { DatabaseService } from './database-service'
 import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
 import { IngestPipeline } from './ingest-pipeline'
+import { HttpDownloadService } from './http-download-service'
 
 const promptsDir = join(__dirname, 'prompts')
 
@@ -228,6 +229,77 @@ describe('IngestPipeline - recipe execution on ingest', () => {
       const tabs = tabService.getTabs(episodeId)
       const pipelineRecipe = recipeService.getPipelineRecipe()
       expect(tabs[0].recipe_id).toBe(pipelineRecipe?.id)
+    })
+  })
+
+  describe('download routing by source_type', () => {
+    it('routes source_type direct to HttpDownloadService', async () => {
+      const mockHttpDownload = vi.fn().mockResolvedValue(undefined)
+      const httpService = { download: mockHttpDownload } as unknown as HttpDownloadService
+
+      const modelManager = { ensureModel: vi.fn() } as any
+      const ytdlpService = { detect: vi.fn(), download: vi.fn(), kill: vi.fn() } as any
+      const pipelineWithHttp = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService, httpService)
+
+      const episodeId = db.createEpisode({
+        title: 'Direct Download',
+        source_url: 'https://example.com/episode.mp3',
+        source_type: 'direct',
+        status: 'queued',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue()
+
+      await pipelineWithHttp.processEpisodePublic(episodeId)
+
+      expect(mockHttpDownload).toHaveBeenCalled()
+      expect(ytdlpService.download).not.toHaveBeenCalled()
+    })
+
+    it('routes source_type rss to HttpDownloadService', async () => {
+      const mockHttpDownload = vi.fn().mockResolvedValue(undefined)
+      const httpService = { download: mockHttpDownload } as unknown as HttpDownloadService
+
+      const modelManager = { ensureModel: vi.fn() } as any
+      const ytdlpService = { detect: vi.fn(), download: vi.fn(), kill: vi.fn() } as any
+      const pipelineWithHttp = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService, httpService)
+
+      const episodeId = db.createEpisode({
+        title: 'RSS Episode',
+        source_url: 'https://example.com/podcast/ep1.mp3',
+        source_type: 'rss',
+        status: 'queued',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue()
+
+      await pipelineWithHttp.processEpisodePublic(episodeId)
+
+      expect(mockHttpDownload).toHaveBeenCalled()
+      expect(ytdlpService.download).not.toHaveBeenCalled()
+    })
+
+    it('routes source_type youtube to YtdlpService', async () => {
+      const mockHttpDownload = vi.fn()
+      const httpService = { download: mockHttpDownload } as unknown as HttpDownloadService
+
+      const modelManager = { ensureModel: vi.fn() } as any
+      const ytdlpService = { detect: vi.fn(), download: vi.fn().mockResolvedValue(undefined), kill: vi.fn() } as any
+      const pipelineWithHttp = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService, httpService)
+
+      const episodeId = db.createEpisode({
+        title: 'YouTube Video',
+        source_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        source_type: 'youtube',
+        status: 'queued',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue()
+
+      await pipelineWithHttp.processEpisodePublic(episodeId)
+
+      expect(ytdlpService.download).toHaveBeenCalled()
+      expect(mockHttpDownload).not.toHaveBeenCalled()
     })
   })
 

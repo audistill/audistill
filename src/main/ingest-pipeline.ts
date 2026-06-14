@@ -9,6 +9,7 @@ import { DatabaseService, Episode } from './database-service'
 import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
 import { YtdlpService } from './ytdlp-service'
+import { HttpDownloadService } from './http-download-service'
 import { SUPPORTED_FILE_FILTER } from '../shared/supported-formats'
 import { LicenseService } from './license-service'
 import { requireLicense } from './license-guard'
@@ -21,17 +22,19 @@ export class IngestPipeline {
   private recipeService: RecipeService
   private tabService: TabService
   private ytdlpService: YtdlpService
+  private httpDownloadService: HttpDownloadService
   private licenseService: LicenseService | null = null
   private processing = false
   private queue: string[] = []
   private activeWorkers = new Map<string, Worker>()
 
-  constructor(db: DatabaseService, modelManager: ModelManager, recipeService: RecipeService, tabService: TabService, ytdlpService: YtdlpService) {
+  constructor(db: DatabaseService, modelManager: ModelManager, recipeService: RecipeService, tabService: TabService, ytdlpService: YtdlpService, httpDownloadService?: HttpDownloadService) {
     this.db = db
     this.modelManager = modelManager
     this.recipeService = recipeService
     this.tabService = tabService
     this.ytdlpService = ytdlpService
+    this.httpDownloadService = httpDownloadService ?? new HttpDownloadService()
   }
 
   setLicenseService(licenseService: LicenseService): void {
@@ -95,7 +98,23 @@ export class IngestPipeline {
       const id = this.db.createEpisode({
         title: metadata.title,
         source_url: canonicalUrl,
+        source_type: 'youtube',
         source_meta: JSON.stringify({ channel: metadata.channel, uploadDate: metadata.uploadDate, thumbnail: metadata.thumbnail }),
+        status: 'downloading',
+      })
+      this.queue.push(id)
+      this.broadcastEpisodeUpdate(id)
+      this.processQueue()
+      return id
+    })
+
+    ipcMain.handle('ingest:add-direct-url', async (_event, url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }) => {
+      if (this.licenseService) requireLicense(this.licenseService)
+      const id = this.db.createEpisode({
+        title: metadata.title,
+        source_url: url,
+        source_type: 'direct',
+        source_meta: JSON.stringify({ filename: metadata.filename, contentType: metadata.contentType, fileSize: metadata.fileSize }),
         status: 'downloading',
       })
       this.queue.push(id)
@@ -142,6 +161,7 @@ export class IngestPipeline {
 
       if (episode.status === 'downloading') {
         this.ytdlpService.kill(episodeId)
+        this.httpDownloadService.abort(episodeId)
         this.db.updateEpisode(episodeId, { status: 'cancelled', error_message: null })
         this.broadcastEpisodeUpdate(episodeId)
         return
@@ -177,6 +197,10 @@ export class IngestPipeline {
     this.processing = false
   }
 
+  async processEpisodePublic(episodeId: string): Promise<void> {
+    return this.processEpisode(episodeId)
+  }
+
   private async processEpisode(episodeId: string): Promise<void> {
     let episode = this.db.getEpisode(episodeId)
     if (!episode) return
@@ -210,23 +234,34 @@ export class IngestPipeline {
       mkdirSync(TMP_DIR, { recursive: true })
     }
 
-    const outputTemplate = join(TMP_DIR, `${episodeId}.%(ext)s`)
-    const customArgs = this.db.getSetting('ytdlp_custom_args') || undefined
+    const sourceType = episode.source_type
+    const useHttp = sourceType === 'direct' || sourceType === 'rss'
 
     try {
-      await this.ytdlpService.download(episode.source_url!, outputTemplate, episodeId, {
-        customArgs,
-        onProgress: (pct) => {
+      if (useHttp) {
+        const ext = this.inferExtension(episode.source_url!)
+        const destPath = join(TMP_DIR, `${episodeId}${ext}`)
+        await this.httpDownloadService.download(episode.source_url!, destPath, (pct) => {
           this.broadcastProgress(episodeId, 'downloading', pct)
-        },
-      })
+        }, episodeId)
+        this.db.updateEpisode(episodeId, { file_path: destPath })
+      } else {
+        const outputTemplate = join(TMP_DIR, `${episodeId}.%(ext)s`)
+        const customArgs = this.db.getSetting('ytdlp_custom_args') || undefined
+        await this.ytdlpService.download(episode.source_url!, outputTemplate, episodeId, {
+          customArgs,
+          onProgress: (pct) => {
+            this.broadcastProgress(episodeId, 'downloading', pct)
+          },
+        })
 
-      const downloadedFile = this.findDownloadedFile(episodeId)
-      if (!downloadedFile) {
-        throw new Error('Download completed but output file not found')
+        const downloadedFile = this.findDownloadedFile(episodeId)
+        if (!downloadedFile) {
+          throw new Error('Download completed but output file not found')
+        }
+        this.db.updateEpisode(episodeId, { file_path: downloadedFile })
       }
 
-      this.db.updateEpisode(episodeId, { file_path: downloadedFile })
       this.broadcastEpisodeUpdate(episodeId)
       return true
     } catch (err) {
@@ -238,6 +273,16 @@ export class IngestPipeline {
       this.broadcastEpisodeUpdate(episodeId)
       return false
     }
+  }
+
+  private inferExtension(url: string): string {
+    try {
+      const pathname = new URL(url).pathname
+      const lastSegment = pathname.split('/').pop() || ''
+      const dotIndex = lastSegment.lastIndexOf('.')
+      if (dotIndex > 0) return lastSegment.slice(dotIndex)
+    } catch { /* ignore */ }
+    return '.mp3'
   }
 
   private findDownloadedFile(episodeId: string): string | null {
