@@ -361,6 +361,55 @@ export class DatabaseService {
     return rows
   }
 
+  filterEpisodes(filters: {
+    folder_id?: string | null
+    date_from?: string
+    date_to?: string
+    duration_min?: number
+    duration_max?: number
+    source_type?: string
+    has_transcript?: boolean
+  }): Episode[] {
+    const conditions: string[] = ["e.status = 'complete'"]
+    const params: unknown[] = []
+
+    if (filters.folder_id === null) {
+      conditions.push('e.folder_id IS NULL')
+    } else if (filters.folder_id !== undefined) {
+      conditions.push('e.folder_id = ?')
+      params.push(filters.folder_id)
+    }
+
+    if (filters.date_from) {
+      conditions.push('e.created_at >= ?')
+      params.push(filters.date_from)
+    }
+    if (filters.date_to) {
+      conditions.push('e.created_at <= ?')
+      params.push(filters.date_to)
+    }
+    if (filters.duration_min !== undefined) {
+      conditions.push('e.duration_sec >= ?')
+      params.push(filters.duration_min)
+    }
+    if (filters.duration_max !== undefined) {
+      conditions.push('e.duration_sec <= ?')
+      params.push(filters.duration_max)
+    }
+    if (filters.source_type) {
+      conditions.push('e.source_type = ?')
+      params.push(filters.source_type)
+    }
+    if (filters.has_transcript === true) {
+      conditions.push("e.transcript IS NOT NULL AND e.transcript != ''")
+    } else if (filters.has_transcript === false) {
+      conditions.push("(e.transcript IS NULL OR e.transcript = '')")
+    }
+
+    const sql = `SELECT e.* FROM episodes e WHERE ${conditions.join(' AND ')} ORDER BY e.created_at DESC`
+    return this.db.prepare(sql).all(...params) as Episode[]
+  }
+
   createSummary(episodeId: string, viewType: 'brief' | 'detailed' | 'full', status: 'generating' | 'complete' | 'error' = 'generating'): string {
     const id = randomUUID()
     this.db

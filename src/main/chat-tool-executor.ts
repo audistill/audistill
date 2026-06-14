@@ -67,6 +67,8 @@ export class ChatToolExecutor {
         return this.grepTranscripts(args)
       case 'read_transcript_range':
         return this.readTranscriptRange(args, context)
+      case 'filter_episodes':
+        return this.filterEpisodes(args)
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` })
     }
@@ -328,6 +330,37 @@ export class ChatToolExecutor {
 
     this.broadcast('tab:navigate', { episodeId, tabId: tab.id })
     return JSON.stringify({ success: true, message: `Navigated to tab "${tabName}"` })
+  }
+
+  private filterEpisodes(args: Record<string, unknown>): string {
+    const filters: {
+      folder_id?: string | null
+      date_from?: string
+      date_to?: string
+      duration_min?: number
+      duration_max?: number
+      source_type?: string
+      has_transcript?: boolean
+    } = {}
+
+    if ('folder_id' in args) filters.folder_id = args.folder_id as string | null
+    if (args.date_from) filters.date_from = args.date_from as string
+    if (args.date_to) filters.date_to = args.date_to as string
+    if (args.duration_min !== undefined) filters.duration_min = args.duration_min as number
+    if (args.duration_max !== undefined) filters.duration_max = args.duration_max as number
+    if (args.source_type) filters.source_type = args.source_type as string
+    if (args.has_transcript !== undefined) filters.has_transcript = args.has_transcript as boolean
+
+    const episodes = this.db.filterEpisodes(filters)
+    const results = episodes.map((ep) => ({
+      id: ep.id,
+      title: ep.title || (ep.file_path ? basename(ep.file_path) : 'Untitled'),
+      duration: formatDuration(ep.duration_sec),
+      date: ep.created_at,
+      folder_id: ep.folder_id,
+      source_type: ep.source_type,
+    }))
+    return JSON.stringify({ results })
   }
 
   private grepTranscripts(args: Record<string, unknown>): string {

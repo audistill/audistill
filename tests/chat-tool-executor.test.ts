@@ -912,4 +912,120 @@ describe('ChatToolExecutor', () => {
       expect(parsed.error).toContain('Missing required parameter: start')
     })
   })
+
+  describe('filter_episodes', () => {
+    let folderId: string
+    let longEpId: string
+    let youtubeEpId: string
+
+    beforeEach(() => {
+      folderId = db.createFolder('Tech')
+      longEpId = db.createEpisode({
+        title: 'Long Episode',
+        file_path: '/path/to/long.mp3',
+        folder_id: folderId,
+        duration_sec: 7200,
+        status: 'complete',
+      })
+      db.updateEpisode(longEpId, { source_type: 'local' })
+      db.updateEpisode(longEpId, { transcript: 'has content' })
+
+      youtubeEpId = db.createEpisode({
+        title: 'YouTube Episode',
+        file_path: null,
+        folder_id: null,
+        duration_sec: 600,
+        status: 'complete',
+      })
+      db.updateEpisode(youtubeEpId, { source_type: 'youtube' })
+    })
+
+    it('filters by folder_id', async () => {
+      const result = await executor.executeTool(
+        'filter_episodes',
+        { folder_id: folderId },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results.length).toBeGreaterThanOrEqual(1)
+      expect(parsed.results.every((r: { id: string }) => r.id === longEpId)).toBe(true)
+    })
+
+    it('filters by folder_id null for inbox episodes', async () => {
+      const result = await executor.executeTool(
+        'filter_episodes',
+        { folder_id: null },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const ids = parsed.results.map((r: { id: string }) => r.id)
+      expect(ids).toContain(youtubeEpId)
+      expect(ids).not.toContain(longEpId)
+    })
+
+    it('filters by duration_min', async () => {
+      const result = await executor.executeTool(
+        'filter_episodes',
+        { duration_min: 3600 },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const ids = parsed.results.map((r: { id: string }) => r.id)
+      expect(ids).toContain(longEpId)
+      expect(ids).not.toContain(youtubeEpId)
+    })
+
+    it('filters by duration_max', async () => {
+      const result = await executor.executeTool(
+        'filter_episodes',
+        { duration_max: 1000 },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const ids = parsed.results.map((r: { id: string }) => r.id)
+      expect(ids).toContain(youtubeEpId)
+      expect(ids).not.toContain(longEpId)
+    })
+
+    it('filters by source_type', async () => {
+      const result = await executor.executeTool(
+        'filter_episodes',
+        { source_type: 'youtube' },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results).toHaveLength(1)
+      expect(parsed.results[0].id).toBe(youtubeEpId)
+    })
+
+    it('filters by has_transcript true', async () => {
+      const result = await executor.executeTool(
+        'filter_episodes',
+        { has_transcript: true },
+        context
+      )
+      const parsed = JSON.parse(result)
+      const ids = parsed.results.map((r: { id: string }) => r.id)
+      expect(ids).toContain(episodeId)
+      expect(ids).toContain(longEpId)
+      expect(ids).not.toContain(youtubeEpId)
+    })
+
+    it('combines multiple filters as AND', async () => {
+      const result = await executor.executeTool(
+        'filter_episodes',
+        { source_type: 'local', duration_min: 3600 },
+        context
+      )
+      const parsed = JSON.parse(result)
+      expect(parsed.results).toHaveLength(1)
+      expect(parsed.results[0].id).toBe(longEpId)
+    })
+
+    it('returns all complete episodes when no filters provided', async () => {
+      const result = await executor.executeTool('filter_episodes', {}, context)
+      const parsed = JSON.parse(result)
+      expect(parsed.results.length).toBeGreaterThanOrEqual(3)
+    })
+  })
 })
