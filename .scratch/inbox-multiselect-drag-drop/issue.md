@@ -1,6 +1,6 @@
 ---
 title: "Inbox multi-select, drag-and-drop, and bulk actions"
-status: ready-for-agent
+status: done
 created: 2026-06-14
 ---
 
