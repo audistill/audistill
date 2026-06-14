@@ -74,7 +74,7 @@ const TOOL_DEFINITIONS = [
     type: 'function' as const,
     function: {
       name: 'search_episodes',
-      description: 'Search across all episodes by title and summary content',
+      description: 'Search across all episodes by title, transcript, and tab content. Returns matched_in field and snippet.',
       parameters: {
         type: 'object',
         properties: {
@@ -167,6 +167,155 @@ const TOOL_DEFINITIONS = [
           tab_name: { type: 'string', description: 'The name of the tab to switch to' },
         },
         required: ['tab_name'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'grep_transcripts',
+      description: 'Search across all episodes\' transcripts for a term or regex pattern. Returns matches with surrounding context segments.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'Search term or regex pattern' },
+          is_regex: { type: 'boolean', description: 'Treat pattern as a regex (default: false)' },
+          context_segments: { type: 'number', description: 'Number of segments before/after match to include (default: 2)' },
+          episode_ids: { type: 'array', items: { type: 'string' }, description: 'Limit search to specific episode IDs' },
+          folder_id: { type: 'string', description: 'Limit search to a specific folder' },
+          max_results: { type: 'number', description: 'Maximum results to return (default: 20)' },
+        },
+        required: ['pattern'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'read_transcript_range',
+      description: 'Read a slice of the transcript by segment index or timestamp range. Use this instead of read_transcript for long episodes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          episode_id: { type: 'string', description: 'Episode ID (defaults to current episode)' },
+          start: { type: 'string', description: 'Segment index (e.g. "10") or timestamp (e.g. "00:15:00")' },
+          end: { type: 'string', description: 'End segment index or timestamp (optional, uses limit if omitted)' },
+          limit: { type: 'number', description: 'Max segments to return (default: 50)' },
+        },
+        required: ['start'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'filter_episodes',
+      description: 'Filter episodes by structured metadata: folder, date range, duration, source type, or transcript presence. All filters combine as AND.',
+      parameters: {
+        type: 'object',
+        properties: {
+          folder_id: { type: 'string', description: 'Filter to folder ID; null for Inbox only' },
+          date_from: { type: 'string', description: 'ISO date, episodes on or after' },
+          date_to: { type: 'string', description: 'ISO date, episodes on or before' },
+          duration_min: { type: 'number', description: 'Minimum duration in seconds' },
+          duration_max: { type: 'number', description: 'Maximum duration in seconds' },
+          source_type: { type: 'string', description: 'One of: local, youtube, rss, direct' },
+          has_transcript: { type: 'boolean', description: 'Filter to episodes with/without transcripts' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'list_folders',
+      description: 'List all folders in the library with their IDs, names, and parent folder IDs',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'create_folder',
+      description: 'Create a new folder in the library',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Folder name' },
+          parent_id: { type: 'string', description: 'Parent folder ID for nesting (optional)' },
+        },
+        required: ['name'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'move_episode',
+      description: 'Move an episode to a folder, or back to Inbox with null folder_id',
+      parameters: {
+        type: 'object',
+        properties: {
+          episode_id: { type: 'string', description: 'Episode ID (defaults to current episode)' },
+          folder_id: { type: 'string', description: 'Target folder ID, or null for Inbox' },
+        },
+        required: ['folder_id'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'rename_episode',
+      description: 'Rename an episode',
+      parameters: {
+        type: 'object',
+        properties: {
+          episode_id: { type: 'string', description: 'Episode ID (defaults to current episode)' },
+          title: { type: 'string', description: 'New title for the episode' },
+        },
+        required: ['title'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'list_recipes',
+      description: 'List all available recipes with their IDs, names, and whether they are built-in',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'create_recipe',
+      description: 'Create a new custom recipe template',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Recipe name' },
+          prompt: { type: 'string', description: 'The prompt template for the recipe' },
+          model_override: { type: 'string', description: 'Optional model override for this recipe' },
+        },
+        required: ['name', 'prompt'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'update_recipe',
+      description: 'Update an existing custom recipe. Cannot update built-in recipes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          recipe_id: { type: 'string', description: 'The recipe ID to update' },
+          name: { type: 'string', description: 'New name (optional)' },
+          prompt: { type: 'string', description: 'New prompt template (optional)' },
+          model_override: { type: 'string', description: 'New model override (optional)' },
+        },
+        required: ['recipe_id'],
       },
     },
   },
