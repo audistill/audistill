@@ -2,6 +2,13 @@ import { basename } from 'path'
 import { BrowserWindow } from 'electron'
 import { DatabaseService, Episode } from './database-service'
 import { TabService } from './tab-service'
+import { RecipeService } from './recipe-service'
+
+export interface ToolServices {
+  db: DatabaseService
+  tabs: TabService
+  recipes: RecipeService
+}
 
 export interface ToolContext {
   currentEpisodeId: string
@@ -22,10 +29,12 @@ function resolveEpisodeId(args: Record<string, unknown>, context: ToolContext): 
 export class ChatToolExecutor {
   private db: DatabaseService
   private tabService: TabService
+  private recipeService: RecipeService
 
-  constructor(db: DatabaseService, tabService: TabService) {
-    this.db = db
-    this.tabService = tabService
+  constructor(services: ToolServices) {
+    this.db = services.db
+    this.tabService = services.tabs
+    this.recipeService = services.recipes
   }
 
   async executeTool(

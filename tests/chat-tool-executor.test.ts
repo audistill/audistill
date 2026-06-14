@@ -21,10 +21,15 @@ vi.mock('electron', () => ({
 import { DatabaseService } from '../src/main/database-service'
 import { ChatToolExecutor, ToolContext } from '../src/main/chat-tool-executor'
 import { TabService } from '../src/main/tab-service'
+import { RecipeService } from '../src/main/recipe-service'
+import { join } from 'path'
+
+const PROMPTS_DIR = join(__dirname, '..', 'src', 'main', 'prompts')
 
 describe('ChatToolExecutor', () => {
   let db: DatabaseService
   let tabService: TabService
+  let recipeService: RecipeService
   let executor: ChatToolExecutor
   let context: ToolContext
   let episodeId: string
@@ -33,7 +38,8 @@ describe('ChatToolExecutor', () => {
     broadcasts.length = 0
     db = new DatabaseService(':memory:')
     tabService = new TabService(db)
-    executor = new ChatToolExecutor(db, tabService)
+    recipeService = new RecipeService(db, PROMPTS_DIR)
+    executor = new ChatToolExecutor({ db, tabs: tabService, recipes: recipeService })
 
     episodeId = db.createEpisode({
       title: 'Test Episode',

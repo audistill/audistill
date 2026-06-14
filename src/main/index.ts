@@ -4,7 +4,6 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ModelManager } from './model-manager'
 import { registerTranscriptionService } from './transcription-service'
 import { DatabaseService } from './database-service'
-import { SummarizationService } from './summarization-service'
 import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
 import { IngestPipeline } from './ingest-pipeline'
@@ -23,7 +22,6 @@ import { machineIdSync } from 'node-machine-id'
 nativeTheme.themeSource = 'system'
 
 let db: DatabaseService
-let summarizationService: SummarizationService
 let recipeService: RecipeService
 let tabService: TabService
 let ingestPipeline: IngestPipeline
@@ -137,12 +135,12 @@ function registerDatabaseHandlers(): void {
 
 
   ipcMain.handle('validate-api-key', (_event, key: string) => {
-    return summarizationService.validateApiKey(key)
+    return recipeService.validateApiKey(key)
   })
 }
 
 function registerChatHandlers(): void {
-  const chatToolExecutor = new ChatToolExecutor(db, tabService)
+  const chatToolExecutor = new ChatToolExecutor({ db, tabs: tabService, recipes: recipeService })
 
   ipcMain.handle('chat:fetch-models', async () => {
     const apiKey = db.getSetting('openrouter_api_key')
@@ -441,7 +439,6 @@ app.whenReady().then(() => {
   })
 
   db = new DatabaseService()
-  summarizationService = new SummarizationService(db)
   recipeService = new RecipeService(db)
   tabService = new TabService(db)
   new MigrationService(db, recipeService, tabService).run()
