@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAppStore, Episode, Folder } from '../store/app-store'
+import { useSelectionStore } from '../store/selection-store'
+import { SelectionActionBar } from './SelectionActionBar'
 import { UrlImportPopover } from './UrlImportPopover'
 import { sortInboxEpisodes, groupInboxEpisodes } from '../lib/sort-inbox'
 
@@ -58,6 +60,13 @@ export function Sidebar(): React.JSX.Element {
   const cycleInboxSort = useAppStore((s) => s.cycleInboxSort)
   const toggleInboxCollapsed = useAppStore((s) => s.toggleInboxCollapsed)
 
+  const selectedEpisodeIds = useSelectionStore((s) => s.selectedEpisodeIds)
+  const selectionContainer = useSelectionStore((s) => s.selectionContainer)
+  const toggleEpisodeSelection = useSelectionStore((s) => s.toggleEpisodeSelection)
+  const selectEpisodeRange = useSelectionStore((s) => s.selectEpisodeRange)
+  const selectAllInContainer = useSelectionStore((s) => s.selectAllInContainer)
+  const clearSelection = useSelectionStore((s) => s.clearSelection)
+
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -91,6 +100,28 @@ export function Sidebar(): React.JSX.Element {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [addMenuOpen])
 
+  const lastInteractedContainer = useRef<string>('inbox')
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && selectedEpisodeIds.size > 0) {
+        clearSelection()
+      }
+      if (e.key === 'a' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        const container = lastInteractedContainer.current
+        const containerEpisodes = container === 'inbox'
+          ? episodes.filter((ep) => ep.folder_id === null)
+          : episodes.filter((ep) => ep.folder_id === container)
+        if (containerEpisodes.length > 0) {
+          e.preventDefault()
+          selectAllInContainer(containerEpisodes.map((ep) => ep.id), container)
+        }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selectedEpisodeIds.size, clearSelection, selectAllInContainer, episodes])
+
   const filteredEpisodes = searchQuery
     ? episodes.filter((ep) => {
         const title = (ep.title || ep.file_path || '').toLowerCase()
@@ -101,8 +132,26 @@ export function Sidebar(): React.JSX.Element {
 
   const inboxItems = filteredEpisodes.filter((e) => e.folder_id === null)
   const inboxGroups = groupInboxEpisodes(inboxItems, inboxSort)
+  const inboxVisibleIds = inboxGroups.flatMap((g) => g.episodes.map((ep) => ep.id))
   const folderEpisodes = (folderId: string) =>
     filteredEpisodes.filter((e) => e.folder_id === folderId && e.status === 'complete')
+
+  const handleEpisodeClick = (e: React.MouseEvent, episodeId: string, container: string, visibleIds: string[]): void => {
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault()
+      lastInteractedContainer.current = container
+      toggleEpisodeSelection(episodeId, container)
+    } else if (e.shiftKey) {
+      e.preventDefault()
+      lastInteractedContainer.current = container
+      selectEpisodeRange(episodeId, visibleIds, container)
+    } else {
+      if (selectedEpisodeIds.size > 0) {
+        clearSelection()
+      }
+      selectEpisode(episodeId)
+    }
+  }
 
   const getChildFolders = (parentId: string | null) =>
     folders.filter((f) => f.parent_id === parentId).sort((a, b) => a.sort_order - b.sort_order)
@@ -183,7 +232,7 @@ export function Sidebar(): React.JSX.Element {
   }
 
   return (
-    <div className="w-full h-full sidebar-vibrancy border-r border-[var(--sidebar-separator)] flex flex-col overflow-hidden">
+    <div className="w-full h-full sidebar-vibrancy border-r border-[var(--sidebar-separator)] flex flex-col overflow-hidden relative">
       {/* Header */}
       <div className="p-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -301,7 +350,14 @@ export function Sidebar(): React.JSX.Element {
       </div>
 
       {/* Tree */}
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
+      <div
+        className="flex-1 overflow-y-auto px-2 pb-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && selectedEpisodeIds.size > 0) {
+            clearSelection()
+          }
+        }}
+      >
         {/* Inbox */}
         <div className="mb-4">
           <div
@@ -354,8 +410,9 @@ export function Sidebar(): React.JSX.Element {
                     key={ep.id}
                     episode={ep}
                     isActive={activeTabId === ep.id && !settingsOpen}
+                    isSelected={selectedEpisodeIds.has(ep.id)}
                     isEditing={editingEpisodeId === ep.id}
-                    onSelect={selectEpisode}
+                    onClick={(e) => handleEpisodeClick(e, ep.id, 'inbox', inboxVisibleIds)}
                     onPin={pinEpisode}
                     onContextMenu={handleEpisodeContextMenu}
                     onRenameSubmit={async (id, name) => {
@@ -421,10 +478,11 @@ export function Sidebar(): React.JSX.Element {
             editingFolderId={editingFolderId}
             editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
+            selectedEpisodeIds={selectedEpisodeIds}
             folderEpisodes={folderEpisodes}
             getChildFolders={getChildFolders}
             toggleFolder={toggleFolder}
-            selectEpisode={selectEpisode}
+            onEpisodeClick={handleEpisodeClick}
             pinEpisode={pinEpisode}
             onContextMenu={handleFolderContextMenu}
             onEpisodeContextMenu={handleEpisodeContextMenu}
@@ -456,6 +514,8 @@ export function Sidebar(): React.JSX.Element {
           </div>
         )}
       </div>
+
+      <SelectionActionBar />
 
       {/* Context Menu */}
       {contextMenu && contextMenu.type === 'episode' && (
@@ -831,10 +891,11 @@ function FolderNode({
   editingFolderId,
   editingEpisodeId,
   creatingFolder,
+  selectedEpisodeIds,
   folderEpisodes,
   getChildFolders,
   toggleFolder,
-  selectEpisode,
+  onEpisodeClick,
   pinEpisode,
   onContextMenu,
   onEpisodeContextMenu,
@@ -854,10 +915,11 @@ function FolderNode({
   editingFolderId: string | null
   editingEpisodeId: string | null
   creatingFolder: { parentId: string | null } | null
+  selectedEpisodeIds: Set<string>
   folderEpisodes: (folderId: string) => Episode[]
   getChildFolders: (parentId: string | null) => Folder[]
   toggleFolder: (id: string) => void
-  selectEpisode: (id: string) => void
+  onEpisodeClick: (e: React.MouseEvent, episodeId: string, container: string, visibleIds: string[]) => void
   pinEpisode: (id: string) => void
   onContextMenu: (e: React.MouseEvent, folderId: string) => void
   onEpisodeContextMenu: (e: React.MouseEvent, episodeId: string) => void
@@ -934,10 +996,11 @@ function FolderNode({
             editingFolderId={editingFolderId}
             editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
+            selectedEpisodeIds={selectedEpisodeIds}
             folderEpisodes={folderEpisodes}
             getChildFolders={getChildFolders}
             toggleFolder={toggleFolder}
-            selectEpisode={selectEpisode}
+            onEpisodeClick={onEpisodeClick}
             pinEpisode={pinEpisode}
             onContextMenu={onContextMenu}
             onEpisodeContextMenu={onEpisodeContextMenu}
@@ -956,8 +1019,9 @@ function FolderNode({
             <SidebarEpisode
               episode={ep}
               isActive={activeTabId === ep.id && !settingsOpen}
+              isSelected={selectedEpisodeIds.has(ep.id)}
               isEditing={editingEpisodeId === ep.id}
-              onSelect={selectEpisode}
+              onClick={(e) => onEpisodeClick(e, ep.id, folder.id, children.map((c) => c.id))}
               onPin={pinEpisode}
               onContextMenu={onEpisodeContextMenu}
               onRenameSubmit={onEpisodeRenameSubmit}
@@ -1074,8 +1138,9 @@ function NewFolderInput({
 function SidebarEpisode({
   episode,
   isActive,
+  isSelected,
   isEditing,
-  onSelect,
+  onClick,
   onPin,
   onContextMenu,
   onRenameSubmit,
@@ -1083,8 +1148,9 @@ function SidebarEpisode({
 }: {
   episode: Episode
   isActive: boolean
+  isSelected: boolean
   isEditing: boolean
-  onSelect: (id: string) => void
+  onClick: (e: React.MouseEvent) => void
   onPin: (id: string) => void
   onContextMenu: (e: React.MouseEvent, episodeId: string) => void
   onRenameSubmit: (id: string, name: string) => Promise<void>
@@ -1152,8 +1218,8 @@ function SidebarEpisode({
 
   return (
     <div
-      className={`sidebar-item flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''}`}
-      onClick={() => onSelect(episode.id)}
+      className={`sidebar-item flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''} ${isSelected ? 'bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/30' : ''}`}
+      onClick={onClick}
       onDoubleClick={() => onPin(episode.id)}
       onContextMenu={(e) => onContextMenu(e, episode.id)}
       tabIndex={0}
