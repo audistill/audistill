@@ -12,8 +12,50 @@ export function TrialBanner(): React.JSX.Element | null {
     return unsub
   }, [])
 
-  if (!snapshot || snapshot.state !== 'trial') return null
+  if (!snapshot) return null
 
+  const { state } = snapshot
+
+  if (state === 'licensed') return null
+
+  if (state === 'trial') {
+    return <TrialActiveBanner snapshot={snapshot} openSettings={openSettings} />
+  }
+
+  if (state === 'trial-expired') {
+    return (
+      <BlockedBanner
+        text="Trial ended"
+        primaryLabel="Buy Audistill"
+        primaryAction={() => window.electron.ipcRenderer.invoke('license:open-checkout')}
+        secondaryLabel="Enter Key"
+        secondaryAction={openSettings}
+      />
+    )
+  }
+
+  if (state === 'license-invalid') {
+    return (
+      <BlockedBanner
+        text="License inactive"
+        primaryLabel="Enter Key"
+        primaryAction={openSettings}
+        secondaryLabel="Buy Audistill"
+        secondaryAction={() => window.electron.ipcRenderer.invoke('license:open-checkout')}
+      />
+    )
+  }
+
+  return null
+}
+
+function TrialActiveBanner({
+  snapshot,
+  openSettings,
+}: {
+  snapshot: LicenseStateSnapshot
+  openSettings: () => void
+}): React.JSX.Element {
   const days = snapshot.trialDaysRemaining ?? 0
   const urgent = days <= 2
 
@@ -51,6 +93,45 @@ export function TrialBanner(): React.JSX.Element | null {
           </button>
         </>
       )}
+    </div>
+  )
+}
+
+function BlockedBanner({
+  text,
+  primaryLabel,
+  primaryAction,
+  secondaryLabel,
+  secondaryAction,
+}: {
+  text: string
+  primaryLabel: string
+  primaryAction: () => void
+  secondaryLabel: string
+  secondaryAction: () => void
+}): React.JSX.Element {
+  return (
+    <div
+      className="absolute inset-0 flex items-center justify-center gap-2 text-[11px] select-none pointer-events-none"
+      style={{ color: 'var(--accent)' }}
+    >
+      <span>{text}</span>
+      <span className="opacity-50">·</span>
+      <button
+        onClick={primaryAction}
+        className="underline hover:opacity-80 cursor-pointer pointer-events-auto"
+        style={{ color: 'var(--accent)', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      >
+        {primaryLabel}
+      </button>
+      <span className="opacity-50">·</span>
+      <button
+        onClick={secondaryAction}
+        className="underline hover:opacity-80 cursor-pointer pointer-events-auto"
+        style={{ color: 'var(--accent)', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      >
+        {secondaryLabel}
+      </button>
     </div>
   )
 }
