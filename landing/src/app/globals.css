@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg: #141413;
+  --color-bg-deep: #0e0e0d;
+  --color-surface: #1e1e1c;
+  --color-surface-raised: #262624;
+  --color-text: #faf9f5;
+  --color-secondary: #c2c0b8;
+  --color-accent: #d97757;
+  --color-accent-hover: #e89b7f;
+  --color-accent-pressed: #b85e3f;
+  --color-accent-glow: rgba(217, 119, 87, 0.08);
+  --color-accent-glow-strong: rgba(217, 119, 87, 0.15);
+  --color-stone: #b0aea5;
+  --color-sand: #e8e6dc;
+  --color-border: rgba(176, 174, 165, 0.1);
+  --color-border-accent: rgba(217, 119, 87, 0.25);
+  --font-heading: "Poppins", sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-accent: "Lora", Georgia, serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-text);
+}
+
+/* Grain overlay for depth */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  z-index: 9999;
+}
+
+/* Warm glow effect */
+.glow-warm {
+  box-shadow: 0 0 80px rgba(217, 119, 87, 0.06), 0 0 160px rgba(217, 119, 87, 0.03);
+}
+
+.glow-warm-strong {
+  box-shadow: 0 0 60px rgba(217, 119, 87, 0.12), 0 0 120px rgba(217, 119, 87, 0.06), inset 0 1px 0 rgba(217, 119, 87, 0.08);
+}
+
+/* Dot grid pattern background */
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(176, 174, 165, 0.12) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Radial gradient section dividers */
+.section-glow {
+  position: relative;
+}
+.section-glow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: radial-gradient(ellipse at center, rgba(217, 119, 87, 0.3), transparent 70%);
+}
+
+/* Geometric accent shapes */
+.geo-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(217, 119, 87, 0.08);
+  pointer-events: none;
+}
+
+.geo-ring-sm {
+  width: 200px;
+  height: 200px;
+}
+
+.geo-ring-md {
+  width: 400px;
+  height: 400px;
+}
+
+.geo-ring-lg {
+  width: 700px;
+  height: 700px;
+}
+
+/* Diagonal lines texture */
+.diagonal-lines {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 12px,
+    rgba(176, 174, 165, 0.03) 12px,
+    rgba(176, 174, 165, 0.03) 13px
+  );
+}
+
+/* Mesh gradient for hero */
+.mesh-hero {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(217, 119, 87, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 70% 20%, rgba(217, 119, 87, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 50% at 30% 30%, rgba(184, 94, 63, 0.03) 0%, transparent 50%);
+}
+
+/* Horizontal rule with gradient */
+.hr-glow {
+  height: 1px;
+  border: none;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(176, 174, 165, 0.15) 20%,
+    rgba(217, 119, 87, 0.25) 50%,
+    rgba(176, 174, 165, 0.15) 80%,
+    transparent
+  );
+}
+
+/* Card inner glow on hover */
+.card-glow {
+  position: relative;
+  overflow: hidden;
+}
+.card-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(217, 119, 87, 0.04),
+    transparent 40%
+  );
+}
+.card-glow:hover::before {
+  opacity: 1;
+}
+
+/* Floating orb animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(1deg); }
+  66% { transform: translateY(4px) rotate(-1deg); }
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float 12s ease-in-out infinite;
+}
+
+.animate-float-delay {
+  animation: float 10s ease-in-out 2s infinite;
+}
+
+/* Smooth reveal animations */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+
+/* Terminal cursor blink */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: blink 1.2s step-end infinite;
+}
+
+/* Flow animation for pipeline dots */
+@keyframes flow {
+  0% { left: 10%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { left: 85%; opacity: 0; }
+}
+
+/* Shimmer effect for accent elements */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-accent {
+  background: linear-gradient(
+    90deg,
+    var(--color-accent) 0%,
+    var(--color-accent-hover) 25%,
+    var(--color-accent) 50%,
+    var(--color-accent-hover) 75%,
+    var(--color-accent) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 6s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Subtle pulse for live elements */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
