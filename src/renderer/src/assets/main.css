@@ -9,6 +9,11 @@
     --secondary: #7a7870;
     --surface: #e8e6dc;
     --accent: #d97757;
+    --border: #d4d2c8;
+    --accent-ring: rgba(217, 119, 87, 0.35);
+    --accent-bg: rgba(217, 119, 87, 0.10);
+    --accent-drop-ring: rgba(217, 119, 87, 0.55);
+    --accent-drop-bg: rgba(217, 119, 87, 0.20);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -18,6 +23,11 @@
       --secondary: #c2c0b8;
       --surface: #1e1e1c;
       --accent: #d97757;
+      --border: #2a2a28;
+      --accent-ring: rgba(217, 119, 87, 0.35);
+      --accent-bg: rgba(217, 119, 87, 0.10);
+      --accent-drop-ring: rgba(217, 119, 87, 0.55);
+      --accent-drop-bg: rgba(217, 119, 87, 0.20);
     }
   }
 

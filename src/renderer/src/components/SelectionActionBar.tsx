@@ -77,7 +77,7 @@ export function SelectionActionBar(): React.JSX.Element | null {
           onCancel={() => setDeleteModalOpen(false)}
         />
       )}
-      <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-[0_4px_16px_rgba(0,0,0,0.3)] z-40">
+      <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-40">
         <span className="text-xs font-medium text-[var(--text)] whitespace-nowrap">
           {selectedCount} selected
         </span>

@@ -81,7 +81,6 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
     set({
       selectedEpisodeIds: new Set(rangeIds),
       selectionContainer: container,
-      lastToggledId: toId,
     })
   },
 

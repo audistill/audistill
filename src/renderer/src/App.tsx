@@ -64,6 +64,7 @@ function App(): React.JSX.Element {
 
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault()
+    if (e.dataTransfer?.types.includes('application/x-audistill-episode')) return
     dragCounter.current--
     if (dragCounter.current === 0) setDropActive(false)
   }, [])

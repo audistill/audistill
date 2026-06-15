@@ -10,7 +10,7 @@ interface DragState {
   y: number
 }
 
-export function DragDropLayer(): React.JSX.Element | null {
+export function DragDropLayer(): React.JSX.Element {
   const [drag, setDrag] = useState<DragState>({ active: false, title: '', count: 1, x: 0, y: 0 })
 
   useEffect(() => {
@@ -35,21 +35,24 @@ export function DragDropLayer(): React.JSX.Element | null {
     }
   }, [])
 
-  if (!drag.active || (drag.x === 0 && drag.y === 0)) return null
-
   return (
-    <div
-      className="fixed pointer-events-none z-[9999]"
-      style={{ left: drag.x + 12, top: drag.y - 14 }}
-    >
-      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.3)] text-xs text-[var(--text)] max-w-[200px]">
-        <span className="truncate">{drag.title}</span>
-        {drag.count > 1 && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[var(--accent)] text-white text-[10px] font-medium">
-            +{drag.count - 1}
-          </span>
-        )}
-      </div>
-    </div>
+    <>
+      <div id="drag-ghost" className="fixed -left-[9999px] -top-[9999px] w-1 h-1" />
+      {drag.active && drag.x !== 0 && drag.y !== 0 && (
+        <div
+          className="fixed pointer-events-none z-[9999]"
+          style={{ left: drag.x + 12, top: drag.y - 14 }}
+        >
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] shadow-[0_4px_12px_rgba(0,0,0,0.3)] text-xs text-[var(--text)] max-w-[200px]">
+            <span className="truncate">{drag.title}</span>
+            {drag.count > 1 && (
+              <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[var(--accent)] text-white text-[10px] font-medium">
+                +{drag.count - 1}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

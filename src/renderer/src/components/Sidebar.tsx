@@ -146,18 +146,18 @@ export function Sidebar(): React.JSX.Element {
     filteredEpisodes.filter((e) => e.folder_id === folderId && e.status === 'complete')
 
   const handleEpisodeClick = (e: React.MouseEvent, episodeId: string, container: string, visibleIds: string[]): void => {
+    lastInteractedContainer.current = container
     if (e.metaKey || e.ctrlKey) {
       e.preventDefault()
-      lastInteractedContainer.current = container
       toggleEpisodeSelection(episodeId, container)
     } else if (e.shiftKey) {
       e.preventDefault()
-      lastInteractedContainer.current = container
       selectEpisodeRange(episodeId, visibleIds, container)
     } else {
       if (selectedEpisodeIds.size > 0) {
         clearSelection()
       }
+      useSelectionStore.setState({ lastToggledId: episodeId, selectionContainer: container })
       selectEpisode(episodeId)
     }
   }
@@ -182,10 +182,8 @@ export function Sidebar(): React.JSX.Element {
 
     e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ ids: dragIds, sourceContainer: episode.folder_id }))
     e.dataTransfer.effectAllowed = 'move'
-    const emptyCanvas = document.createElement('canvas')
-    emptyCanvas.width = 1
-    emptyCanvas.height = 1
-    e.dataTransfer.setDragImage(emptyCanvas, 0, 0)
+    const ghost = document.getElementById('drag-ghost')
+    if (ghost) e.dataTransfer.setDragImage(ghost, 0, 0)
     window.dispatchEvent(new CustomEvent('audistill-drag-start', { detail: { title: dragTitle, count: dragCount } }))
   }
 
@@ -504,7 +502,7 @@ export function Sidebar(): React.JSX.Element {
         {/* Inbox */}
         <div className="mb-4">
           <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150 ${dropTargetId === '__inbox__' ? 'bg-[var(--accent)]/25 ring-1 ring-[var(--accent)]/50' : ''} ${pulsingFolderId === null && fadingEpisodeIds.size > 0 ? 'animate-pulse' : ''}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150 ${dropTargetId === '__inbox__' ? 'bg-[var(--accent-drop-bg)] ring-1 ring-[var(--accent-drop-ring)]' : ''} ${pulsingFolderId === null && fadingEpisodeIds.size > 0 ? 'animate-pulse' : ''}`}
             onClick={toggleInboxCollapsed}
             onDragEnter={(e) => handleFolderDragEnter(e, '__inbox__')}
             onDragOver={(e) => handleFolderDragOver(e, '__inbox__')}
@@ -1006,7 +1004,7 @@ function FolderNode({
   return (
     <div className="mb-1" style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}>
       <div
-        className={`sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text)] cursor-pointer transition-[background-color] duration-150 ${dropTargetId === folder.id ? 'bg-[var(--accent)]/25 ring-1 ring-[var(--accent)]/50' : ''} ${pulsingFolderId === folder.id ? 'animate-pulse' : ''}`}
+        className={`sidebar-item flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--text)] cursor-pointer transition-[background-color] duration-150 ${dropTargetId === folder.id ? 'bg-[var(--accent-drop-bg)] ring-1 ring-[var(--accent-drop-ring)]' : ''} ${pulsingFolderId === folder.id ? 'animate-pulse' : ''}`}
         onClick={() => toggleFolder(folder.id)}
         onContextMenu={(e) => onContextMenu(e, folder.id)}
         onDragEnter={(e) => onFolderDragEnter(e, folder.id)}
@@ -1304,7 +1302,7 @@ function SidebarEpisode({
 
   return (
     <div
-      className={`sidebar-item flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''} ${isSelected ? 'bg-[var(--accent)]/10 ring-1 ring-[var(--accent)]/30' : ''} ${isFading ? 'opacity-0 transition-[opacity] duration-150' : ''}`}
+      className={`sidebar-item flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''} ${isSelected ? 'bg-[var(--accent-bg)] ring-1 ring-[var(--accent-ring)]' : ''} ${isFading ? 'opacity-0 transition-[opacity] duration-150' : ''}`}
       draggable
       onClick={onClick}
       onDragStart={onDragStart}
