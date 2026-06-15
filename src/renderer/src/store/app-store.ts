@@ -54,6 +54,7 @@ interface AppState {
   transcriptPanelRatio: number
   inboxSort: InboxSortMode
   inboxCollapsed: boolean
+  licenseGateModal: { open: boolean; action: string }
 
   hydrate: () => Promise<void>
   selectEpisode: (id: string) => void
@@ -85,6 +86,8 @@ interface AppState {
   setTranscriptPanelRatio: (ratio: number) => void
   cycleInboxSort: () => void
   toggleInboxCollapsed: () => void
+  openLicenseGateModal: (action: string) => void
+  closeLicenseGateModal: () => void
 }
 
 function dbEpisodeToEpisode(row: DbEpisode): Episode {
@@ -132,6 +135,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   transcriptPanelRatio: 0.4,
   inboxSort: (localStorage.getItem('inboxSort') as InboxSortMode) || 'newest',
   inboxCollapsed: localStorage.getItem('inboxCollapsed') === 'true',
+  licenseGateModal: { open: false, action: '' },
 
   hydrate: async () => {
     const [dbEpisodes, dbFolders, dbTabs, savedRatio] = await Promise.all([
@@ -385,4 +389,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     localStorage.setItem('inboxCollapsed', String(next))
     set({ inboxCollapsed: next })
   },
+
+  openLicenseGateModal: (action) => set({ licenseGateModal: { open: true, action } }),
+  closeLicenseGateModal: () => set({ licenseGateModal: { open: false, action: '' } }),
 }))

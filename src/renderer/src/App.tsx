@@ -7,6 +7,7 @@ import { OnboardingView } from './components/OnboardingView'
 import { DropOverlay } from './components/DropOverlay'
 import { UrlImportPopover } from './components/UrlImportPopover'
 import { TrialBanner } from './components/TrialBanner'
+import { LicenseGateModal } from './components/LicenseGateModal'
 import { isLicenseError } from './components/LicenseBlockedPrompt'
 import {
   ResizeHandle,
@@ -356,6 +357,7 @@ function App(): React.JSX.Element {
           }}
         />
       )}
+      <LicenseGateModal />
       {toast && <Toast message={toast} />}
     </div>
   )
