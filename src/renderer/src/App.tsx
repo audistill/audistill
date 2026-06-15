@@ -97,7 +97,7 @@ function App(): React.JSX.Element {
 
       window.api.addFiles(validPaths).catch((err: unknown) => {
         if (isLicenseError(err)) {
-          showToast('Trial ended — purchase a license to ingest new files')
+          useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
         }
       })
 
@@ -345,15 +345,27 @@ function App(): React.JSX.Element {
           onClose={() => setDroppedUrl(null)}
           onImport={(canonicalUrl, metadata) => {
             setDroppedUrl(null)
-            window.api.addUrl(canonicalUrl, metadata)
+            window.api.addUrl(canonicalUrl, metadata).catch((err: unknown) => {
+              if (isLicenseError(err)) {
+                useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
+              }
+            })
           }}
           onImportDirect={(url, metadata) => {
             setDroppedUrl(null)
-            window.api.addDirectUrl(url, metadata)
+            window.api.addDirectUrl(url, metadata).catch((err: unknown) => {
+              if (isLicenseError(err)) {
+                useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
+              }
+            })
           }}
           onImportRss={(items) => {
             setDroppedUrl(null)
-            window.api.addRssItems(items)
+            window.api.addRssItems(items).catch((err: unknown) => {
+              if (isLicenseError(err)) {
+                useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
+              }
+            })
           }}
         />
       )}

@@ -3,7 +3,7 @@ import Markdown from 'react-markdown'
 import { useAppStore } from '../store/app-store'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
-import { LicenseBlockedPrompt, isLicenseError } from './LicenseBlockedPrompt'
+import { isLicenseError } from './LicenseBlockedPrompt'
 import type { DbChatMessage } from '../../../preload/index.d'
 
 interface ChatMessage {
@@ -521,7 +521,11 @@ export function ChatSidebar(): React.JSX.Element {
     const unsubError = window.api.onChatError((message) => {
       setStreaming(false)
       setStreamingState(null)
-      setError(message)
+      if (isLicenseError(message)) {
+        useAppStore.getState().openLicenseGateModal('Sending messages')
+      } else {
+        setError(message)
+      }
     })
 
     return () => {
@@ -602,7 +606,11 @@ export function ChatSidebar(): React.JSX.Element {
       setStreaming(false)
       setStreamingState(null)
       const msg = err instanceof Error ? err.message : String(err)
-      setError(msg)
+      if (isLicenseError(msg)) {
+        useAppStore.getState().openLicenseGateModal('Sending messages')
+      } else {
+        setError(msg)
+      }
     })
   }
 
@@ -729,7 +737,11 @@ export function ChatSidebar(): React.JSX.Element {
       }])
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
-      setError(`Failed to generate ${recipe.name}: ${errorMsg}`)
+      if (isLicenseError(errorMsg)) {
+        useAppStore.getState().openLicenseGateModal('Running recipes')
+      } else {
+        setError(`Failed to generate ${recipe.name}: ${errorMsg}`)
+      }
     } finally {
       setGeneratingRecipe(null)
     }
@@ -847,15 +859,11 @@ export function ChatSidebar(): React.JSX.Element {
         )}
 
         {error && (
-          isLicenseError(error) ? (
-            <LicenseBlockedPrompt />
-          ) : (
-            <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-[12px] bg-red-500/10 border border-red-500/20 px-3 py-2">
-                <p className="text-sm text-red-400">{error}</p>
-              </div>
+          <div className="flex justify-start">
+            <div className="max-w-[85%] rounded-[12px] bg-red-500/10 border border-red-500/20 px-3 py-2">
+              <p className="text-sm text-red-400">{error}</p>
             </div>
-          )
+          </div>
         )}
 
         <div ref={messagesEndRef} />
