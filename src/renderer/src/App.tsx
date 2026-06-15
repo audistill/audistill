@@ -276,11 +276,11 @@ function App(): React.JSX.Element {
 
   return (
     <div className="flex flex-col h-screen">
-      <TrialBanner />
       <div
-        className="flex items-center h-12 px-4 bg-[var(--bg)] border-b border-[var(--surface)] select-none shrink-0"
+        className="relative flex items-center h-12 px-4 bg-[var(--bg)] border-b border-[var(--surface)] select-none shrink-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
+        <TrialBanner />
         <div className="w-[70px] shrink-0" />
         <div className="flex-1">
           <TabBar />

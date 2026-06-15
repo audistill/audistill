@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { LicenseStateSnapshot } from '../../../preload/index.d'
+import { useAppStore } from '../store/app-store'
 
 export function TrialBanner(): React.JSX.Element | null {
+  const openSettings = useAppStore((s) => s.openSettings)
   const [snapshot, setSnapshot] = useState<LicenseStateSnapshot | null>(null)
 
   useEffect(() => {
@@ -17,11 +19,9 @@ export function TrialBanner(): React.JSX.Element | null {
 
   return (
     <div
-      className="shrink-0 flex items-center justify-center gap-3 text-xs select-none"
+      className="absolute inset-0 flex items-center justify-center gap-2 text-[11px] select-none pointer-events-none"
       style={{
-        height: 32,
-        background: urgent ? 'var(--accent)' : 'var(--surface)',
-        color: urgent ? 'white' : 'var(--secondary)',
+        color: urgent ? 'var(--accent)' : 'var(--secondary)',
       }}
     >
       <span>
@@ -33,12 +33,9 @@ export function TrialBanner(): React.JSX.Element | null {
       </span>
       <span className="opacity-50">·</span>
       <button
-        onClick={() => window.api.license.getState().then(() => {
-          const settingsBtn = document.querySelector('[data-navigate="settings-license"]')
-          if (settingsBtn) (settingsBtn as HTMLElement).click()
-        })}
-        className="underline hover:opacity-80 cursor-pointer"
-        style={{ color: urgent ? 'white' : 'var(--accent)' }}
+        onClick={openSettings}
+        className="underline hover:opacity-80 cursor-pointer pointer-events-auto"
+        style={{ color: 'var(--accent)', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
         Enter License Key
       </button>
@@ -47,8 +44,8 @@ export function TrialBanner(): React.JSX.Element | null {
           <span className="opacity-50">·</span>
           <button
             onClick={() => window.electron.ipcRenderer.invoke('license:open-checkout')}
-            className="underline hover:opacity-80 cursor-pointer"
-            style={{ color: 'white' }}
+            className="underline hover:opacity-80 cursor-pointer pointer-events-auto"
+            style={{ color: 'var(--accent)', WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             Buy Audistill
           </button>
