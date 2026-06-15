@@ -2,7 +2,14 @@ import { spawn } from 'node:child_process'
 import { access } from 'node:fs/promises'
 import { extname } from 'node:path'
 import ffmpegPath from 'ffmpeg-static'
+import { app } from 'electron'
 import { SUPPORTED_EXTENSIONS } from '../shared/supported-formats'
+
+function resolveFFmpegBin(): string | null {
+  if (!ffmpegPath) return null
+  if (!app.isPackaged) return ffmpegPath
+  return ffmpegPath.replace('app.asar', 'app.asar.unpacked')
+}
 
 export function parseFfmpegError(stderr: string): string {
   if (/does not contain any stream/i.test(stderr)) {
@@ -30,11 +37,10 @@ export async function preprocess(inputPath: string): Promise<Buffer> {
     throw new Error(`File not found: ${inputPath}`)
   })
 
-  if (!ffmpegPath) {
+  const bin = resolveFFmpegBin()
+  if (!bin) {
     throw new Error('FFmpeg binary not found. Ensure ffmpeg-static is installed correctly.')
   }
-
-  const bin = ffmpegPath
 
   return new Promise((resolve, reject) => {
     const args = ['-i', inputPath, '-ar', '16000', '-ac', '1', '-f', 'f32le', 'pipe:1']

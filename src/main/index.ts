@@ -19,6 +19,10 @@ import { PolarClient } from './polar-client'
 import { requireLicense } from './license-guard'
 import { machineIdSync } from 'node-machine-id'
 
+if (app.isPackaged && process.platform === 'darwin') {
+  process.env.PATH = [process.env.PATH, '/opt/homebrew/bin', '/usr/local/bin'].filter(Boolean).join(':')
+}
+
 nativeTheme.themeSource = 'system'
 
 let db: DatabaseService
@@ -454,7 +458,9 @@ function createWindow(): void {
     minHeight: 500,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 18 },
-    icon: join(__dirname, '../../build/icon.icns'),
+    icon: app.isPackaged
+      ? join(process.resourcesPath, 'icon.icns')
+      : join(__dirname, '../../build/icon.icns'),
     vibrancy: 'sidebar',
     visualEffectState: 'active',
     show: false,
@@ -490,7 +496,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.audistill.app')
 
-  if (process.platform === 'darwin') {
+  if (process.platform === 'darwin' && !app.isPackaged) {
     app.dock.setIcon(join(__dirname, '../../build/icon.png'))
   }
 

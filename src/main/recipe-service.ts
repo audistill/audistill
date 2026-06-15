@@ -14,7 +14,7 @@ export interface Recipe {
   created_at: string
 }
 
-const PROMPTS_DIR = join(__dirname, '..', '..', 'src', 'main', 'prompts')
+const PROMPTS_DIR = join(__dirname, 'prompts')
 
 const RECIPE_SYSTEM_FRAME = `You are a knowledge assistant that summarises audio transcripts.
 

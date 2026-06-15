@@ -8,6 +8,11 @@ files:
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - 'node_modules/ffmpeg-static/ffmpeg'
+  - 'node_modules/onnxruntime-node/bin/**'
+  - 'node_modules/better-sqlite3/build/**'
+afterSign: ./scripts/fix-ad-hoc-signing.cjs
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
