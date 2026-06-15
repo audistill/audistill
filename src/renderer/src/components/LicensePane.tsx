@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { LicenseStateSnapshot } from '../../../preload/index.d'
 
-const POLAR_CHECKOUT_URL = 'https://polar.sh/audistill/checkout'
+const PRICING_URL = 'https://audistill.com/#pricing'
 const POLAR_PORTAL_URL = 'https://polar.sh/audistill/portal'
 const LANDING_PAGE_URL = 'https://audistill.com'
 
@@ -189,7 +189,7 @@ function Links({ checkout, portal }: { checkout: boolean; portal: boolean }): Re
   return (
     <div className="flex gap-3 text-xs">
       {checkout && (
-        <button onClick={() => openExternal(POLAR_CHECKOUT_URL)} className="text-[var(--accent)] underline hover:opacity-80 cursor-pointer">
+        <button onClick={() => openExternal(PRICING_URL)} className="text-[var(--accent)] underline hover:opacity-80 cursor-pointer">
           Buy Audistill
         </button>
       )}

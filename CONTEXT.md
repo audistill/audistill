@@ -76,6 +76,20 @@ _Avoid_: System prompt, persona, preferences
 An external LLM used to execute Recipes and power Chat, accessed via OpenRouter. Users configure a global default Model and optional per-Recipe overrides. The app never calls an LLM without the user's own API key.
 _Avoid_: AI, engine, provider
 
+### Licensing
+
+**License**:
+A one-time purchase that unlocks gated features (Ingest, Chat, Recipe execution). Validated via Polar API using a license key. A License has an activation limit determining how many machines it can be used on simultaneously. The app remains viewable (Episodes, Transcripts, Tabs) without a License — only creation of new content is gated.
+_Avoid_: Subscription, plan, seat
+
+**Trial**:
+A 14-day period starting on first launch of an official build. During Trial, all features are unlocked. When Trial expires, the user must purchase a License to continue creating content. Existing content remains accessible.
+_Avoid_: Free tier, demo, beta
+
+**Activation**:
+Binding a License to a specific machine. Each License has a limit (1, 2, or 3 depending on tier). A user can deactivate a machine to free up a slot. Identified by machine ID.
+_Avoid_: Registration, seat, device slot
+
 ## Example Dialogue
 
 > **Dev:** A user imported a YouTube lecture and wants show notes. Walk me through what happens.

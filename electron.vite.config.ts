@@ -15,7 +15,7 @@ function copyPrompts() {
 export default defineConfig({
   main: {
     define: {
-      __OFFICIAL_BUILD__: JSON.stringify(process.env.NODE_ENV === 'production')
+      __OFFICIAL_BUILD__: JSON.stringify(process.env.OFFICIAL_BUILD === 'true' || process.env.NODE_ENV === 'production')
     },
     plugins: [copyPrompts()],
     build: {

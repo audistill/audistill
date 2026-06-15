@@ -51,6 +51,10 @@ function registerLicenseHandlers(): void {
     shell.openExternal(url)
   })
 
+  ipcMain.handle('license:open-checkout', () => {
+    shell.openExternal('https://audistill.com/#pricing')
+  })
+
   ipcMain.handle('license:get-state', () => {
     return getLicenseSnapshot()
   })
@@ -516,7 +520,7 @@ app.whenReady().then(() => {
     : 'https://api.polar.sh'
   const polarOrgId = process.env.POLAR_SANDBOX
     ? (process.env.POLAR_SANDBOX_ORG_ID ?? '')
-    : (process.env.POLAR_ORG_ID ?? '')
+    : '35976264-5788-49be-8f65-1e7cf950c958'
   const polar = new PolarClient({ baseUrl: polarBaseUrl, organizationId: polarOrgId })
 
   licenseService = new LicenseService({
