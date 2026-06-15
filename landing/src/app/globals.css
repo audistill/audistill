@@ -215,6 +215,61 @@ body {
   100% { left: 85%; opacity: 0; }
 }
 
+/* Pipeline flow animation — particles moving along the connector */
+@keyframes pipeline-flow {
+  0% { transform: translateX(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(300%); opacity: 0; }
+}
+
+@keyframes pipeline-flow-vertical {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(300%); opacity: 0; }
+}
+
+.pipeline-particle {
+  animation: pipeline-flow 3s ease-in-out infinite;
+}
+
+.pipeline-particle-2 {
+  animation: pipeline-flow 3s ease-in-out 1s infinite;
+}
+
+.pipeline-particle-3 {
+  animation: pipeline-flow 3s ease-in-out 2s infinite;
+}
+
+.pipeline-particle-v {
+  animation: pipeline-flow-vertical 3s ease-in-out infinite;
+}
+
+.pipeline-particle-v-2 {
+  animation: pipeline-flow-vertical 3s ease-in-out 1s infinite;
+}
+
+/* Pipeline step entrance */
+@keyframes step-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pipeline-step {
+  animation: step-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.pipeline-step-1 { animation-delay: 0ms; }
+.pipeline-step-2 { animation-delay: 150ms; }
+.pipeline-step-3 { animation-delay: 300ms; }
+
 /* Shimmer effect for accent elements */
 @keyframes shimmer {
   0% { background-position: -200% center; }
