@@ -1,3 +1,8 @@
+## Project structure
+
+- Root: Electron desktop app (React + TypeScript)
+- `landing/`: Separate Next.js project for the marketing/landing page (has its own `package.json`, `node_modules`, etc.)
+
 ## Agent skills
 
 ### Issue tracker
