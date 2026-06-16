@@ -230,17 +230,22 @@
     border-left-color: color-mix(in srgb, var(--accent) 25%, transparent);
   }
 
-  /* Mermaid diagrams */
+  /* Mermaid diagrams — branded container */
   .markdown-content [data-mermaid] {
     overflow-x: auto;
-    margin: 0.75em 0;
+    margin: 1em 0;
+    padding: 1.5em;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface) 50%, var(--bg));
+    border: 1px solid var(--border);
   }
   .markdown-content [data-mermaid] svg {
     max-width: none;
     display: block;
+    margin: 0 auto;
   }
   .markdown-content [data-mermaid-error] {
-    margin: 0.75em 0;
+    margin: 1em 0;
   }
 }
 

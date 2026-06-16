@@ -10,7 +10,7 @@ interface RichMarkdownProps {
 
 let mermaidPromise: Promise<typeof import('mermaid')['default']> | null = null
 let mermaidInstance: typeof import('mermaid')['default'] | null = null
-let mermaidInitialized = false
+let lastThemeMode: 'light' | 'dark' | null = null
 let renderCounter = 0
 
 function getMermaid(): Promise<typeof import('mermaid')['default']> {
@@ -24,56 +24,133 @@ function getMermaid(): Promise<typeof import('mermaid')['default']> {
   return mermaidPromise
 }
 
-function initMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
-  if (mermaidInitialized) return
-  mermaidInitialized = true
+/**
+ * Resolve the current color mode and apply branded Mermaid theming.
+ * Re-initializes when the mode has changed (light ↔ dark).
+ *
+ * Design intent (brand-kit.md):
+ *   "Warm, paper-inspired palette… terracotta accent provides a gentle glow
+ *    — like a reading lamp."
+ *
+ * Light mode: sand paper nodes, terracotta ink borders & edges
+ * Dark mode: elevated surface nodes, terracotta glow borders & edges
+ */
+function applyMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  const mode = isDark ? 'dark' : 'light'
+
+  // Skip re-init if mode hasn't changed
+  if (lastThemeMode === mode) return
+  lastThemeMode = mode
 
   const root = document.documentElement
   const style = getComputedStyle(root)
-  const surface = style.getPropertyValue('--surface').trim() || '#1e1e1c'
-  const border = style.getPropertyValue('--border').trim() || '#2a2a28'
-  const text = style.getPropertyValue('--text').trim() || '#faf9f5'
-  const accent = style.getPropertyValue('--accent').trim() || '#d97757'
+
+  // Read live CSS custom properties
+  const bg = style.getPropertyValue('--bg').trim()
+  const surface = style.getPropertyValue('--surface').trim()
+  const border = style.getPropertyValue('--border').trim()
+  const text = style.getPropertyValue('--text').trim()
+  const secondary = style.getPropertyValue('--secondary').trim()
+  const accent = style.getPropertyValue('--accent').trim()
+
+  // Fallback values per brand-kit
+  const t = {
+    bg: bg || (isDark ? '#141413' : '#faf9f5'),
+    surface: surface || (isDark ? '#1e1e1c' : '#e8e6dc'),
+    border: border || (isDark ? '#2a2a28' : '#d4d2c8'),
+    text: text || (isDark ? '#faf9f5' : '#141413'),
+    secondary: secondary || (isDark ? '#c2c0b8' : '#7a7870'),
+    accent: accent || '#d97757',
+  }
+
+  // Node fill: needs to contrast from the container background.
+  // Light: use surface (sand) — sits on parchment container
+  // Dark: use border shade (slightly elevated) — sits on surface container
+  const nodeFill = isDark ? t.border : t.surface
+
+  // Edge color: in dark mode, use lighter terracotta for visibility
+  const edgeColor = isDark ? '#e89b7f' : t.accent
 
   mermaid.initialize({
     startOnLoad: false,
     theme: 'base',
     themeVariables: {
-      // Primary palette
-      primaryColor: surface,
-      primaryTextColor: text,
-      primaryBorderColor: accent,
-      secondaryColor: surface,
-      secondaryTextColor: text,
-      secondaryBorderColor: accent,
-      tertiaryColor: surface,
-      tertiaryTextColor: text,
-      tertiaryBorderColor: accent,
-      // Node-specific (used by mindmap and others)
-      nodeBkg: surface,
-      nodeBorder: accent,
-      nodeTextColor: text,
-      // Edges and lines
-      lineColor: accent,
-      // Cluster/group borders
-      clusterBorder: accent,
-      // Mindmap color scales — use border color for contrast against background
-      cScale0: border,
-      cScale1: border,
-      cScale2: border,
-      cScale3: border,
-      cScale4: border,
-      cScale5: border,
-      cScale6: border,
-      cScale7: border,
-      cScale8: border,
-      cScale9: border,
-      cScale10: border,
-      cScale11: border,
-      // General
+      // — Node fills & borders —
+      primaryColor: nodeFill,
+      primaryTextColor: t.text,
+      primaryBorderColor: t.accent,
+      secondaryColor: nodeFill,
+      secondaryTextColor: t.text,
+      secondaryBorderColor: t.accent,
+      tertiaryColor: nodeFill,
+      tertiaryTextColor: t.text,
+      tertiaryBorderColor: t.accent,
+
+      // Node-specific (mindmap, state, etc.)
+      nodeBkg: nodeFill,
+      nodeBorder: t.accent,
+      nodeTextColor: t.text,
+
+      // — Edges & connections —
+      lineColor: edgeColor,
+
+      // — Cluster/subgraph borders —
+      clusterBkg: t.bg,
+      clusterBorder: t.accent,
+
+      // — Edge label backgrounds —
+      edgeLabelBackground: t.surface,
+
+      // — Mindmap color scale (all depths use same fill for brand consistency) —
+      cScale0: nodeFill,
+      cScale1: nodeFill,
+      cScale2: nodeFill,
+      cScale3: nodeFill,
+      cScale4: nodeFill,
+      cScale5: nodeFill,
+      cScale6: nodeFill,
+      cScale7: nodeFill,
+      cScale8: nodeFill,
+      cScale9: nodeFill,
+      cScale10: nodeFill,
+      cScale11: nodeFill,
+
+      // — Pie chart (branded slices) —
+      pie1: t.accent,
+      pie2: nodeFill,
+      pie3: t.secondary,
+      pie4: '#e89b7f', // terracotta light
+      pie5: t.border,
+      pie6: '#b85e3f', // terracotta dark
+
+      // — Sequence diagram —
+      actorBkg: nodeFill,
+      actorBorder: t.accent,
+      actorTextColor: t.text,
+      actorLineColor: t.secondary,
+      signalColor: t.text,
+      signalTextColor: t.text,
+      labelBoxBkgColor: nodeFill,
+      labelBoxBorderColor: t.accent,
+      labelTextColor: t.text,
+      loopTextColor: t.text,
+      noteBkgColor: t.surface,
+      noteBorderColor: t.accent,
+      noteTextColor: t.text,
+      activationBkgColor: t.surface,
+      activationBorderColor: t.accent,
+
+      // — Timeline —
+      cScaleLabel0: t.text,
+      cScaleLabel1: t.text,
+      cScaleLabel2: t.text,
+
+      // — Typography —
       fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
       fontSize: '14px',
-      // Background
+
+      // — Background (container handles this via CSS) —
       background: 'transparent',
     },
   })
@@ -90,7 +167,7 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
     getMermaid()
       .then((mermaid) => {
         if (cancelled) return
-        initMermaidTheme(mermaid)
+        applyMermaidTheme(mermaid)
         const id = `mermaid-${++renderCounter}`
         return mermaid.render(id, code)
       })
@@ -111,7 +188,7 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
     return (
       <div data-mermaid-error="">
         <span className="text-xs text-[var(--secondary)] block mb-1">⚠ diagram syntax error</span>
-        <pre className="bg-[var(--surface)] p-3 rounded-md overflow-x-auto">
+        <pre className="bg-[var(--surface)] p-3 rounded-xl overflow-x-auto">
           <code>{code}</code>
         </pre>
       </div>
@@ -123,7 +200,6 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
       <div
         data-mermaid=""
         ref={containerRef}
-        className="overflow-x-auto my-3"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
     )
@@ -131,7 +207,7 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
 
   // Loading state — show raw code until render completes
   return (
-    <pre className="bg-[var(--surface)] p-3 rounded-md overflow-x-auto">
+    <pre className="bg-[var(--surface)] p-3 rounded-xl overflow-x-auto">
       <code>{code}</code>
     </pre>
   )
