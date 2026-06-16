@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Inter, Lora, JetBrains_Mono } from "next/font/google";
+import { Nav } from "@/components/nav";
+import { Footer } from "@/components/footer";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -49,7 +51,11 @@ export default function RootLayout({
       lang="en"
       className={`${poppins.variable} ${inter.variable} ${lora.variable} ${jetbrainsMono.variable} antialiased`}
     >
-      <body className="grain min-h-screen bg-bg text-text">{children}</body>
+      <body className="grain min-h-screen bg-bg text-text">
+        <Nav />
+        {children}
+        <Footer />
+      </body>
     </html>
   );
 }
