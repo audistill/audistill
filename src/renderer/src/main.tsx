@@ -1,8 +1,11 @@
+import * as Sentry from '@sentry/electron/renderer'
 import './assets/main.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+
+Sentry.init({})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

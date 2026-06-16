@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/electron/main'
 import { app, shell, BrowserWindow, nativeTheme, ipcMain, dialog, clipboard, Notification } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -21,6 +22,15 @@ import { machineIdSync } from 'node-machine-id'
 
 if (app.isPackaged && process.platform === 'darwin') {
   process.env.PATH = [process.env.PATH, '/opt/homebrew/bin', '/usr/local/bin'].filter(Boolean).join(':')
+}
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    release: app.getVersion(),
+    environment: app.isPackaged ? 'production' : 'development',
+    enabled: app.isPackaged,
+  })
 }
 
 nativeTheme.themeSource = 'system'

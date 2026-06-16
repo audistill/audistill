@@ -1,6 +1,6 @@
 ---
 title: Integrate Sentry error reporting (main + renderer)
-status: ready-for-human
+status: done
 created: 2026-06-15
 ---
 
