@@ -794,7 +794,27 @@ function FAQ() {
         </div>
 
         <div className="space-y-4">
-          {faqs.map((faq) => (
+          {faqs.slice(0, 3).map((faq) => (
+            <div
+              key={faq.q}
+              className="bg-surface/60 border border-border rounded-[12px] p-5 hover:border-accent/15 transition-colors duration-200"
+            >
+              <h3 className="font-[family-name:var(--font-heading)] font-medium text-[15px] mb-2">
+                {faq.q}
+              </h3>
+              <p className="text-sm text-secondary leading-relaxed">
+                {faq.a}
+              </p>
+            </div>
+          ))}
+
+          <div className="border-l-2 border-accent/40 bg-accent/[0.03] rounded-r-[12px] px-6 py-5 my-6">
+            <p className="font-[family-name:var(--font-accent)] italic text-[15px] text-text/90 leading-relaxed">
+              &ldquo;Your audio never leaves your machine. Transcription happens entirely on-device.&rdquo;
+            </p>
+          </div>
+
+          {faqs.slice(3).map((faq) => (
             <div
               key={faq.q}
               className="bg-surface/60 border border-border rounded-[12px] p-5 hover:border-accent/15 transition-colors duration-200"
