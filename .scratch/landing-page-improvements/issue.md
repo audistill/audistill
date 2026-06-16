@@ -1,6 +1,6 @@
 ---
 title: "Landing page improvements: new copy, simplified pipeline, feature grid, FAQ, CTA hierarchy"
-status: ready-for-agent
+status: done
 created: 2026-06-15
 ---
 
