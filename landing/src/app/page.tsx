@@ -277,6 +277,20 @@ function Pipeline() {
 function FeatureGrid() {
   const features = [
     {
+      title: "Ask, Search, Create",
+      description: "A research assistant with tools. Search across your library, extract patterns, and generate new content — not just a chatbot.",
+      icon: (
+        <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+        </svg>
+      ),
+      iconShape: "rounded-full" as const,
+      border: "border-accent/20",
+      hoverBorder: "hover:border-accent/30",
+      texture: null,
+      hero: true,
+    },
+    {
       title: "Multi-source ingest",
       description: "Files, YouTube links, RSS feeds, or any URL. One field, auto-detected.",
       icon: (
@@ -330,18 +344,6 @@ function FeatureGrid() {
       texture: "dot-grid",
     },
     {
-      title: "Chat with your library",
-      description: "Ask questions across episodes. Surface patterns. Generate new content.",
-      icon: (
-        <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-        </svg>
-      ),
-      iconShape: "rounded-[8px]" as const,
-      hoverBorder: "hover:border-accent/20",
-      texture: null,
-    },
-    {
       title: "Full-text search",
       description: "Find anything across every transcript and every generated document.",
       icon: (
@@ -369,25 +371,72 @@ function FeatureGrid() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className={`relative bg-surface/60 border ${feature.border ?? "border-border"} rounded-[14px] p-6 ${feature.hoverBorder} transition-all duration-300 overflow-hidden`}
-            >
-              {feature.texture && (
-                <div className={`absolute inset-0 ${feature.texture} ${feature.texture === "diagonal-lines" ? "opacity-[0.04]" : "opacity-[0.02]"} pointer-events-none`} />
-              )}
-              <div className={`relative w-9 h-9 ${feature.iconShape} bg-accent/10 border border-accent/15 flex items-center justify-center mb-4 text-accent`}>
-                {feature.icon}
+          {features.map((feature) =>
+            feature.hero ? (
+              <div
+                key={feature.title}
+                className="relative lg:col-span-2 bg-surface/60 border border-accent/20 rounded-[14px] p-6 hover:border-accent/30 transition-all duration-300 overflow-hidden card-glow"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+                  <div className="flex-1 min-w-0">
+                    <div className="relative w-9 h-9 rounded-full bg-accent/10 border border-accent/15 ring-1 ring-accent/10 flex items-center justify-center mb-4 text-accent">
+                      {feature.icon}
+                    </div>
+                    <h3 className="relative font-[family-name:var(--font-heading)] font-semibold text-sm mb-2">
+                      {feature.title}
+                    </h3>
+                    <p className="relative text-[13px] text-secondary leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
+                  <div className="lg:w-[260px] shrink-0">
+                    <div className="rounded-[10px] bg-surface/50 border border-border/60 p-3 space-y-2.5 backdrop-blur-sm">
+                      <div className="flex justify-end">
+                        <div className="bg-accent/10 border border-accent/15 rounded-[8px] px-3 py-1.5 max-w-[200px]">
+                          <p className="text-[11px] text-primary/80 leading-snug">Find every mention of churn across last month&apos;s interviews</p>
+                        </div>
+                      </div>
+                      <div className="rounded-[8px] bg-background/60 border border-border/40 p-2.5">
+                        <p className="text-[10px] font-medium text-primary/70 mb-1.5">3 matches found</p>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-[10px] text-secondary/70">
+                            <span className="w-1 h-1 rounded-full bg-accent/50" />
+                            <span>Ep. 12 — 04:32</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-secondary/70">
+                            <span className="w-1 h-1 rounded-full bg-accent/50" />
+                            <span>Ep. 8 — 11:15</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-secondary/70">
+                            <span className="w-1 h-1 rounded-full bg-accent/50" />
+                            <span>Ep. 3 — 22:48</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="relative font-[family-name:var(--font-heading)] font-semibold text-sm mb-2">
-                {feature.title}
-              </h3>
-              <p className="relative text-[13px] text-secondary leading-relaxed">
-                {feature.description}
-              </p>
-            </div>
-          ))}
+            ) : (
+              <div
+                key={feature.title}
+                className={`relative bg-surface/60 border ${feature.border ?? "border-border"} rounded-[14px] p-6 ${feature.hoverBorder} transition-all duration-300 overflow-hidden`}
+              >
+                {feature.texture && (
+                  <div className={`absolute inset-0 ${feature.texture} ${feature.texture === "diagonal-lines" ? "opacity-[0.04]" : "opacity-[0.02]"} pointer-events-none`} />
+                )}
+                <div className={`relative w-9 h-9 ${feature.iconShape} bg-accent/10 border border-accent/15 flex items-center justify-center mb-4 text-accent`}>
+                  {feature.icon}
+                </div>
+                <h3 className="relative font-[family-name:var(--font-heading)] font-semibold text-sm mb-2">
+                  {feature.title}
+                </h3>
+                <p className="relative text-[13px] text-secondary leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            )
+          )}
         </div>
       </div>
     </section>
