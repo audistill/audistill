@@ -1,6 +1,6 @@
 ---
 title: "Mermaid diagram rendering with branded theme and lazy loading"
-status: ready-for-agent
+status: done
 created: 2026-06-16
 ---
 

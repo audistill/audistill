@@ -1,6 +1,6 @@
 ---
 title: "Rich Markdown rendering with Mermaid diagrams and branded design system"
-status: ready-for-agent
+status: done
 created: 2026-06-16
 ---
 

@@ -2,8 +2,8 @@
  * @vitest-environment happy-dom
  */
 import '@testing-library/jest-dom/vitest'
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import { RichMarkdown } from './RichMarkdown'
 
 describe('RichMarkdown', () => {
@@ -84,5 +84,60 @@ describe('RichMarkdown', () => {
     const del = container.querySelector('del')
     expect(del).toBeInTheDocument()
     expect(del).toHaveTextContent('deleted')
+  })
+})
+
+describe('RichMarkdown - Mermaid diagrams', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('renders valid mermaid code blocks as SVG', async () => {
+    const mockSvg = '<svg><text>Mock diagram</text></svg>'
+    vi.doMock('mermaid', () => ({
+      default: {
+        initialize: vi.fn(),
+        render: vi.fn().mockResolvedValue({ svg: mockSvg }),
+      },
+    }))
+    const { RichMarkdown: RM } = await import('./RichMarkdown')
+
+    const content = '```mermaid\ngraph TD\n  A --> B\n```'
+    const { container } = render(<RM content={content} />)
+
+    await waitFor(() => {
+      const svgContainer = container.querySelector('[data-mermaid]')
+      expect(svgContainer).toBeInTheDocument()
+      expect(svgContainer!.innerHTML).toContain('<svg')
+    })
+  })
+
+  it('falls back to code block with error indicator on invalid mermaid', async () => {
+    vi.doMock('mermaid', () => ({
+      default: {
+        initialize: vi.fn(),
+        render: vi.fn().mockRejectedValue(new Error('Parse error')),
+      },
+    }))
+    const { RichMarkdown: RM } = await import('./RichMarkdown')
+
+    const content = '```mermaid\ninvalid diagram syntax\n```'
+    const { container } = render(<RM content={content} />)
+
+    await waitFor(() => {
+      const errorIndicator = container.querySelector('[data-mermaid-error]')
+      expect(errorIndicator).toBeInTheDocument()
+    })
+    // Should show the raw code
+    expect(container.querySelector('code')).toBeInTheDocument()
+  })
+
+  it('does not affect non-mermaid code blocks', () => {
+    const content = '```python\nprint("hello")\n```'
+    const { container } = render(<RichMarkdown content={content} />)
+
+    const pre = container.querySelector('pre')
+    expect(pre).toBeInTheDocument()
+    expect(container.querySelector('[data-mermaid]')).not.toBeInTheDocument()
   })
 })

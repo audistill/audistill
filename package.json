@@ -26,6 +26,7 @@
     "electron-updater": "^6.8.9",
     "ffmpeg-static": "^5.3.0",
     "marked": "^18.0.5",
+    "mermaid": "^11.15.0",
     "node-machine-id": "^1.1.12",
     "onnxruntime-node": "^1.26.0",
     "react-markdown": "^10.1.0",

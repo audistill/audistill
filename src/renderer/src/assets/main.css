@@ -229,6 +229,19 @@
   .markdown-content blockquote blockquote blockquote {
     border-left-color: color-mix(in srgb, var(--accent) 25%, transparent);
   }
+
+  /* Mermaid diagrams */
+  .markdown-content [data-mermaid] {
+    overflow-x: auto;
+    margin: 0.75em 0;
+  }
+  .markdown-content [data-mermaid] svg {
+    max-width: none;
+    display: block;
+  }
+  .markdown-content [data-mermaid-error] {
+    margin: 0.75em 0;
+  }
 }
 
 @layer utilities {
