@@ -286,6 +286,9 @@ function FeatureGrid() {
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
       ),
+      iconShape: "rounded-[8px]" as const,
+      cardClass: "hover:border-accent/20",
+      texture: null,
     },
     {
       title: "On-device transcription",
@@ -295,6 +298,9 @@ function FeatureGrid() {
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
       ),
+      iconShape: "rounded-full" as const,
+      cardClass: "border-accent/10 hover:border-accent/30",
+      texture: null,
     },
     {
       title: "Bring your own model",
@@ -305,6 +311,9 @@ function FeatureGrid() {
           <path d="M7 11V7a5 5 0 0110 0v4" />
         </svg>
       ),
+      iconShape: "rounded-full" as const,
+      cardClass: "hover:border-accent/25",
+      texture: "diagonal-lines",
     },
     {
       title: "Custom templates",
@@ -315,6 +324,9 @@ function FeatureGrid() {
           <path d="M7 7h10M7 12h10M7 17h6" />
         </svg>
       ),
+      iconShape: "rounded-[8px]" as const,
+      cardClass: "hover:border-accent/15",
+      texture: null,
     },
     {
       title: "Chat with your library",
@@ -324,6 +336,9 @@ function FeatureGrid() {
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
         </svg>
       ),
+      iconShape: "rounded-[8px]" as const,
+      cardClass: "hover:border-accent/20",
+      texture: "dot-grid",
     },
     {
       title: "Full-text search",
@@ -334,6 +349,9 @@ function FeatureGrid() {
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       ),
+      iconShape: "rounded-full" as const,
+      cardClass: "hover:border-accent/25",
+      texture: null,
     },
   ];
 
@@ -353,15 +371,18 @@ function FeatureGrid() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="bg-surface/60 border border-border rounded-[14px] p-6 hover:border-accent/20 transition-all duration-300"
+              className={`bg-surface/60 border border-border rounded-[14px] p-6 transition-all duration-300 relative overflow-hidden ${feature.cardClass}`}
             >
-              <div className="w-9 h-9 rounded-[8px] bg-accent/10 border border-accent/15 flex items-center justify-center mb-4 text-accent">
+              {feature.texture && (
+                <div className={`absolute inset-0 ${feature.texture} pointer-events-none ${feature.texture === "diagonal-lines" ? "opacity-[0.04]" : "opacity-[0.02]"}`} />
+              )}
+              <div className={`relative w-9 h-9 ${feature.iconShape} bg-accent/10 border border-accent/15 flex items-center justify-center mb-4 text-accent`}>
                 {feature.icon}
               </div>
-              <h3 className="font-[family-name:var(--font-heading)] font-semibold text-sm mb-2">
+              <h3 className="relative font-[family-name:var(--font-heading)] font-semibold text-sm mb-2">
                 {feature.title}
               </h3>
-              <p className="text-[13px] text-secondary leading-relaxed">
+              <p className="relative text-[13px] text-secondary leading-relaxed">
                 {feature.description}
               </p>
             </div>
