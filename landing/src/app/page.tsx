@@ -1,4 +1,5 @@
 import { BrewCommand } from "./brew-command";
+import { GitHubStars } from "@/components/github-stars";
 
 export default function Home() {
   return (
@@ -8,6 +9,7 @@ export default function Home() {
       <FeatureGrid />
       <UseCases />
       <Pricing />
+      <OpenSource />
       <FAQ />
       <Install />
     </>
@@ -772,6 +774,29 @@ function Pricing() {
             </div>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Open Source ────────────────────────────────────────────── */
+
+function OpenSource() {
+  return (
+    <section id="open-source" className="px-6 py-20 relative">
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+      <div className="max-w-2xl mx-auto text-center">
+        <h2 className="font-[family-name:var(--font-heading)] text-[28px] font-semibold mb-3">
+          See exactly how your data is handled.
+        </h2>
+        <p className="text-secondary text-sm leading-relaxed mb-6">
+          Every line of code is auditable. The source is open — not because we had to, but because privacy claims mean nothing without proof.
+        </p>
+        <GitHubStars
+          fallbackText="Star on GitHub"
+          className="inline-flex items-center gap-2 bg-surface/80 border border-border rounded-[10px] px-4 py-2.5 text-sm hover:border-accent/20 hover:text-text transition-all duration-200"
+        />
       </div>
     </section>
   );
