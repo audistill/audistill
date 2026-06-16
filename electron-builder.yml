@@ -27,11 +27,15 @@ asarUnpack:
   - 'node_modules/better-sqlite3/build/**'
 afterSign: ./scripts/fix-ad-hoc-signing.cjs
 mac:
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSDocumentsFolderUsageDescription: Application needs access to open audio files.
   notarize: false
   target:
     - target: dmg
+      arch:
+        - arm64
+    - target: zip
       arch:
         - arm64

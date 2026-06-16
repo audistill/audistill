@@ -1,6 +1,6 @@
 ---
 title: Configure electron-builder for real code signing
-status: ready-for-agent
+status: done
 created: 2026-06-15
 ---
 

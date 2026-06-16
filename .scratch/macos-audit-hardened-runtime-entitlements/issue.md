@@ -1,6 +1,6 @@
 ---
 title: Audit and update hardened runtime entitlements
-status: ready-for-agent
+status: done
 created: 2026-06-15
 ---
 

@@ -2,9 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <!-- Required by Electron/V8 JIT compiler -->
   <key>com.apple.security.cs.allow-jit</key>
   <true/>
+  <!-- Required by Electron/V8 for WebAssembly and dynamic code generation -->
   <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <!-- Required for better-sqlite3.node and ffmpeg binaries that aren't signed with the same team ID -->
+  <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
 </dict>
 </plist>
