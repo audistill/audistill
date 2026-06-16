@@ -1,3 +1,5 @@
+import { GitHubStars } from "./github-stars";
+
 export function Footer() {
   return (
     <footer className="px-6 py-10 border-t border-border relative overflow-hidden">
@@ -21,11 +23,11 @@ export function Footer() {
             <a href="/#install" className="hover:text-accent transition-colors">Install</a>
           </div>
 
-          {/* Right: legal + contact */}
+          {/* Right: legal + GitHub + contact */}
           <div className="flex items-center gap-4">
             <a href="/terms" className="hover:text-accent transition-colors">Terms</a>
             <a href="/privacy" className="hover:text-accent transition-colors">Privacy</a>
-            <a href="https://github.com/audistill/audistill" className="hover:text-accent transition-colors" target="_blank" rel="noopener noreferrer">Source Code</a>
+            <GitHubStars fallbackText="Source Code" className="text-xs" />
             <span className="text-border">&middot;</span>
             <a href="mailto:info@audistill.com" className="hover:text-accent transition-colors">
               info@audistill.com

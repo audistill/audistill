@@ -64,7 +64,10 @@ function Hero() {
           >
             Download for Mac
           </a>
-          <BrewCommand />
+          <div className="flex items-center gap-3">
+            <BrewCommand />
+          </div>
+          <GitHubStars fallbackText="Open Source" className="text-[12px] opacity-70 hover:opacity-100" />
         </div>
 
         {/* App Screenshot with window chrome */}
@@ -771,6 +774,9 @@ function Pricing() {
               <span className="flex items-center gap-1.5">
                 <span className="text-accent">&check;</span> BYOK — no API markup
               </span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-accent">&check;</span> <GitHubStars fallbackText="Open source — no lock-in" className="text-[11px]" />
+              </span>
             </div>
           </div>
         </div>
@@ -908,6 +914,10 @@ function Install() {
 
         {/* Brew command — secondary */}
         <BrewCommand />
+
+        <div className="mt-6">
+          <GitHubStars fallbackText="Star on GitHub" className="text-[12px] opacity-60 hover:opacity-100" />
+        </div>
       </div>
     </section>
   );
