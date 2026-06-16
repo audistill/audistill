@@ -1,6 +1,6 @@
 ---
 title: Document the macOS release pipeline
-status: ready-for-agent
+status: done
 created: 2026-06-15
 ---
 

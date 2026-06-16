@@ -17,7 +17,8 @@
     "test": "vitest run",
     "posttest": "electron-rebuild -f -w better-sqlite3 --build-from-source",
     "postinstall": "rm -rf node_modules/better-sqlite3/build && electron-rebuild -f -w better-sqlite3 --build-from-source",
-    "build:mac": "pnpm run build && electron-builder --mac"
+    "build:mac": "pnpm run build && electron-builder --mac",
+    "release:mac": "node scripts/release-mac.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

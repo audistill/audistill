@@ -1,6 +1,6 @@
 ---
 title: Create local release script (pnpm release:mac)
-status: ready-for-agent
+status: done
 created: 2026-06-15
 ---
 
