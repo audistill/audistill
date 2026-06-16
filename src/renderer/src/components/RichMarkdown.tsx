@@ -31,6 +31,7 @@ function initMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
   const root = document.documentElement
   const style = getComputedStyle(root)
   const surface = style.getPropertyValue('--surface').trim() || '#1e1e1c'
+  const border = style.getPropertyValue('--border').trim() || '#2a2a28'
   const text = style.getPropertyValue('--text').trim() || '#faf9f5'
   const accent = style.getPropertyValue('--accent').trim() || '#d97757'
 
@@ -56,19 +57,19 @@ function initMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
       lineColor: accent,
       // Cluster/group borders
       clusterBorder: accent,
-      // Mindmap color scales (depth levels)
-      cScale0: surface,
-      cScale1: surface,
-      cScale2: surface,
-      cScale3: surface,
-      cScale4: surface,
-      cScale5: surface,
-      cScale6: surface,
-      cScale7: surface,
-      cScale8: surface,
-      cScale9: surface,
-      cScale10: surface,
-      cScale11: surface,
+      // Mindmap color scales — use border color for contrast against background
+      cScale0: border,
+      cScale1: border,
+      cScale2: border,
+      cScale3: border,
+      cScale4: border,
+      cScale5: border,
+      cScale6: border,
+      cScale7: border,
+      cScale8: border,
+      cScale9: border,
+      cScale10: border,
+      cScale11: border,
       // General
       fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
       fontSize: '14px',
