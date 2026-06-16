@@ -17,13 +17,11 @@
     "test": "vitest run",
     "posttest": "electron-rebuild -f -w better-sqlite3 --build-from-source",
     "postinstall": "rm -rf node_modules/better-sqlite3/build && electron-rebuild -f -w better-sqlite3 --build-from-source",
-    "build:mac": "pnpm run build && electron-builder --mac",
-    "release:mac": "node scripts/release-mac.mjs"
+    "build:mac": "pnpm run build && electron-builder --mac"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@sentry/electron": "^7.13.0",
     "better-sqlite3": "^12.10.0",
     "electron-updater": "^6.8.9",
     "ffmpeg-static": "^5.3.0",

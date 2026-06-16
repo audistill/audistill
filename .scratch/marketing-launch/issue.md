@@ -1,6 +1,6 @@
 ---
 title: "PRD: Marketing launch — domain, landing page, demo asset, big-bang open-source launch"
-status: ready-for-human
+status: ready-for-agent
 created: 2026-06-10
 ---
 

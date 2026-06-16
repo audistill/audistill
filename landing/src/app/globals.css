@@ -250,6 +250,18 @@ body {
   animation: pipeline-flow-vertical 3s ease-in-out 1s infinite;
 }
 
+/* Pipeline vertical line glow traveling animation */
+@keyframes pipeline-line-travel {
+  0% { top: -10%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 90%; opacity: 0; }
+}
+
+.pipeline-line-glow {
+  animation: pipeline-line-travel 4s ease-in-out infinite;
+}
+
 /* Pipeline step entrance */
 @keyframes step-reveal {
   from {

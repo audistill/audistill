@@ -96,176 +96,205 @@ function Hero() {
   );
 }
 
-/* ─── Pipeline / How it Works — Flowing Pipeline ─────────────── */
+/* ─── Pipeline / How it Works — Editorial Timeline ───────────── */
 
 function Pipeline() {
   return (
-    <section className="px-6 py-28 relative section-glow overflow-hidden">
-      <div className="absolute inset-0 dot-grid opacity-20 pointer-events-none" />
+    <section className="px-6 py-32 relative section-glow overflow-hidden">
+      {/* Background atmosphere */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-accent/[0.025] rounded-full blur-[120px]" />
+      </div>
 
       <div className="max-w-5xl mx-auto relative">
-        <div className="text-center mb-20">
-          <h2 className="font-[family-name:var(--font-heading)] text-[36px] font-semibold mb-3">
-            How it works
+        {/* Section header */}
+        <div className="text-center mb-24">
+          <span className="inline-block text-[11px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.2em] mb-4">The Pipeline</span>
+          <h2 className="font-[family-name:var(--font-heading)] text-[clamp(32px,5vw,44px)] font-bold tracking-[-0.02em] mb-4">
+            Three steps. Zero friction.
           </h2>
-          <p className="text-secondary">Three steps. No complexity.</p>
+          <p className="text-secondary text-base max-w-md mx-auto leading-relaxed">
+            From raw audio to searchable knowledge — entirely on your machine.
+          </p>
         </div>
 
-        {/* Pipeline layout — horizontal on desktop, vertical on mobile */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-y-4 md:gap-y-0">
+        {/* Timeline container */}
+        <div className="relative">
+          {/* Vertical flowing line — desktop only */}
+          <div className="hidden md:block absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px">
+            <div className="absolute inset-0 bg-gradient-to-b from-border via-accent/30 to-accent/50 rounded-full" />
+            {/* Animated glow traveling down the line */}
+            <div className="absolute left-1/2 -translate-x-1/2 w-3 h-20 bg-gradient-to-b from-transparent via-accent/40 to-transparent rounded-full blur-[4px] pipeline-line-glow" />
+          </div>
 
-          {/* ─── Step 1: Drop it in ─── */}
-          <div className="pipeline-step pipeline-step-1 relative group">
-            <div className="bg-surface/80 border border-border rounded-[16px] p-6 transition-all duration-500 hover:border-accent/25 hover:shadow-[0_8px_32px_rgba(217,119,87,0.08)] relative overflow-hidden">
-              {/* Decorative corner accent */}
-              <div className="absolute top-0 right-0 w-20 h-20 bg-accent/[0.04] rounded-full blur-[30px] group-hover:bg-accent/[0.08] transition-all duration-500" />
+          {/* Steps */}
+          <div className="space-y-16 md:space-y-0">
 
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-11 h-11 rounded-[12px] bg-gradient-to-br from-accent/15 to-accent/5 border border-accent/20 flex items-center justify-center shadow-[0_0_16px_rgba(217,119,87,0.08),inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent/60 uppercase tracking-[0.15em]">Input</span>
+            {/* ─── Step 1: Drop it in ─── */}
+            <div className="pipeline-step pipeline-step-1 md:grid md:grid-cols-2 md:gap-16 md:items-center md:pb-24">
+              {/* Content — left side */}
+              <div className="md:text-right">
+                <div className="inline-flex items-center gap-3 mb-5 md:flex-row-reverse">
+                  <span className="font-[family-name:var(--font-heading)] text-[64px] md:text-[80px] font-bold leading-none text-accent/[0.08] select-none">01</span>
                 </div>
-
-                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-xl mb-2.5">
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-2xl md:text-[28px] tracking-[-0.01em] mb-3">
                   Drop it in
                 </h3>
-                <p className="text-[13px] text-secondary leading-relaxed mb-5">
-                  Files, YouTube links, RSS feeds, or paste a URL.
+                <p className="text-secondary text-[15px] leading-relaxed mb-6 max-w-sm md:ml-auto">
+                  Files, YouTube links, RSS feeds, or any URL. One input field auto-detects everything.
                 </p>
-
-                {/* Mini visual: source type pills */}
-                <div className="flex flex-wrap gap-1.5">
-                  {["MP3", "YouTube", "RSS", "URL"].map((source) => (
-                    <span key={source} className="text-[10px] font-[family-name:var(--font-mono)] text-stone bg-bg/80 px-2.5 py-1 rounded-[6px] border border-border">
+                {/* Source pills */}
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  {["MP3", "YouTube", "RSS", "URL", "Podcast Feed"].map((source) => (
+                    <span key={source} className="text-[11px] font-[family-name:var(--font-mono)] text-stone/80 bg-surface/80 px-3 py-1.5 rounded-full border border-border hover:border-accent/20 hover:text-accent/80 transition-colors duration-200">
                       {source}
                     </span>
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* ─── Connector 1→2 ─── */}
-          <div className="hidden md:flex items-center justify-center px-2">
-            <div className="relative w-12 h-[3px]">
-              {/* Track */}
-              <div className="absolute inset-0 bg-gradient-to-r from-border to-accent/20 rounded-full" />
-              {/* Animated particles */}
-              <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-accent/60 shadow-[0_0_8px_rgba(217,119,87,0.5)] pipeline-particle" />
-              <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-accent/40 shadow-[0_0_6px_rgba(217,119,87,0.3)] pipeline-particle-2" />
-            </div>
-          </div>
-          {/* Mobile connector */}
-          <div className="flex md:hidden justify-center">
-            <div className="relative w-[3px] h-8">
-              <div className="absolute inset-0 bg-gradient-to-b from-border to-accent/20 rounded-full" />
-              <div className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-accent/60 shadow-[0_0_8px_rgba(217,119,87,0.5)] pipeline-particle-v" />
-            </div>
-          </div>
-
-          {/* ─── Step 2: Distill it (THE CORE — visually emphasized) ─── */}
-          <div className="pipeline-step pipeline-step-2 relative group">
-            <div className="bg-surface/90 border border-accent/20 rounded-[16px] p-6 transition-all duration-500 hover:border-accent/35 hover:shadow-[0_12px_48px_rgba(217,119,87,0.12)] relative overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
-              {/* Central glow — this step is the transformation */}
-              <div className="absolute inset-0 bg-gradient-to-br from-accent/[0.06] via-transparent to-accent/[0.03] pointer-events-none" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-accent/[0.06] rounded-full blur-[40px] group-hover:w-40 group-hover:h-40 transition-all duration-700" />
-
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-11 h-11 rounded-[12px] bg-gradient-to-br from-accent/20 to-accent/10 border border-accent/25 flex items-center justify-center shadow-[0_0_20px_rgba(217,119,87,0.12),inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                      <path d="M2 17l10 5 10-5" />
-                      <path d="M2 12l10 5 10-5" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.15em]">On-Device</span>
+              {/* Visual — right side */}
+              <div className="mt-8 md:mt-0 relative">
+                {/* Node dot on the timeline */}
+                <div className="hidden md:block absolute left-0 top-1/2 -translate-x-[calc(50%+2rem)] -translate-y-1/2">
+                  <div className="w-4 h-4 rounded-full bg-bg border-2 border-accent/40 shadow-[0_0_12px_rgba(217,119,87,0.3)]" />
                 </div>
+                <div className="bg-surface/70 border border-border rounded-[16px] p-5 backdrop-blur-sm hover:border-accent/20 transition-all duration-300 group">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-accent/15 to-accent/5 border border-accent/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    </div>
+                    <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent/60 uppercase tracking-[0.15em]">Input</span>
+                  </div>
+                  {/* Drop zone mockup */}
+                  <div className="border-2 border-dashed border-border/60 rounded-[12px] p-5 flex flex-col items-center justify-center text-center group-hover:border-accent/20 transition-colors duration-300">
+                    <svg className="w-8 h-8 text-stone/40 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span className="text-[12px] text-stone/60 font-[family-name:var(--font-mono)]">Drop files or paste a link</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-xl mb-2.5">
+            {/* ─── Step 2: Distill it (THE CORE) ─── */}
+            <div className="pipeline-step pipeline-step-2 md:grid md:grid-cols-2 md:gap-16 md:items-center md:py-24">
+              {/* Visual — left side (reversed order for zigzag) */}
+              <div className="order-2 md:order-1 mt-8 md:mt-0 relative">
+                {/* Node dot — glowing larger for emphasis */}
+                <div className="hidden md:block absolute right-0 top-1/2 translate-x-[calc(50%+2rem)] -translate-y-1/2">
+                  <div className="w-5 h-5 rounded-full bg-accent/20 border-2 border-accent/60 shadow-[0_0_20px_rgba(217,119,87,0.4),0_0_40px_rgba(217,119,87,0.15)]" />
+                </div>
+                <div className="relative bg-surface/90 border border-accent/25 rounded-[16px] p-6 shadow-[0_8px_40px_rgba(0,0,0,0.25),0_0_60px_rgba(217,119,87,0.06)] overflow-hidden group">
+                  {/* Inner glow */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-accent/[0.05] via-transparent to-accent/[0.03] pointer-events-none" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-accent/[0.05] rounded-full blur-[50px] group-hover:w-52 group-hover:h-52 transition-all duration-700" />
+
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-accent/25 to-accent/10 border border-accent/30 flex items-center justify-center shadow-[0_0_20px_rgba(217,119,87,0.15)]">
+                        <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                          <path d="M2 17l10 5 10-5" />
+                          <path d="M2 12l10 5 10-5" />
+                        </svg>
+                      </div>
+                      <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.15em]">On-Device</span>
+                    </div>
+
+                    {/* Speed benchmark */}
+                    <div className="bg-bg/70 rounded-[12px] border border-border p-4 mb-4">
+                      <div className="flex items-baseline justify-between mb-3">
+                        <span className="text-[12px] text-stone font-[family-name:var(--font-mono)]">1 hr audio</span>
+                        <span className="text-lg font-[family-name:var(--font-heading)] font-bold text-accent">&lt; 2 min</span>
+                      </div>
+                      <div className="h-2 bg-surface rounded-full overflow-hidden">
+                        <div className="h-full w-[95%] bg-gradient-to-r from-accent/60 via-accent to-accent/80 rounded-full shimmer-accent" />
+                      </div>
+                      <p className="text-[10px] text-stone/60 mt-2 font-[family-name:var(--font-mono)]">30–50× realtime on Apple Silicon</p>
+                    </div>
+
+                    {/* Model choice */}
+                    <div className="flex items-center gap-2 text-[11px] text-secondary">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent/50" />
+                      <span>Summarized by any model you choose</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Content — right side */}
+              <div className="order-1 md:order-2">
+                <div className="inline-flex items-center gap-3 mb-5">
+                  <span className="font-[family-name:var(--font-heading)] text-[64px] md:text-[80px] font-bold leading-none text-accent/[0.12] select-none">02</span>
+                </div>
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-2xl md:text-[28px] tracking-[-0.01em] mb-3">
                   Distill it
                 </h3>
-                <p className="text-[13px] text-secondary leading-relaxed mb-5">
-                  Transcribed on-device in minutes. Summarized by any model you choose.
+                <p className="text-secondary text-[15px] leading-relaxed max-w-sm">
+                  Transcribed on-device in minutes using Whisper on Apple Silicon. Then summarized, structured, and tagged by the LLM of your choice.
                 </p>
-
-                {/* Mini visual: speed indicator */}
-                <div className="bg-bg/60 rounded-[10px] border border-border p-3">
-                  <div className="flex items-center justify-between text-[11px] mb-2">
-                    <span className="text-stone font-[family-name:var(--font-mono)]">1hr audio</span>
-                    <span className="text-accent font-[family-name:var(--font-mono)] font-medium">&lt; 2 min</span>
-                  </div>
-                  <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-                    <div className="h-full w-[95%] bg-gradient-to-r from-accent/50 via-accent to-accent/70 rounded-full shimmer-accent" />
-                  </div>
-                </div>
+                <p className="text-stone text-[13px] mt-4 font-[family-name:var(--font-accent)] italic">
+                  Audio never leaves your machine.
+                </p>
               </div>
             </div>
-          </div>
 
-          {/* ─── Connector 2→3 ─── */}
-          <div className="hidden md:flex items-center justify-center px-2">
-            <div className="relative w-12 h-[3px]">
-              <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-accent/40 rounded-full" />
-              <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-accent/70 shadow-[0_0_10px_rgba(217,119,87,0.6)] pipeline-particle" />
-              <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-accent/50 shadow-[0_0_6px_rgba(217,119,87,0.4)] pipeline-particle-3" />
-            </div>
-          </div>
-          {/* Mobile connector */}
-          <div className="flex md:hidden justify-center">
-            <div className="relative w-[3px] h-8">
-              <div className="absolute inset-0 bg-gradient-to-b from-accent/20 to-accent/40 rounded-full" />
-              <div className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-accent/70 shadow-[0_0_10px_rgba(217,119,87,0.6)] pipeline-particle-v-2" />
-            </div>
-          </div>
-
-          {/* ─── Step 3: Work with it ─── */}
-          <div className="pipeline-step pipeline-step-3 relative group">
-            <div className="bg-surface/80 border border-border rounded-[16px] p-6 transition-all duration-500 hover:border-accent/25 hover:shadow-[0_8px_32px_rgba(217,119,87,0.08)] relative overflow-hidden">
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/[0.04] rounded-full blur-[30px] group-hover:bg-accent/[0.08] transition-all duration-500" />
-
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-11 h-11 rounded-[12px] bg-gradient-to-br from-accent/15 to-accent/5 border border-accent/20 flex items-center justify-center shadow-[0_0_16px_rgba(217,119,87,0.08),inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2a8 8 0 018 8c0 3.4-2.1 6.3-5 7.5V20a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2.5C6.1 16.3 4 13.4 4 10a8 8 0 018-8z" />
-                      <path d="M10 14.5a2 2 0 012-2 2 2 0 012 2" />
-                      <line x1="12" y1="6" x2="12" y2="8" />
-                    </svg>
-                  </div>
-                  <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent/60 uppercase tracking-[0.15em]">Output</span>
+            {/* ─── Step 3: Work with it ─── */}
+            <div className="pipeline-step pipeline-step-3 md:grid md:grid-cols-2 md:gap-16 md:items-center md:pt-24">
+              {/* Content — left side */}
+              <div className="md:text-right">
+                <div className="inline-flex items-center gap-3 mb-5 md:flex-row-reverse">
+                  <span className="font-[family-name:var(--font-heading)] text-[64px] md:text-[80px] font-bold leading-none text-accent/[0.08] select-none">03</span>
                 </div>
-
-                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-xl mb-2.5">
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-2xl md:text-[28px] tracking-[-0.01em] mb-3">
                   Work with it
                 </h3>
-                <p className="text-[13px] text-secondary leading-relaxed mb-5">
-                  Search it. Ask it questions. Surface patterns. Create from it.
+                <p className="text-secondary text-[15px] leading-relaxed max-w-sm md:ml-auto">
+                  Search across everything. Ask questions. Surface patterns. Generate new content from your knowledge base.
                 </p>
-
-                {/* Mini visual: output modes */}
-                <div className="space-y-1.5">
-                  {[
-                    { icon: "⌕", label: "Search" },
-                    { icon: "◇", label: "Chat" },
-                    { icon: "▤", label: "Create" },
-                  ].map((mode) => (
-                    <div key={mode.label} className="flex items-center gap-2.5 text-[11px]">
-                      <span className="text-accent w-4 text-center">{mode.icon}</span>
-                      <span className="text-secondary">{mode.label}</span>
+              </div>
+              {/* Visual — right side */}
+              <div className="mt-8 md:mt-0 relative">
+                {/* Node dot */}
+                <div className="hidden md:block absolute left-0 top-1/2 -translate-x-[calc(50%+2rem)] -translate-y-1/2">
+                  <div className="w-4 h-4 rounded-full bg-bg border-2 border-accent/40 shadow-[0_0_12px_rgba(217,119,87,0.3)]" />
+                </div>
+                <div className="bg-surface/70 border border-border rounded-[16px] p-5 backdrop-blur-sm hover:border-accent/20 transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-accent/15 to-accent/5 border border-accent/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
                     </div>
-                  ))}
+                    <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent/60 uppercase tracking-[0.15em]">Output</span>
+                  </div>
+                  {/* Output modes as interactive-looking rows */}
+                  <div className="space-y-2.5">
+                    {[
+                      { icon: "⌕", label: "Search", desc: "Full-text across all transcripts" },
+                      { icon: "◇", label: "Chat", desc: "Ask questions about your audio" },
+                      { icon: "▤", label: "Create", desc: "Generate from your knowledge" },
+                    ].map((mode) => (
+                      <div key={mode.label} className="flex items-center gap-3 bg-bg/50 border border-border/60 rounded-[10px] px-4 py-3 hover:border-accent/15 transition-colors duration-200">
+                        <span className="text-accent text-sm w-5 text-center">{mode.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[13px] text-text font-medium">{mode.label}</span>
+                          <span className="text-[11px] text-stone ml-2">{mode.desc}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
+          </div>
         </div>
       </div>
     </section>
@@ -447,214 +476,282 @@ function FeatureGrid() {
 
 function UseCases() {
   return (
-    <section className="px-6 py-28 relative overflow-hidden">
+    <section className="px-6 py-32 relative overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-      <div className="geo-ring geo-ring-lg top-[10%] right-[-200px] opacity-40" />
-      <div className="geo-ring geo-ring-md bottom-[15%] left-[-100px] opacity-25" />
 
-      <div className="max-w-5xl mx-auto relative">
-        <div className="text-center mb-16">
-          <h2 className="font-[family-name:var(--font-heading)] text-[36px] font-semibold mb-3">
+      {/* Atmospheric background */}
+      <div className="absolute top-[30%] right-[-10%] w-[500px] h-[500px] bg-accent/[0.02] rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[20%] left-[-5%] w-[400px] h-[400px] bg-accent/[0.015] rounded-full blur-[80px] pointer-events-none" />
+
+      <div className="max-w-6xl mx-auto relative">
+        {/* Section header */}
+        <div className="text-center mb-20">
+          <span className="inline-block text-[11px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.2em] mb-4">Use Cases</span>
+          <h2 className="font-[family-name:var(--font-heading)] text-[clamp(32px,5vw,44px)] font-bold tracking-[-0.02em] mb-4">
             See yourself in here
           </h2>
-          <p className="text-secondary">
-            Same app. Different workflows. Same result: knowledge you can find again.
+          <p className="text-secondary text-base max-w-lg mx-auto leading-relaxed">
+            Same app. Different workflows. Same result: knowledge you can actually find again.
           </p>
         </div>
 
-        {/* Staggered grid of use case cards */}
-        <div className="space-y-5">
+        {/* Bento grid layout */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
 
-          {/* Card 1: Conference Talks */}
-          <div className="card-glow bg-surface border border-border rounded-[14px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.02)] hover:border-accent/20 transition-all duration-300">
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr]">
-              <div className="p-7 flex flex-col justify-center">
-                <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-widest mb-3">Developer</span>
-                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-xl mb-2">
-                  12 conference talks. One search bar.
-                </h3>
-                <p className="text-sm text-secondary leading-relaxed">
-                  Paste YouTube links from WWDC, JSConf, Strange Loop. Build a searchable library of every talk you watched.
-                </p>
-              </div>
-              <div className="bg-bg-deep border-l border-border p-5 font-[family-name:var(--font-mono)] text-xs">
-                <div className="bg-surface border border-border rounded-[8px] px-3 py-2 mb-3 flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5 text-stone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <span className="text-accent">React Server Components</span>
-                  <span className="text-stone ml-auto">8 episodes</span>
-                </div>
-                <div className="space-y-1.5">
-                  {[
-                    { ep: "Dan Abramov — RemixConf '24", match: "...RSC eliminates the waterfall by..." },
-                    { ep: "Ryan Florence — React Summit", match: "...server components change how we think about..." },
-                    { ep: "Kent C. Dodds — Epic Web", match: "...the mental model shift with RSC is..." },
-                  ].map((r) => (
-                    <div key={r.ep} className="bg-surface/50 border border-border/50 rounded-[6px] px-3 py-2">
-                      <div className="text-text text-[11px] mb-0.5 truncate">{r.ep}</div>
-                      <div className="text-stone text-[10px] truncate">{r.match}</div>
+          {/* ─── Card 1: Conference Talks — Full width hero ─── */}
+          <div className="md:col-span-12 group">
+            <div className="relative bg-gradient-to-br from-surface/90 to-surface/60 border border-border rounded-[18px] overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.25)] hover:border-accent/20 transition-all duration-400">
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr]">
+                {/* Text side */}
+                <div className="p-8 lg:p-10 flex flex-col justify-center relative">
+                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-accent/[0.03] to-transparent pointer-events-none" />
+                  <div className="relative">
+                    <div className="inline-flex items-center gap-2 bg-accent/[0.08] border border-accent/15 rounded-full px-3 py-1 mb-5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent/70" />
+                      <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.12em]">Developer</span>
                     </div>
-                  ))}
-                </div>
-                <div className="text-stone/50 text-[10px] mt-2 text-right">&uarr; found across 6 months of talks</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Cards 2+3: Side by side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-            {/* Card 2: Meetings */}
-            <div className="card-glow bg-surface border border-border rounded-[14px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.02)] hover:border-accent/20 transition-all duration-300">
-              <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-widest">Meetings</span>
-              <h3 className="font-[family-name:var(--font-heading)] font-semibold text-lg mt-2 mb-2">
-                Three meetings today. Zero lost action items.
-              </h3>
-              <p className="text-sm text-secondary leading-relaxed mb-5">
-                Drop in the recording. Get structured decisions and action items in seconds.
-              </p>
-              <div className="bg-bg/60 border border-border rounded-[10px] p-4 space-y-2.5">
-                <div className="text-[10px] text-stone font-[family-name:var(--font-mono)] uppercase tracking-wider mb-2">Action Items — Q3 Planning</div>
-                {[
-                  { who: "Sarah", task: "Finalize API spec by Friday", done: true },
-                  { who: "Marcus", task: "Set up staging environment", done: true },
-                  { who: "You", task: "Review pricing proposal", done: false },
-                ].map((item) => (
-                  <div key={item.task} className="flex items-start gap-2.5">
-                    <div className={`w-4 h-4 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center ${item.done ? 'bg-accent/20 border-accent/40' : 'border-stone/30'}`}>
-                      {item.done && <svg className="w-2.5 h-2.5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><polyline points="20 6 9 17 4 12"/></svg>}
-                    </div>
-                    <div>
-                      <span className="text-[12px] text-text">{item.task}</span>
-                      <span className="text-[10px] text-stone ml-2">&mdash; {item.who}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Card 3: Podcasts */}
-            <div className="card-glow bg-surface border border-border rounded-[14px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.02)] hover:border-accent/20 transition-all duration-300 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-accent/[0.04] rounded-full blur-[50px]" />
-
-              <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-widest relative">Research</span>
-              <h3 className="font-[family-name:var(--font-heading)] font-semibold text-lg mt-2 mb-2 relative">
-                30 podcast episodes. Your personal research assistant.
-              </h3>
-              <p className="text-sm text-secondary leading-relaxed mb-5 relative">
-                Subscribe to feeds. Auto-ingest episodes. Search across months of listening.
-              </p>
-              <div className="relative h-36">
-                <div className="absolute bottom-0 left-3 right-3 h-24 bg-surface-raised/50 border border-border/40 rounded-[8px] rotate-[-1deg]" />
-                <div className="absolute bottom-1 left-1.5 right-1.5 h-24 bg-surface-raised/70 border border-border/50 rounded-[8px] rotate-[0.5deg]" />
-                <div className="absolute bottom-2 left-0 right-0 bg-bg/80 border border-border rounded-[8px] p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-5 h-5 rounded bg-accent/10 flex items-center justify-center">
-                      <svg className="w-3 h-3 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                    </div>
-                    <span className="text-[11px] text-text font-medium">Startup Pods</span>
-                    <span className="text-[10px] text-stone ml-auto">30 episodes</span>
-                  </div>
-                  <div className="bg-surface border border-border rounded-[6px] px-2.5 py-1.5 flex items-center gap-2">
-                    <svg className="w-3 h-3 text-stone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <span className="text-[10px] text-accent font-[family-name:var(--font-mono)]">pricing strategy</span>
-                    <span className="text-[10px] text-stone ml-auto">7 results</span>
+                    <h3 className="font-[family-name:var(--font-heading)] font-semibold text-2xl lg:text-[28px] tracking-[-0.01em] mb-3 leading-tight">
+                      12 conference talks.<br/>One search bar.
+                    </h3>
+                    <p className="text-[15px] text-secondary leading-relaxed max-w-sm">
+                      Paste YouTube links from WWDC, JSConf, Strange Loop. Build a searchable library of every talk you watched.
+                    </p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Customer Interviews */}
-          <div className="card-glow bg-surface border border-border rounded-[14px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.02)] hover:border-accent/20 transition-all duration-300">
-            <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr]">
-              <div className="bg-bg-deep border-r border-border p-6 relative overflow-hidden">
-                <div className="absolute inset-0 dot-grid opacity-30" />
-                <div className="relative">
-                  <div className="text-[10px] font-[family-name:var(--font-mono)] text-stone uppercase tracking-wider mb-4">Pattern Analysis — 15 interviews</div>
+                {/* Mockup side */}
+                <div className="bg-bg-deep/80 border-t lg:border-t-0 lg:border-l border-border p-6 lg:p-8 font-[family-name:var(--font-mono)]">
+                  {/* Search bar */}
+                  <div className="bg-surface border border-border rounded-[10px] px-4 py-3 mb-4 flex items-center gap-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+                    <svg className="w-4 h-4 text-stone/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span className="text-sm text-accent">React Server Components</span>
+                    <span className="text-[11px] text-stone/60 ml-auto bg-bg/60 px-2 py-0.5 rounded">8 results</span>
+                  </div>
+                  {/* Results */}
                   <div className="space-y-2.5">
                     {[
-                      { label: "Onboarding confusion", count: 11, pct: 73 },
-                      { label: "Pricing unclear", count: 8, pct: 53 },
-                      { label: "Missing integrations", count: 6, pct: 40 },
-                      { label: "Performance issues", count: 4, pct: 27 },
-                    ].map((item) => (
-                      <div key={item.label}>
-                        <div className="flex items-center justify-between text-[11px] mb-1">
-                          <span className="text-secondary">{item.label}</span>
-                          <span className="text-stone font-[family-name:var(--font-mono)]">{item.count}/15</span>
+                      { ep: "Dan Abramov — RemixConf '24", time: "14:32", match: "…RSC eliminates the waterfall by moving data fetching to the server…" },
+                      { ep: "Ryan Florence — React Summit", time: "08:15", match: "…server components change how we think about the component tree…" },
+                      { ep: "Kent C. Dodds — Epic Web", time: "22:48", match: "…the mental model shift with RSC is fundamentally about ownership…" },
+                    ].map((r) => (
+                      <div key={r.ep} className="bg-surface/60 border border-border/60 rounded-[10px] px-4 py-3 hover:border-accent/15 transition-colors duration-200">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[12px] text-text font-medium">{r.ep}</span>
+                          <span className="text-[10px] text-accent/70 bg-accent/[0.08] px-2 py-0.5 rounded">{r.time}</span>
                         </div>
-                        <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-accent/60 to-accent rounded-full"
-                            style={{ width: `${item.pct}%` }}
-                          />
-                        </div>
+                        <p className="text-[11px] text-stone leading-relaxed">{r.match}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 bg-surface/60 border border-border rounded-[8px] px-3 py-2">
-                    <span className="text-[10px] text-stone">Chat:</span>
-                    <span className="text-[11px] text-text ml-1 font-[family-name:var(--font-accent)] italic">&ldquo;What pain points keep coming up?&rdquo;</span>
-                  </div>
+                  <p className="text-[10px] text-stone/40 mt-3 text-right">↑ found across 6 months of talks</p>
                 </div>
-              </div>
-              <div className="p-7 flex flex-col justify-center">
-                <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-widest mb-3">Product</span>
-                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-xl mb-2">
-                  Customer interviews &rarr; patterns in minutes.
-                </h3>
-                <p className="text-sm text-secondary leading-relaxed">
-                  Ingest 15 customer calls. Ask one question across all of them. See what actually keeps coming up — not what you assumed.
-                </p>
               </div>
             </div>
           </div>
 
-          {/* Card 5: Lecture */}
-          <div className="card-glow bg-surface border border-border rounded-[14px] p-7 shadow-[0_4px_20px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.02)] hover:border-accent/20 transition-all duration-300 relative overflow-hidden">
-            <div className="absolute bottom-0 left-[30%] w-[300px] h-[200px] bg-accent/[0.03] rounded-full blur-[80px] pointer-events-none" />
+          {/* ─── Card 2: Meetings — Left column ─── */}
+          <div className="md:col-span-7 group">
+            <div className="h-full relative bg-surface/70 border border-border rounded-[18px] p-7 lg:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)] hover:border-accent/20 transition-all duration-400 overflow-hidden">
+              {/* Subtle corner glow */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-accent/[0.03] rounded-full blur-[60px] pointer-events-none" />
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr] gap-6 relative">
-              <div className="flex flex-col justify-center">
-                <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-widest mb-3">Learning</span>
-                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-xl mb-2">
-                  One lecture. Five outputs.
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 bg-surface-raised/60 border border-border rounded-full px-3 py-1 mb-5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-400/70" />
+                  <span className="text-[10px] font-[family-name:var(--font-mono)] text-stone uppercase tracking-[0.12em]">Meetings</span>
+                </div>
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-xl lg:text-[22px] tracking-[-0.01em] mb-2 leading-tight">
+                  Three meetings today.<br/>Zero lost action items.
                 </h3>
-                <p className="text-sm text-secondary leading-relaxed">
-                  Run different presets on the same 90-minute recording. Brief for review, detailed for study, key quotes for your paper.
+                <p className="text-[14px] text-secondary leading-relaxed mb-6 max-w-md">
+                  Drop in the recording. Get structured decisions and action items in seconds.
                 </p>
+
+                {/* Action items mockup */}
+                <div className="bg-bg/70 border border-border rounded-[12px] p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] text-stone font-[family-name:var(--font-mono)] uppercase tracking-wider">Action Items — Q3 Planning</span>
+                    <span className="text-[10px] text-accent/60 font-[family-name:var(--font-mono)]">3 items</span>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      { who: "Sarah", task: "Finalize API spec by Friday", done: true },
+                      { who: "Marcus", task: "Set up staging environment", done: true },
+                      { who: "You", task: "Review pricing proposal", done: false },
+                    ].map((item) => (
+                      <div key={item.task} className="flex items-center gap-3">
+                        <div className={`w-5 h-5 rounded-[5px] border flex-shrink-0 flex items-center justify-center transition-colors ${item.done ? 'bg-accent/15 border-accent/30' : 'border-stone/25 bg-surface/30'}`}>
+                          {item.done && <svg className="w-3 h-3 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><polyline points="20 6 9 17 4 12"/></svg>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-[13px] ${item.done ? 'text-stone line-through' : 'text-text'}`}>{item.task}</span>
+                        </div>
+                        <span className="text-[10px] text-stone/60 font-[family-name:var(--font-mono)]">{item.who}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="relative h-48 md:h-auto">
-                {[
-                  { title: "Full Notes", offset: "top-0 left-0", rotate: "rotate-[-3deg]", opacity: "opacity-50" },
-                  { title: "Study Questions", offset: "top-2 left-4", rotate: "rotate-[-1.5deg]", opacity: "opacity-60" },
-                  { title: "Key Quotes", offset: "top-4 left-8", rotate: "rotate-[0deg]", opacity: "opacity-70" },
-                  { title: "Show Notes", offset: "top-6 left-12", rotate: "rotate-[1.5deg]", opacity: "opacity-80" },
-                ].map((tab) => (
-                  <div
-                    key={tab.title}
-                    className={`absolute ${tab.offset} ${tab.rotate} ${tab.opacity} w-[70%] bg-bg border border-border rounded-[8px] p-3 shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-stone/30" />
-                      <span className="text-[10px] text-stone font-[family-name:var(--font-mono)]">{tab.title}</span>
+            </div>
+          </div>
+
+          {/* ─── Card 3: Podcasts/Research — Right column ─── */}
+          <div className="md:col-span-5 group">
+            <div className="h-full relative bg-surface/70 border border-border rounded-[18px] p-7 lg:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.2)] hover:border-accent/20 transition-all duration-400 overflow-hidden">
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/[0.04] rounded-full blur-[50px] pointer-events-none" />
+
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 bg-surface-raised/60 border border-border rounded-full px-3 py-1 mb-5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400/70" />
+                  <span className="text-[10px] font-[family-name:var(--font-mono)] text-stone uppercase tracking-[0.12em]">Research</span>
+                </div>
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-xl tracking-[-0.01em] mb-2 leading-tight">
+                  30 episodes. One question.
+                </h3>
+                <p className="text-[14px] text-secondary leading-relaxed mb-6">
+                  Subscribe to feeds. Auto-ingest. Search across months of listening.
+                </p>
+
+                {/* Podcast library mockup */}
+                <div className="bg-bg/70 border border-border rounded-[12px] overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
+                    <div className="w-5 h-5 rounded bg-accent/10 border border-accent/15 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                     </div>
-                    <div className="mt-2 space-y-1">
-                      <div className="h-1.5 bg-surface rounded w-full" />
-                      <div className="h-1.5 bg-surface rounded w-[80%]" />
-                      <div className="h-1.5 bg-surface rounded w-[60%]" />
+                    <span className="text-[12px] text-text font-medium">Startup Pods</span>
+                    <span className="text-[10px] text-stone ml-auto">30 ep</span>
+                  </div>
+                  <div className="p-3">
+                    <div className="bg-surface/60 border border-border/50 rounded-[8px] px-3 py-2.5 flex items-center gap-2">
+                      <svg className="w-3.5 h-3.5 text-stone/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                      <span className="text-[11px] text-accent font-[family-name:var(--font-mono)]">pricing strategy</span>
+                    </div>
+                    <div className="mt-2.5 space-y-1.5">
+                      {["Ep. 12 — Why PLG pricing fails", "Ep. 8 — Unit economics deep-dive", "Ep. 3 — Pricing page teardown"].map((ep) => (
+                        <div key={ep} className="flex items-center gap-2 text-[11px] text-secondary/80">
+                          <span className="w-1 h-1 rounded-full bg-accent/40 flex-shrink-0" />
+                          <span className="truncate">{ep}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[10px] text-stone/50 mt-2 text-right font-[family-name:var(--font-mono)]">7 results</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── Card 4: Customer Interviews — Full width ─── */}
+          <div className="md:col-span-12 group">
+            <div className="relative bg-gradient-to-br from-surface/90 to-surface/60 border border-border rounded-[18px] overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.25)] hover:border-accent/20 transition-all duration-400">
+              <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr]">
+                {/* Data viz side */}
+                <div className="bg-bg-deep/80 border-b lg:border-b-0 lg:border-r border-border p-7 lg:p-9 relative overflow-hidden">
+                  <div className="absolute inset-0 dot-grid opacity-20 pointer-events-none" />
+                  <div className="relative">
+                    <div className="text-[11px] font-[family-name:var(--font-mono)] text-stone uppercase tracking-wider mb-6">Pattern Analysis — 15 interviews</div>
+                    <div className="space-y-4">
+                      {[
+                        { label: "Onboarding confusion", count: 11, pct: 73 },
+                        { label: "Pricing unclear", count: 8, pct: 53 },
+                        { label: "Missing integrations", count: 6, pct: 40 },
+                        { label: "Performance issues", count: 4, pct: 27 },
+                      ].map((item) => (
+                        <div key={item.label}>
+                          <div className="flex items-center justify-between text-[12px] mb-2">
+                            <span className="text-secondary">{item.label}</span>
+                            <span className="text-stone font-[family-name:var(--font-mono)] text-[11px]">{item.count}/15</span>
+                          </div>
+                          <div className="h-2 bg-surface rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-accent/50 to-accent rounded-full transition-all duration-500"
+                              style={{ width: `${item.pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Chat prompt */}
+                    <div className="mt-6 bg-surface/50 border border-border rounded-[10px] px-4 py-3 flex items-center gap-3">
+                      <svg className="w-4 h-4 text-accent/50 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+                      <span className="text-[13px] text-text/80 font-[family-name:var(--font-accent)] italic">&ldquo;What pain points keep coming up?&rdquo;</span>
                     </div>
                   </div>
-                ))}
-                <div className="absolute top-8 left-16 rotate-[3deg] w-[70%] bg-bg border border-accent/20 rounded-[8px] p-3 shadow-[0_4px_16px_rgba(217,119,87,0.08)]">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-accent/60" />
-                    <span className="text-[10px] text-accent font-[family-name:var(--font-mono)]">Brief Summary</span>
+                </div>
+                {/* Text side */}
+                <div className="p-8 lg:p-10 flex flex-col justify-center">
+                  <div className="inline-flex items-center gap-2 bg-accent/[0.08] border border-accent/15 rounded-full px-3 py-1 mb-5 w-fit">
+                    <div className="w-1.5 h-1.5 rounded-full bg-accent/70" />
+                    <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.12em]">Product</span>
                   </div>
-                  <div className="mt-2 space-y-1.5">
-                    <div className="h-1.5 bg-accent/10 rounded w-full" />
-                    <div className="h-1.5 bg-accent/10 rounded w-[90%]" />
-                    <div className="h-1.5 bg-accent/10 rounded w-[70%]" />
+                  <h3 className="font-[family-name:var(--font-heading)] font-semibold text-2xl lg:text-[28px] tracking-[-0.01em] mb-3 leading-tight">
+                    Customer interviews &rarr;<br/>patterns in minutes.
+                  </h3>
+                  <p className="text-[15px] text-secondary leading-relaxed max-w-sm">
+                    Ingest 15 customer calls. Ask one question across all of them. See what actually keeps coming up — not what you assumed.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── Card 5: Learning — Bottom accent card ─── */}
+          <div className="md:col-span-12 group">
+            <div className="relative bg-surface/70 border border-border rounded-[18px] p-8 lg:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.2)] hover:border-accent/20 transition-all duration-400 overflow-hidden">
+              {/* Warm ambient glow */}
+              <div className="absolute bottom-0 left-[20%] w-[400px] h-[250px] bg-accent/[0.03] rounded-full blur-[100px] pointer-events-none" />
+
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-8 lg:gap-12 relative">
+                {/* Text */}
+                <div className="flex flex-col justify-center">
+                  <div className="inline-flex items-center gap-2 bg-surface-raised/60 border border-border rounded-full px-3 py-1 mb-5 w-fit">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400/70" />
+                    <span className="text-[10px] font-[family-name:var(--font-mono)] text-stone uppercase tracking-[0.12em]">Learning</span>
+                  </div>
+                  <h3 className="font-[family-name:var(--font-heading)] font-semibold text-2xl lg:text-[28px] tracking-[-0.01em] mb-3 leading-tight">
+                    One lecture. Five outputs.
+                  </h3>
+                  <p className="text-[15px] text-secondary leading-relaxed max-w-sm">
+                    Run different Recipes on the same 90-minute recording. Brief for review, detailed for study, key quotes for your paper.
+                  </p>
+                </div>
+                {/* Recipe tabs mockup */}
+                <div className="relative">
+                  <div className="bg-bg/70 border border-border rounded-[14px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+                    {/* Tab bar */}
+                    <div className="flex items-center gap-1 px-4 py-3 border-b border-border bg-surface/30 overflow-x-auto">
+                      {[
+                        { label: "Brief Summary", active: true },
+                        { label: "Full Notes", active: false },
+                        { label: "Study Questions", active: false },
+                        { label: "Key Quotes", active: false },
+                        { label: "Show Notes", active: false },
+                      ].map((tab) => (
+                        <button key={tab.label} className={`flex-shrink-0 text-[11px] font-[family-name:var(--font-mono)] px-3 py-1.5 rounded-[6px] transition-colors ${tab.active ? 'bg-accent/15 text-accent border border-accent/20' : 'text-stone hover:text-secondary'}`}>
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Content */}
+                    <div className="p-5 lg:p-6">
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent/50 mt-2 flex-shrink-0" />
+                          <p className="text-[13px] text-secondary leading-relaxed">The lecture introduces three competing models of attention allocation in cognitive load theory, with emphasis on the redundancy effect.</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent/50 mt-2 flex-shrink-0" />
+                          <p className="text-[13px] text-secondary leading-relaxed">Key distinction: intrinsic vs. extraneous load — the speaker argues most instructional design failures are extraneous.</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent/50 mt-2 flex-shrink-0" />
+                          <p className="text-[13px] text-secondary leading-relaxed">Actionable takeaway: chunk information into 3–5 segments before testing recall.</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
+                        <span className="text-[10px] text-stone font-[family-name:var(--font-mono)]">Generated in 8s · Cognitive Psych 301 · Lecture 7</span>
+                        <span className="text-[10px] text-accent/60 font-[family-name:var(--font-mono)]">Claude 3.5 Sonnet</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -675,12 +772,14 @@ function Pricing() {
       name: "Solo",
       price: 25,
       devices: 1,
+      description: "One Mac, full power.",
       href: "https://buy.polar.sh/polar_cl_OE9GPqVt3kxD5jh0SMy4QYZ2SUJNnPdrbBhkp410YT6",
     },
     {
       name: "Personal",
       price: 39,
       devices: 2,
+      description: "Laptop + desktop.",
       highlighted: true,
       href: "https://buy.polar.sh/polar_cl_hz4vZjB1wqOHshCiCGTFAY3qxhWpgmwjvFNy44S5bou",
     },
@@ -688,113 +787,125 @@ function Pricing() {
       name: "Extended",
       price: 49,
       devices: 3,
+      description: "All your machines.",
       href: "https://buy.polar.sh/polar_cl_tGvATndAmHjDXxdUCUHqBJC4Ym8JVbNHet6PH2yTypO",
     },
   ];
 
+  const features = [
+    "All features included",
+    "Lifetime updates",
+    "No subscription",
+    "BYOK — no API markup",
+    "14-day free trial",
+  ];
+
   return (
-    <section id="pricing" className="px-6 py-28 relative section-glow">
-      <div className="max-w-3xl mx-auto relative">
-        <div className="text-center mb-12">
-          <h2 className="font-[family-name:var(--font-heading)] text-[36px] font-semibold mb-3">
+    <section id="pricing" className="px-6 py-32 relative overflow-hidden">
+      {/* Atmospheric background */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-accent/[0.025] rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+      <div className="max-w-4xl mx-auto relative">
+        {/* Section header */}
+        <div className="text-center mb-16">
+          <span className="inline-block text-[11px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.2em] mb-4">Pricing</span>
+          <h2 className="font-[family-name:var(--font-heading)] text-[clamp(32px,5vw,44px)] font-bold tracking-[-0.02em] mb-4">
             One-time purchase
           </h2>
-          <p className="text-secondary">
-            Every tier includes all features. Forever. The only difference is how many Macs you own.
+          <p className="text-secondary text-base max-w-md mx-auto leading-relaxed">
+            Every tier includes all features. Forever.<br className="hidden sm:block" />
+            The only difference is how many Macs you own.
           </p>
         </div>
 
-        <div className="bg-surface border border-border rounded-[14px] overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.02)]">
-          <div className="px-6 py-4 border-b border-border bg-bg/40 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-accent shadow-[0_0_6px_rgba(217,119,87,0.4)]" />
-              <span className="text-[11px] font-[family-name:var(--font-mono)] text-stone uppercase tracking-wider">License Configuration</span>
-            </div>
-            <span className="text-[11px] text-accent font-[family-name:var(--font-mono)]">14-day free trial</span>
-          </div>
-
-          <div className="divide-y divide-border">
-            {tiers.map((tier) => (
-              <div
-                key={tier.name}
-                className={`px-6 py-5 flex items-center gap-4 transition-all duration-200 ${
-                  tier.highlighted
-                    ? "bg-accent/[0.04] relative"
-                    : "hover:bg-surface-raised/30"
-                }`}
-              >
-                {tier.highlighted && (
-                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent rounded-r-full" />
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="font-[family-name:var(--font-heading)] font-semibold text-base">
-                      {tier.name}
-                    </h3>
-                    {tier.highlighted && (
-                      <span className="text-[10px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/15">
-                        Most popular
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    {Array.from({ length: tier.devices }).map((_, i) => (
-                      <div key={i} className="w-4 h-4 rounded-[4px] bg-accent/15 border border-accent/20 flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-                        </svg>
-                      </div>
-                    ))}
-                    {Array.from({ length: 3 - tier.devices }).map((_, i) => (
-                      <div key={i} className="w-4 h-4 rounded-[4px] bg-bg/40 border border-border flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-stone/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-                        </svg>
-                      </div>
-                    ))}
-                    <span className="text-[11px] text-secondary ml-1.5">
-                      {tier.devices} {tier.devices === 1 ? "device" : "devices"}
-                    </span>
-                  </div>
+        {/* Pricing cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
+          {tiers.map((tier) => (
+            <div
+              key={tier.name}
+              className={`relative flex flex-col rounded-[18px] p-7 transition-all duration-300 ${
+                tier.highlighted
+                  ? "bg-gradient-to-b from-surface/95 to-surface/80 border-2 border-accent/30 shadow-[0_8px_48px_rgba(217,119,87,0.12),0_0_0_1px_rgba(217,119,87,0.05)] scale-[1.02] md:-my-3"
+                  : "bg-surface/60 border border-border hover:border-accent/15 shadow-[0_4px_24px_rgba(0,0,0,0.2)]"
+              }`}
+            >
+              {/* Popular badge */}
+              {tier.highlighted && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="text-[10px] font-semibold text-text bg-accent px-3 py-1 rounded-full shadow-[0_2px_12px_rgba(217,119,87,0.4)]">
+                    Most popular
+                  </span>
                 </div>
+              )}
 
-                <div className="text-right mr-4">
-                  <span className="text-2xl font-[family-name:var(--font-heading)] font-bold tracking-tight">
+              {/* Tier name + description */}
+              <div className="mb-6">
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-lg mb-1">
+                  {tier.name}
+                </h3>
+                <p className="text-[13px] text-stone">{tier.description}</p>
+              </div>
+
+              {/* Price */}
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[42px] font-[family-name:var(--font-heading)] font-bold tracking-tight leading-none">
                     ${tier.price}
                   </span>
-                  <span className="text-[11px] text-stone ml-1">once</span>
+                  <span className="text-[13px] text-stone font-[family-name:var(--font-mono)]">once</span>
                 </div>
-
-                <a
-                  href={tier.href}
-                  className={`flex-shrink-0 px-5 py-2.5 rounded-[10px] text-sm font-medium transition-all duration-200 ${
-                    tier.highlighted
-                      ? "bg-accent hover:bg-accent-hover text-text shadow-[0_2px_12px_rgba(217,119,87,0.25)] hover:shadow-[0_4px_16px_rgba(217,119,87,0.35)] hover:translate-y-[-1px]"
-                      : "bg-surface-raised border border-border hover:border-accent/20 text-text"
-                  }`}
-                >
-                  Get {tier.name}
-                </a>
               </div>
-            ))}
-          </div>
 
-          <div className="px-6 py-4 border-t border-border bg-bg/40">
-            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] text-stone">
-              <span className="flex items-center gap-1.5">
-                <span className="text-accent">&check;</span> All features included
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-accent">&check;</span> Lifetime updates
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-accent">&check;</span> No subscription
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-accent">&check;</span> BYOK — no API markup
-              </span>
+              {/* Device visualization */}
+              <div className="mb-7">
+                <div className="flex items-center gap-2.5">
+                  {Array.from({ length: tier.devices }).map((_, i) => (
+                    <div key={i} className="w-9 h-9 rounded-[8px] bg-accent/10 border border-accent/20 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+                      </svg>
+                    </div>
+                  ))}
+                  {Array.from({ length: 3 - tier.devices }).map((_, i) => (
+                    <div key={i} className="w-9 h-9 rounded-[8px] bg-bg/40 border border-border/60 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-stone/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+                      </svg>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-stone mt-2 font-[family-name:var(--font-mono)]">
+                  {tier.devices} {tier.devices === 1 ? "Mac" : "Macs"} · Lifetime license
+                </p>
+              </div>
+
+              {/* CTA */}
+              <a
+                href={tier.href}
+                className={`mt-auto block text-center px-5 py-3.5 rounded-[12px] text-sm font-medium transition-all duration-200 ${
+                  tier.highlighted
+                    ? "bg-accent hover:bg-accent-hover text-text shadow-[0_2px_16px_rgba(217,119,87,0.3)] hover:shadow-[0_4px_24px_rgba(217,119,87,0.4)] hover:translate-y-[-1px]"
+                    : "bg-surface-raised border border-border hover:border-accent/25 text-text hover:translate-y-[-1px]"
+                }`}
+              >
+                Get {tier.name}
+              </a>
             </div>
+          ))}
+        </div>
+
+        {/* Features footer */}
+        <div className="text-center">
+          <div className="inline-flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            {features.map((feature) => (
+              <span key={feature} className="flex items-center gap-2 text-[12px] text-stone">
+                <svg className="w-3.5 h-3.5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {feature}
+              </span>
+            ))}
           </div>
         </div>
       </div>

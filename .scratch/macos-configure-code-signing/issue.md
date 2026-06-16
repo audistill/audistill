@@ -1,6 +1,6 @@
 ---
 title: Configure electron-builder for real code signing
-status: done
+status: ready-for-human
 created: 2026-06-15
 ---
 

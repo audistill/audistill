@@ -1,6 +1,6 @@
 ---
 title: Add GitHub stars to Nav, Hero, Pricing, Brew card, Footer
-status: done
+status: ready-for-agent
 created: 2025-06-16
 ---
 

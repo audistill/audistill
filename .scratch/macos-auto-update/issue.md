@@ -1,6 +1,6 @@
 ---
 title: Add auto-update via electron-updater and GitHub Releases
-status: done
+status: ready-for-human
 created: 2026-06-15
 ---
 

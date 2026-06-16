@@ -1,6 +1,6 @@
 ---
 title: Audit and update hardened runtime entitlements
-status: done
+status: ready-for-human
 created: 2026-06-15
 ---
 
