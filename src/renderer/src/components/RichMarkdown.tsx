@@ -38,14 +38,42 @@ function initMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
     startOnLoad: false,
     theme: 'base',
     themeVariables: {
+      // Primary palette
       primaryColor: surface,
       primaryTextColor: text,
       primaryBorderColor: accent,
-      lineColor: accent,
       secondaryColor: surface,
+      secondaryTextColor: text,
+      secondaryBorderColor: accent,
       tertiaryColor: surface,
+      tertiaryTextColor: text,
+      tertiaryBorderColor: accent,
+      // Node-specific (used by mindmap and others)
+      nodeBkg: surface,
+      nodeBorder: accent,
+      nodeTextColor: text,
+      // Edges and lines
+      lineColor: accent,
+      // Cluster/group borders
+      clusterBorder: accent,
+      // Mindmap color scales (depth levels)
+      cScale0: surface,
+      cScale1: surface,
+      cScale2: surface,
+      cScale3: surface,
+      cScale4: surface,
+      cScale5: surface,
+      cScale6: surface,
+      cScale7: surface,
+      cScale8: surface,
+      cScale9: surface,
+      cScale10: surface,
+      cScale11: surface,
+      // General
       fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
       fontSize: '14px',
+      // Background
+      background: 'transparent',
     },
   })
 }
