@@ -329,18 +329,6 @@ function FeatureGrid() {
       texture: null,
     },
     {
-      title: "Chat with your library",
-      description: "Ask questions across episodes. Surface patterns. Generate new content.",
-      icon: (
-        <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-        </svg>
-      ),
-      iconShape: "rounded-[8px]" as const,
-      cardClass: "hover:border-accent/20",
-      texture: "dot-grid",
-    },
-    {
       title: "Full-text search",
       description: "Find anything across every transcript and every generated document.",
       icon: (
@@ -368,6 +356,43 @@ function FeatureGrid() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* Hero card — spans 2 columns */}
+          <div className="card-glow lg:col-span-2 bg-surface/60 border border-accent/20 rounded-[14px] p-6 transition-all duration-300 relative overflow-hidden hover:border-accent/35 hover:shadow-[0_8px_32px_rgba(217,119,87,0.08)]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="w-9 h-9 rounded-full bg-accent/10 border border-accent/15 ring-1 ring-accent/10 flex items-center justify-center mb-4 text-accent">
+                  <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                  </svg>
+                </div>
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-base mb-2">
+                  Ask, Search, Create
+                </h3>
+                <p className="text-[13px] text-secondary leading-relaxed">
+                  Your AI research assistant with tool-use capabilities. Search across your entire library, extract information from any episode, and create structured content — all from a single conversation.
+                </p>
+              </div>
+              <div className="bg-bg/60 border border-border rounded-[10px] p-4 space-y-3">
+                <div className="bg-accent/[0.06] border border-accent/10 rounded-[8px] px-3 py-2">
+                  <span className="text-[11px] text-stone font-[family-name:var(--font-mono)]">you</span>
+                  <p className="text-[12px] text-text mt-1">Find every mention of churn across last month&apos;s interviews</p>
+                </div>
+                <div className="bg-surface/80 border border-border rounded-[8px] px-3 py-2.5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-accent/60" />
+                    <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent">3 matches found</span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-stone font-[family-name:var(--font-mono)]">Ep. 12 — 04:32</div>
+                    <div className="text-[10px] text-stone font-[family-name:var(--font-mono)]">Ep. 8 — 11:15</div>
+                    <div className="text-[10px] text-stone font-[family-name:var(--font-mono)]">Ep. 3 — 22:41</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Standard feature cards */}
           {features.map((feature) => (
             <div
               key={feature.title}
