@@ -4,6 +4,7 @@ import { useAppStore } from '../store/app-store'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
 import { isLicenseError } from './LicenseBlockedPrompt'
+import { FORMATTING_INSTRUCTIONS } from '../../../shared/formatting-instructions'
 import type { DbChatMessage } from '../../../preload/index.d'
 
 interface ChatMessage {
@@ -364,18 +365,7 @@ When the user asks you to write, draft, or create something (show notes, blog po
 
 Be concise and helpful. Format responses with markdown when appropriate.
 
-## Tab Content Formatting
-When writing to tabs, use only these markdown elements:
-- Headings (h1-h3) for structure
-- **Bold** and *italic* for emphasis
-- Bullet lists and numbered lists
-- Blockquotes for notable quotes or callouts
-- [Links](url) for references
-- Inline \`code\` for technical terms or timestamps
-- Fenced code blocks for longer excerpts or structured data
-- Horizontal rules (---) to separate major sections
-
-Do not use tables, images, task lists, or nested blockquotes in tab content.`
+${FORMATTING_INSTRUCTIONS}`
 
   return prompt
 }

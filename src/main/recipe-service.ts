@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'crypto'
 import { DatabaseService } from './database-service'
+import { FORMATTING_INSTRUCTIONS } from '../shared/formatting-instructions'
 
 export interface Recipe {
   id: string
@@ -29,17 +30,7 @@ The first line is the title. The separator (---) marks where the body begins.
 Do not wrap output in JSON, code fences, or any other container.
 </output-format>
 
-<markdown-rules>
-Use only these markdown elements:
-- Headings (h2-h3) for structure
-- **Bold** and *italic* for emphasis
-- Bullet lists and numbered lists
-- Blockquotes for notable quotes
-- Inline \`code\` for technical terms
-- Horizontal rules (---) to separate major sections
-
-Do not use tables, images, task lists, or nested blockquotes.
-</markdown-rules>`
+${FORMATTING_INSTRUCTIONS}`
 
 const BUILTIN_RECIPES = [
   { name: 'Brief', file: 'brief.txt', sort_order: 0 },

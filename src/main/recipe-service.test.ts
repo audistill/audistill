@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { join } from 'node:path'
 import { DatabaseService } from './database-service'
 import { RecipeService } from './recipe-service'
+import { FORMATTING_INSTRUCTIONS } from '../shared/formatting-instructions'
 
 const promptsDir = join(__dirname, 'prompts')
 
@@ -56,7 +57,7 @@ describe('RecipeService - message assembly', () => {
     expect(messages).toHaveLength(3)
     expect(messages[0].role).toBe('system')
     expect(messages[0].content).toContain('<output-format>')
-    expect(messages[0].content).toContain('<markdown-rules>')
+    expect(messages[0].content).toContain('Supported Formatting')
     expect(messages[1].role).toBe('user')
     expect(messages[1].content).toContain('<template>')
     expect(messages[2].role).toBe('user')
@@ -105,5 +106,19 @@ describe('RecipeService - message assembly', () => {
     const systemMsg = body.messages[0]
 
     expect(systemMsg.content).not.toContain(recipe.prompt)
+  })
+
+  it('system message includes the shared formatting instructions', async () => {
+    db.setSetting('openrouter_api_key', 'test-key')
+    const recipe = service.getPipelineRecipe()!
+    mockStreamResponse('content')
+
+    await service.executeRecipe(recipe.id, 'transcript', () => {})
+
+    const fetchCall = vi.mocked(net.fetch).mock.calls[0]
+    const body = JSON.parse(fetchCall[1]!.body as string)
+    const systemMsg = body.messages[0]
+
+    expect(systemMsg.content).toContain(FORMATTING_INSTRUCTIONS)
   })
 })
