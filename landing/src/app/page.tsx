@@ -1,4 +1,5 @@
 import { BrewCommand } from "./brew-command";
+import { GitHubStars } from "@/components/github-stars";
 
 export default function Home() {
   return (
@@ -9,6 +10,7 @@ export default function Home() {
       <UseCases />
       <Pricing />
       <FAQ />
+      <OpenSource />
       <Install />
     </>
   );
@@ -34,10 +36,23 @@ function Hero() {
       <div className="absolute top-80 left-[60%] w-1 h-1 rounded-full bg-accent/40 animate-float-slow" />
 
       <div className="max-w-4xl mx-auto text-center relative">
-        {/* Badge */}
-        <div className="animate-fade-up inline-flex items-center gap-2 bg-surface/80 backdrop-blur border border-border rounded-full px-3.5 py-1.5 mb-8 shadow-[0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.03)]">
-          <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(217,119,87,0.6)] pulse-soft" />
-          <span className="text-xs text-secondary font-medium">Runs entirely on your Mac</span>
+        {/* Badges */}
+        <div className="animate-fade-up flex flex-wrap items-center justify-center gap-3 mb-8">
+          <div className="inline-flex items-center gap-2 bg-surface/80 backdrop-blur border border-border rounded-full px-3.5 py-1.5 shadow-[0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.03)]">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(217,119,87,0.6)] pulse-soft" />
+            <span className="text-xs text-secondary font-medium">Runs entirely on your Mac</span>
+          </div>
+          <a
+            href="https://github.com/audistill/audistill"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-surface/80 backdrop-blur border border-border hover:border-accent/20 rounded-full px-3.5 py-1.5 shadow-[0_2px_8px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-200 group"
+          >
+            <svg className="w-3.5 h-3.5 text-secondary group-hover:text-text transition-colors" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+            </svg>
+            <span className="text-xs text-secondary group-hover:text-text font-medium transition-colors">Open Source</span>
+          </a>
         </div>
 
         {/* Headline */}
@@ -56,12 +71,15 @@ function Hero() {
 
         {/* CTAs */}
         <div className="animate-fade-up delay-300 flex flex-col items-center justify-center gap-4 mb-16">
-          <a
-            href="#install"
-            className="bg-accent hover:bg-accent-hover active:bg-accent-pressed text-text text-sm font-medium px-8 py-3.5 rounded-[12px] transition-all duration-200 shadow-[0_2px_12px_rgba(217,119,87,0.25),0_4px_24px_rgba(217,119,87,0.15)] hover:shadow-[0_4px_20px_rgba(217,119,87,0.35),0_8px_40px_rgba(217,119,87,0.2)] hover:translate-y-[-1px]"
-          >
-            Download for Mac
-          </a>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <a
+              href="#install"
+              className="bg-accent hover:bg-accent-hover active:bg-accent-pressed text-text text-sm font-medium px-8 py-3.5 rounded-[12px] transition-all duration-200 shadow-[0_2px_12px_rgba(217,119,87,0.25),0_4px_24px_rgba(217,119,87,0.15)] hover:shadow-[0_4px_20px_rgba(217,119,87,0.35),0_8px_40px_rgba(217,119,87,0.2)] hover:translate-y-[-1px]"
+            >
+              Download for Mac
+            </a>
+            <GitHubStars variant="button" />
+          </div>
           <BrewCommand />
         </div>
 
@@ -994,31 +1012,350 @@ function FAQ() {
   );
 }
 
+/* ─── Open Source ─────────────────────────────────────────────── */
+
+function OpenSource() {
+  // Simulated contribution graph data (4 weeks × 7 days)
+  const activityWeeks = [
+    [0, 1, 0, 2, 1, 0, 0],
+    [1, 2, 3, 1, 0, 1, 0],
+    [0, 1, 2, 3, 2, 1, 0],
+    [1, 0, 2, 1, 3, 2, 1],
+    [0, 2, 1, 0, 2, 3, 1],
+    [1, 3, 2, 1, 0, 1, 2],
+    [2, 1, 0, 2, 1, 0, 1],
+    [0, 1, 3, 2, 1, 2, 0],
+    [1, 0, 1, 3, 2, 1, 1],
+    [2, 1, 2, 0, 1, 3, 2],
+    [0, 2, 1, 1, 0, 2, 1],
+    [1, 0, 2, 3, 2, 1, 0],
+    [0, 1, 1, 2, 3, 2, 1],
+  ];
+
+  function cellColor(level: number) {
+    if (level === 0) return "bg-surface/50 border-border/40";
+    if (level === 1) return "bg-accent/20 border-accent/15";
+    if (level === 2) return "bg-accent/40 border-accent/25";
+    return "bg-accent/70 border-accent/40 shadow-[0_0_4px_rgba(217,119,87,0.3)]";
+  }
+
+  return (
+    <section id="source" className="px-6 py-32 relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+      {/* Atmospheric background */}
+      <div className="absolute top-1/2 left-[20%] -translate-y-1/2 w-[500px] h-[500px] bg-accent/[0.02] rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[10%] right-[10%] w-[300px] h-[300px] bg-accent/[0.025] rounded-full blur-[80px] pointer-events-none" />
+
+      <div className="max-w-5xl mx-auto relative">
+        {/* Section header */}
+        <div className="text-center mb-20">
+          <span className="inline-block text-[11px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.2em] mb-4">Open Source</span>
+          <h2 className="font-[family-name:var(--font-heading)] text-[clamp(32px,5vw,44px)] font-bold tracking-[-0.02em] mb-4">
+            Built in the open
+          </h2>
+          <p className="text-secondary text-base max-w-lg mx-auto leading-relaxed">
+            Audistill is fully open source. Inspect, modify, contribute —<br className="hidden sm:block" />
+            your tool, your rules.
+          </p>
+        </div>
+
+        {/* Main content grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
+
+          {/* Left: Contribution graph + repo stats */}
+          <div className="bg-surface/60 border border-border rounded-[18px] p-7 lg:p-8 overflow-hidden relative hover:border-accent/15 transition-all duration-300">
+            {/* Corner decoration */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-accent/[0.03] rounded-full blur-[50px] pointer-events-none" />
+
+            <div className="relative">
+              {/* Header with GitHub icon */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-[10px] bg-surface-raised border border-border flex items-center justify-center">
+                    <svg className="w-5 h-5 text-text" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-text font-[family-name:var(--font-mono)]">audistill/audistill</span>
+                    <p className="text-[11px] text-stone mt-0.5">Main repository</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-[family-name:var(--font-mono)] text-stone/60 bg-surface-raised/60 px-2.5 py-1 rounded-full border border-border/60">MIT</span>
+              </div>
+
+              {/* Contribution graph */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-[family-name:var(--font-mono)] text-stone uppercase tracking-wider">Contribution Activity</span>
+                  <span className="text-[10px] text-stone/60 font-[family-name:var(--font-mono)]">last 13 weeks</span>
+                </div>
+                <div className="flex gap-[3px] overflow-hidden">
+                  {activityWeeks.map((week, wi) => (
+                    <div key={wi} className="flex flex-col gap-[3px]">
+                      {week.map((level, di) => (
+                        <div
+                          key={di}
+                          className={`w-[10px] h-[10px] rounded-[2px] border ${cellColor(level)} transition-colors duration-200`}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Repo stats row */}
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: "Stars", value: "—", icon: "★" },
+                  { label: "Forks", value: "—", icon: "⑂" },
+                  { label: "Issues", value: "—", icon: "○" },
+                  { label: "PRs", value: "—", icon: "⊕" },
+                ].map((stat) => (
+                  <div key={stat.label} className="text-center bg-bg/50 border border-border/50 rounded-[10px] px-2 py-3">
+                    <span className="text-accent text-sm block mb-1">{stat.icon}</span>
+                    <span className="text-[11px] text-stone font-[family-name:var(--font-mono)] block">{stat.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Philosophy + CTAs */}
+          <div className="flex flex-col gap-5">
+
+            {/* Why open source card */}
+            <div className="flex-1 bg-surface/60 border border-border rounded-[18px] p-7 hover:border-accent/15 transition-all duration-300 relative overflow-hidden">
+              <div className="absolute inset-0 diagonal-lines opacity-[0.03] pointer-events-none" />
+              <div className="relative">
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-lg mb-4">Why open source?</h3>
+                <div className="space-y-3.5">
+                  {[
+                    { title: "Verify privacy claims", desc: "Inspect every line. Confirm nothing phones home." },
+                    { title: "Customize freely", desc: "Add integrations, tweak recipes, shape it to your workflow." },
+                    { title: "Build from source", desc: "Don't trust binaries? Compile it yourself." },
+                    { title: "Contribute back", desc: "Fix a bug, add a feature, improve docs — PRs welcome." },
+                  ].map((item) => (
+                    <div key={item.title} className="flex items-start gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent/60 mt-2 flex-shrink-0" />
+                      <div>
+                        <span className="text-[13px] text-text font-medium block">{item.title}</span>
+                        <span className="text-[12px] text-stone leading-relaxed">{item.desc}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Star + Clone CTAs */}
+            <div className="bg-gradient-to-br from-surface/90 to-surface/60 border border-accent/20 rounded-[18px] p-6 shadow-[0_4px_32px_rgba(217,119,87,0.06)] hover:border-accent/30 transition-all duration-300">
+              <div className="flex flex-col gap-3">
+                <a
+                  href="https://github.com/audistill/audistill"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2.5 px-5 py-3.5 rounded-[12px] bg-surface-raised hover:bg-surface border border-border hover:border-accent/25 text-text text-sm font-medium transition-all duration-200 hover:translate-y-[-1px] group"
+                >
+                  <svg className="w-5 h-5 text-secondary group-hover:text-text transition-colors" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                  </svg>
+                  <span>Star on GitHub</span>
+                  <svg className="w-3.5 h-3.5 text-accent/70" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                </a>
+                {/* Clone command */}
+                <div className="bg-bg/70 border border-border rounded-[10px] px-4 py-3 font-[family-name:var(--font-mono)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] text-stone"><span className="text-accent/70 select-none">$ </span><span className="text-secondary">git clone</span> <span className="text-text/80">https://github.com/audistill/audistill.git</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Bottom banner: source-available model explanation */}
+        <div className="mt-12 text-center">
+          <div className="inline-flex items-center gap-3 bg-surface/40 border border-border rounded-full px-5 py-2.5">
+            <svg className="w-4 h-4 text-accent/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span className="text-[12px] text-secondary leading-relaxed">
+              Free to build & run yourself. The paid download supports development and gives you auto-updates + a signed binary.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─── Install / Final CTA ─────────────────────────────────────── */
 
 function Install() {
   return (
-    <section id="install" className="px-6 py-28 relative">
+    <section id="install" className="px-6 py-32 relative overflow-hidden">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
-      <div className="max-w-xl mx-auto text-center">
-        <h2 className="font-[family-name:var(--font-heading)] text-[clamp(28px,4vw,36px)] font-semibold tracking-tight mb-3">
-          Take it from here.
-        </h2>
-        <p className="text-secondary text-sm mb-10">
-          14 days free. No credit card. Just audio in, knowledge out.
-        </p>
+      {/* Atmospheric background — large warm glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-accent/[0.035] rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute top-[20%] left-[10%] w-[300px] h-[300px] bg-accent/[0.02] rounded-full blur-[80px] pointer-events-none" />
 
-        {/* DMG download — primary */}
-        <a
-          href="#"
-          className="inline-block bg-accent hover:bg-accent-hover active:bg-accent-pressed text-text text-sm font-medium px-8 py-3.5 rounded-[12px] transition-all duration-200 shadow-[0_2px_12px_rgba(217,119,87,0.25),0_4px_24px_rgba(217,119,87,0.15)] hover:shadow-[0_4px_20px_rgba(217,119,87,0.35),0_8px_40px_rgba(217,119,87,0.2)] hover:translate-y-[-1px] mb-4"
-        >
-          Download for Mac
-        </a>
+      <div className="max-w-4xl mx-auto relative">
+        {/* Section header */}
+        <div className="text-center mb-16">
+          <span className="inline-block text-[11px] font-[family-name:var(--font-mono)] text-accent uppercase tracking-[0.2em] mb-4">Get Started</span>
+          <h2 className="font-[family-name:var(--font-heading)] text-[clamp(32px,5vw,48px)] font-bold tracking-[-0.02em] mb-4">
+            Take it from here.
+          </h2>
+          <p className="text-secondary text-base max-w-md mx-auto leading-relaxed">
+            14 days free. No credit card. Pick your path.
+          </p>
+        </div>
 
-        {/* Brew command — secondary */}
-        <BrewCommand />
+        {/* Three install paths */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-14">
+
+          {/* Path 1: Download DMG — Primary/Hero */}
+          <div className="relative bg-gradient-to-b from-surface/95 to-surface/80 border-2 border-accent/30 rounded-[18px] p-7 shadow-[0_8px_48px_rgba(217,119,87,0.12),0_0_0_1px_rgba(217,119,87,0.05)] md:scale-[1.03] md:-my-2 flex flex-col">
+            {/* Recommended badge */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <span className="text-[10px] font-semibold text-text bg-accent px-3 py-1 rounded-full shadow-[0_2px_12px_rgba(217,119,87,0.4)]">
+                Recommended
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-[10px] bg-accent/15 border border-accent/25 flex items-center justify-center">
+                <svg className="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-[15px]">Download</h3>
+                <p className="text-[11px] text-stone">Signed & notarized .dmg</p>
+              </div>
+            </div>
+
+            <p className="text-[13px] text-secondary leading-relaxed mb-6 flex-1">
+              One-click install. Auto-updates. Supports development.
+            </p>
+
+            <a
+              href="#"
+              className="block text-center bg-accent hover:bg-accent-hover active:bg-accent-pressed text-text text-sm font-medium px-6 py-3.5 rounded-[12px] transition-all duration-200 shadow-[0_2px_12px_rgba(217,119,87,0.25)] hover:shadow-[0_4px_20px_rgba(217,119,87,0.35)] hover:translate-y-[-1px]"
+            >
+              Download for Mac
+            </a>
+
+            <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-stone/70 font-[family-name:var(--font-mono)]">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Notarized by Apple</span>
+            </div>
+          </div>
+
+          {/* Path 2: Homebrew */}
+          <div className="bg-surface/60 border border-border rounded-[18px] p-7 hover:border-accent/20 transition-all duration-300 flex flex-col">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-[10px] bg-surface-raised border border-border flex items-center justify-center">
+                <svg className="w-5 h-5 text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="4 17 10 11 4 5" />
+                  <line x1="12" y1="19" x2="20" y2="19" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-[15px]">Homebrew</h3>
+                <p className="text-[11px] text-stone">For terminal lovers</p>
+              </div>
+            </div>
+
+            <p className="text-[13px] text-secondary leading-relaxed mb-6 flex-1">
+              Install and update via Homebrew Cask. Same signed binary.
+            </p>
+
+            <div className="mb-3">
+              <BrewCommand />
+            </div>
+
+            <div className="mt-auto flex items-center justify-center gap-1.5 text-[10px] text-stone/70 font-[family-name:var(--font-mono)]">
+              <span className="text-accent/60">$</span>
+              <span>brew upgrade to update</span>
+            </div>
+          </div>
+
+          {/* Path 3: Build from Source */}
+          <div className="bg-surface/60 border border-border rounded-[18px] p-7 hover:border-accent/20 transition-all duration-300 flex flex-col relative overflow-hidden">
+            {/* Subtle diagonal texture */}
+            <div className="absolute inset-0 diagonal-lines opacity-[0.04] pointer-events-none" />
+
+            <div className="relative flex flex-col h-full">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-[10px] bg-surface-raised border border-border flex items-center justify-center">
+                  <svg className="w-5 h-5 text-secondary" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-[family-name:var(--font-heading)] font-semibold text-[15px]">Build from Source</h3>
+                  <p className="text-[11px] text-stone">Full control</p>
+                </div>
+              </div>
+
+              <p className="text-[13px] text-secondary leading-relaxed mb-6 flex-1">
+                Clone, inspect, build. Free forever. No telemetry, no limits.
+              </p>
+
+              <a
+                href="https://github.com/audistill/audistill"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center bg-surface-raised hover:bg-surface border border-border hover:border-accent/25 text-text text-sm font-medium px-6 py-3.5 rounded-[12px] transition-all duration-200 hover:translate-y-[-1px]"
+              >
+                View on GitHub
+              </a>
+
+              <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-stone/70 font-[family-name:var(--font-mono)]">
+                <span>MIT License</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* System requirements strip */}
+        <div className="bg-surface/40 border border-border rounded-[14px] px-6 py-5">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-[8px] bg-surface-raised border border-border flex items-center justify-center">
+                <svg className="w-4 h-4 text-stone" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+              </div>
+              <span className="text-[12px] text-stone font-[family-name:var(--font-mono)] uppercase tracking-wider">System Requirements</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-5 gap-y-2">
+              {[
+                { label: "Apple Silicon", detail: "M1 or later" },
+                { label: "macOS", detail: "13 Ventura+" },
+                { label: "Storage", detail: "~200 MB" },
+              ].map((req) => (
+                <div key={req.label} className="flex items-center gap-2 text-[12px]">
+                  <span className="text-secondary">{req.label}</span>
+                  <span className="text-stone/60 font-[family-name:var(--font-mono)] text-[11px] bg-bg/50 px-2 py-0.5 rounded">{req.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
