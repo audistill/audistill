@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import Markdown from 'react-markdown'
+import { RichMarkdown } from './RichMarkdown'
 import { useAppStore } from '../store/app-store'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
@@ -939,7 +939,7 @@ function StreamingBubble({ state }: { state: StreamingState }): React.JSX.Elemen
         ))}
         {state.content ? (
           <div className="text-sm text-[var(--text)] markdown-content break-words">
-            <Markdown>{state.content}</Markdown>
+            <RichMarkdown content={state.content} streaming />
           </div>
         ) : state.toolCalls.length === 0 ? (
           <div className="flex items-center gap-1.5">
@@ -974,7 +974,7 @@ function MessageBubble({ message }: { message: ChatMessage }): React.JSX.Element
         ))}
         {message.content && (
           <div className="text-sm text-[var(--text)] markdown-content break-words">
-            <Markdown>{message.content}</Markdown>
+            <RichMarkdown content={message.content} />
           </div>
         )}
       </div>

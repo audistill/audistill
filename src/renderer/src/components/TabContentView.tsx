@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import Markdown from 'react-markdown'
+import { RichMarkdown } from './RichMarkdown'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useAppStore } from '../store/app-store'
 
@@ -167,7 +167,7 @@ export function TabContentView(): React.JSX.Element {
         {streamContent ? (
           <div className="flex-1 overflow-y-auto px-12 py-4">
             <div className="markdown-content text-sm text-[var(--text)] leading-relaxed">
-              <Markdown>{streamContent}</Markdown>
+              <RichMarkdown content={streamContent} />
             </div>
           </div>
         ) : (
@@ -273,7 +273,7 @@ function TabPreview({ content }: { content: string }): React.JSX.Element {
   return (
     <div className="flex-1 overflow-y-auto px-12 py-4">
       <div className="markdown-content text-sm text-[var(--text)] leading-relaxed">
-        <Markdown>{content}</Markdown>
+        <RichMarkdown content={content} />
       </div>
     </div>
   )

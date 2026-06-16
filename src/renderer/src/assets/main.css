@@ -155,6 +155,80 @@
     border-top: 1px solid var(--surface);
     margin: 1.5em 0;
   }
+
+  /* Branded list markers */
+  .markdown-content ul li::marker,
+  .markdown-content ol li::marker {
+    color: var(--accent);
+  }
+
+  /* GFM Tables */
+  .markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75em 0;
+    font-size: 0.85em;
+  }
+  .markdown-content thead th {
+    background: var(--surface);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.5em 0.75em;
+    border-bottom: 2px solid var(--border);
+  }
+  .markdown-content tbody td {
+    padding: 0.4em 0.75em;
+    border-bottom: 1px solid var(--border);
+  }
+  .markdown-content tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Task list checkboxes */
+  .markdown-content input[type="checkbox"] {
+    accent-color: var(--accent);
+    margin-right: 0.4em;
+    vertical-align: middle;
+  }
+  .markdown-content .task-list-item {
+    list-style-type: none;
+  }
+
+  /* Highlight / mark */
+  .markdown-content mark {
+    background: rgba(217, 119, 87, 0.15);
+    color: inherit;
+    padding: 0.1em 0.2em;
+    border-radius: 2px;
+  }
+
+  /* Strikethrough */
+  .markdown-content del {
+    color: var(--secondary);
+  }
+
+  /* Footnotes */
+  .markdown-content [data-footnotes],
+  .markdown-content .footnotes {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid var(--border);
+    font-size: 0.85em;
+    color: var(--secondary);
+  }
+  .markdown-content sup a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  /* Nested blockquotes */
+  .markdown-content blockquote blockquote {
+    border-left-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+  .markdown-content blockquote blockquote blockquote {
+    border-left-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  }
 }
 
 @layer utilities {
