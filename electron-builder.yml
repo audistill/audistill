@@ -26,12 +26,16 @@ asarUnpack:
   - 'node_modules/onnxruntime-node/bin/**'
   - 'node_modules/better-sqlite3/build/**'
 afterSign: ./scripts/fix-ad-hoc-signing.cjs
+publish:
+  provider: github
+  owner: audistill
+  repo: audistill
 mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSDocumentsFolderUsageDescription: Application needs access to open audio files.
-  notarize: false
+  notarize: true
   target:
     - target: dmg
       arch:

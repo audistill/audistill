@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, nativeTheme, ipcMain, dialog, clipboard } from 'electron'
+import { app, shell, BrowserWindow, nativeTheme, ipcMain, dialog, clipboard, Notification } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { ModelManager } from './model-manager'
@@ -558,6 +558,7 @@ app.whenReady().then(() => {
   licenseService.init().catch(() => {})
 
   createWindow()
+  initAutoUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -569,3 +570,37 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+function initAutoUpdater(): void {
+  if (!app.isPackaged) return
+
+  // Delay check to avoid slowing startup
+  setTimeout(async () => {
+    try {
+      const { autoUpdater } = await import('electron-updater')
+      autoUpdater.autoDownload = true
+      autoUpdater.autoInstallOnAppQuit = true
+
+      autoUpdater.on('update-downloaded', (info) => {
+        const notification = new Notification({
+          title: 'Update ready',
+          body: `Audistill ${info.version} will be installed on restart.`,
+        })
+        notification.on('click', () => {
+          autoUpdater.quitAndInstall()
+        })
+        notification.show()
+
+        BrowserWindow.getAllWindows().forEach((win) => {
+          if (!win.isDestroyed()) {
+            win.webContents.send('update-downloaded', info.version)
+          }
+        })
+      })
+
+      autoUpdater.checkForUpdatesAndNotify()
+    } catch {
+      // Silently fail if updater is unavailable (e.g., dev builds)
+    }
+  }, 10_000)
+}

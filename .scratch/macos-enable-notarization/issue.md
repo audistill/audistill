@@ -1,6 +1,6 @@
 ---
 title: Enable notarization in the build pipeline
-status: ready-for-agent
+status: done
 created: 2026-06-15
 ---
 
