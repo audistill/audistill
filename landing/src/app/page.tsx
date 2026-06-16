@@ -1,5 +1,4 @@
 import { BrewCommand } from "./brew-command";
-import { GitHubStars } from "@/components/github-stars";
 
 export default function Home() {
   return (
@@ -9,7 +8,6 @@ export default function Home() {
       <FeatureGrid />
       <UseCases />
       <Pricing />
-      <OpenSource />
       <FAQ />
       <Install />
     </>
@@ -64,10 +62,7 @@ function Hero() {
           >
             Download for Mac
           </a>
-          <div className="flex items-center gap-3">
-            <BrewCommand />
-          </div>
-          <GitHubStars fallbackText="Open Source" className="text-[12px] opacity-70 hover:opacity-100" />
+          <BrewCommand />
         </div>
 
         {/* App Screenshot with window chrome */}
@@ -291,9 +286,6 @@ function FeatureGrid() {
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
       ),
-      iconShape: "rounded-[8px]" as const,
-      cardClass: "hover:border-accent/20",
-      texture: null,
     },
     {
       title: "On-device transcription",
@@ -303,9 +295,6 @@ function FeatureGrid() {
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
       ),
-      iconShape: "rounded-full" as const,
-      cardClass: "border-accent/10 hover:border-accent/30",
-      texture: null,
     },
     {
       title: "Bring your own model",
@@ -316,9 +305,6 @@ function FeatureGrid() {
           <path d="M7 11V7a5 5 0 0110 0v4" />
         </svg>
       ),
-      iconShape: "rounded-full" as const,
-      cardClass: "hover:border-accent/25",
-      texture: "diagonal-lines",
     },
     {
       title: "Custom templates",
@@ -329,9 +315,15 @@ function FeatureGrid() {
           <path d="M7 7h10M7 12h10M7 17h6" />
         </svg>
       ),
-      iconShape: "rounded-[8px]" as const,
-      cardClass: "hover:border-accent/15",
-      texture: null,
+    },
+    {
+      title: "Chat with your library",
+      description: "Ask questions across episodes. Surface patterns. Generate new content.",
+      icon: (
+        <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+        </svg>
+      ),
     },
     {
       title: "Full-text search",
@@ -342,9 +334,6 @@ function FeatureGrid() {
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
       ),
-      iconShape: "rounded-full" as const,
-      cardClass: "hover:border-accent/25",
-      texture: null,
     },
   ];
 
@@ -361,58 +350,18 @@ function FeatureGrid() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* Hero card — spans 2 columns */}
-          <div className="card-glow lg:col-span-2 bg-surface/60 border border-accent/20 rounded-[14px] p-6 transition-all duration-300 relative overflow-hidden hover:border-accent/35 hover:shadow-[0_8px_32px_rgba(217,119,87,0.08)]">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <div className="w-9 h-9 rounded-full bg-accent/10 border border-accent/15 ring-1 ring-accent/10 flex items-center justify-center mb-4 text-accent">
-                  <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                  </svg>
-                </div>
-                <h3 className="font-[family-name:var(--font-heading)] font-semibold text-base mb-2">
-                  Ask, Search, Create
-                </h3>
-                <p className="text-[13px] text-secondary leading-relaxed">
-                  Your AI research assistant with tool-use capabilities. Search across your entire library, extract information from any episode, and create structured content — all from a single conversation.
-                </p>
-              </div>
-              <div className="bg-bg/60 border border-border rounded-[10px] p-4 space-y-3">
-                <div className="bg-accent/[0.06] border border-accent/10 rounded-[8px] px-3 py-2">
-                  <span className="text-[11px] text-stone font-[family-name:var(--font-mono)]">you</span>
-                  <p className="text-[12px] text-text mt-1">Find every mention of churn across last month&apos;s interviews</p>
-                </div>
-                <div className="bg-surface/80 border border-border rounded-[8px] px-3 py-2.5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-accent/60" />
-                    <span className="text-[10px] font-[family-name:var(--font-mono)] text-accent">3 matches found</span>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-[10px] text-stone font-[family-name:var(--font-mono)]">Ep. 12 — 04:32</div>
-                    <div className="text-[10px] text-stone font-[family-name:var(--font-mono)]">Ep. 8 — 11:15</div>
-                    <div className="text-[10px] text-stone font-[family-name:var(--font-mono)]">Ep. 3 — 22:41</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Standard feature cards */}
           {features.map((feature) => (
             <div
               key={feature.title}
-              className={`bg-surface/60 border border-border rounded-[14px] p-6 transition-all duration-300 relative overflow-hidden ${feature.cardClass}`}
+              className="bg-surface/60 border border-border rounded-[14px] p-6 hover:border-accent/20 transition-all duration-300"
             >
-              {feature.texture && (
-                <div className={`absolute inset-0 ${feature.texture} pointer-events-none ${feature.texture === "diagonal-lines" ? "opacity-[0.04]" : "opacity-[0.02]"}`} />
-              )}
-              <div className={`relative w-9 h-9 ${feature.iconShape} bg-accent/10 border border-accent/15 flex items-center justify-center mb-4 text-accent`}>
+              <div className="w-9 h-9 rounded-[8px] bg-accent/10 border border-accent/15 flex items-center justify-center mb-4 text-accent">
                 {feature.icon}
               </div>
-              <h3 className="relative font-[family-name:var(--font-heading)] font-semibold text-sm mb-2">
+              <h3 className="font-[family-name:var(--font-heading)] font-semibold text-sm mb-2">
                 {feature.title}
               </h3>
-              <p className="relative text-[13px] text-secondary leading-relaxed">
+              <p className="text-[13px] text-secondary leading-relaxed">
                 {feature.description}
               </p>
             </div>
@@ -774,35 +723,9 @@ function Pricing() {
               <span className="flex items-center gap-1.5">
                 <span className="text-accent">&check;</span> BYOK — no API markup
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-accent">&check;</span> <GitHubStars fallbackText="Open source — no lock-in" className="text-[11px]" />
-              </span>
             </div>
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Open Source ────────────────────────────────────────────── */
-
-function OpenSource() {
-  return (
-    <section id="open-source" className="px-6 py-20 relative">
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-
-      <div className="max-w-2xl mx-auto text-center">
-        <h2 className="font-[family-name:var(--font-heading)] text-[28px] font-semibold mb-3">
-          See exactly how your data is handled.
-        </h2>
-        <p className="text-secondary text-sm leading-relaxed mb-6">
-          Every line of code is auditable. The source is open — not because we had to, but because privacy claims mean nothing without proof.
-        </p>
-        <GitHubStars
-          fallbackText="Star on GitHub"
-          className="inline-flex items-center gap-2 bg-surface/80 border border-border rounded-[10px] px-4 py-2.5 text-sm hover:border-accent/20 hover:text-text transition-all duration-200"
-        />
       </div>
     </section>
   );
@@ -914,12 +837,7 @@ function Install() {
 
         {/* Brew command — secondary */}
         <BrewCommand />
-
-        <div className="mt-6">
-          <GitHubStars fallbackText="Star on GitHub" className="text-[12px] opacity-60 hover:opacity-100" />
-        </div>
       </div>
     </section>
   );
 }
-
