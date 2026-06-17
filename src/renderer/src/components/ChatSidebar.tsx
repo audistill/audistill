@@ -320,6 +320,21 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'web_search',
+      description: 'Search the web for information about people, companies, events, or topics mentioned in the episode. Use this when the user asks about something not covered in the transcript.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          max_results: { type: 'number', description: 'Maximum number of results to return (default: 10)' },
+        },
+        required: ['query'],
+      },
+    },
+  },
 ]
 
 function buildSystemPrompt(context: {

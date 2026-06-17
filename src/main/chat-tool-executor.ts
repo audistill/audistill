@@ -3,6 +3,7 @@ import { BrowserWindow } from 'electron'
 import { DatabaseService, Episode } from './database-service'
 import { TabService } from './tab-service'
 import { RecipeService } from './recipe-service'
+import { searchDDG } from './web-search-service'
 
 export interface ToolServices {
   db: DatabaseService
@@ -83,6 +84,8 @@ export class ChatToolExecutor {
         return this.createRecipe(args)
       case 'update_recipe':
         return this.updateRecipe(args)
+      case 'web_search':
+        return this.webSearch(args)
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` })
     }
@@ -458,6 +461,22 @@ export class ChatToolExecutor {
     if (args.model_override !== undefined) fields.model_override = args.model_override as string
     this.recipeService.updateRecipe(recipeId, fields)
     return JSON.stringify({ success: true, message: `Recipe "${recipe.name}" updated` })
+  }
+
+  private async webSearch(args: Record<string, unknown>): Promise<string> {
+    const query = args.query as string
+    if (!query) {
+      return JSON.stringify({ error: 'Missing required parameter: query' })
+    }
+    const maxResults = (args.max_results as number) || 10
+    try {
+      const results = await searchDDG(query, maxResults)
+      return JSON.stringify({ results, query })
+    } catch (err) {
+      return JSON.stringify({
+        error: `Web search failed: ${err instanceof Error ? err.message : String(err)}`,
+      })
+    }
   }
 
   private grepTranscripts(args: Record<string, unknown>): string {

@@ -222,6 +222,23 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
   )
 }
 
+type AnchorProps = ComponentPropsWithoutRef<'a'>
+
+function AnchorComponent({ href, children, ...props }: AnchorProps): React.JSX.Element {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
+    e.preventDefault()
+    if (href) {
+      window.electron.ipcRenderer.invoke('shell:open-external', href)
+    }
+  }
+
+  return (
+    <a href={href} onClick={handleClick} {...props}>
+      {children}
+    </a>
+  )
+}
+
 type CodeProps = ComponentPropsWithoutRef<'code'>
 
 function CodeComponent({ className, children, ...props }: CodeProps): React.JSX.Element {
@@ -241,6 +258,7 @@ function CodeComponent({ className, children, ...props }: CodeProps): React.JSX.
 
 const components = {
   code: CodeComponent,
+  a: AnchorComponent,
 }
 
 export function RichMarkdown({ content }: RichMarkdownProps): React.JSX.Element {
