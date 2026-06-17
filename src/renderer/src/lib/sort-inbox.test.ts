@@ -14,6 +14,8 @@ function makeEpisode(overrides: Partial<Episode> = {}): Episode {
     source_meta: null,
     status: 'complete',
     error_message: null,
+    is_starred: false,
+    starred_at: null,
     created_at: '2026-06-14T10:00:00Z',
     updated_at: '2026-06-14T10:00:00Z',
     ...overrides,

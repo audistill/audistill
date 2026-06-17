@@ -15,6 +15,8 @@ export interface Episode {
   source_type: string | null
   status: string
   error_message: string | null
+  is_starred: number
+  starred_at: string | null
   created_at: string
   updated_at: string
 }
@@ -213,6 +215,14 @@ export class DatabaseService {
         UPDATE episodes SET source_type = 'local' WHERE source_url IS NULL;
       `)
     }
+
+    const colNamesLatest = new Set(
+      (this.db.prepare("PRAGMA table_info('episodes')").all() as { name: string }[]).map((c) => c.name)
+    )
+    if (!colNamesLatest.has('is_starred')) {
+      this.db.exec("ALTER TABLE episodes ADD COLUMN is_starred INTEGER NOT NULL DEFAULT 0")
+      this.db.exec("ALTER TABLE episodes ADD COLUMN starred_at TEXT")
+    }
   }
 
   getEpisodes(folderId?: string | null): Episode[] {
@@ -263,6 +273,18 @@ export class DatabaseService {
       )
       .run(id, data.title ?? null, data.file_path ?? null, data.folder_id ?? null, data.duration_sec ?? null, data.source_url ?? null, data.source_meta ?? null, data.source_type ?? null, data.status ?? 'queued')
     return id
+  }
+
+  starEpisode(id: string): void {
+    this.db
+      .prepare("UPDATE episodes SET is_starred = 1, starred_at = datetime('now'), updated_at = datetime('now') WHERE id = ?")
+      .run(id)
+  }
+
+  unstarEpisode(id: string): void {
+    this.db
+      .prepare("UPDATE episodes SET is_starred = 0, starred_at = NULL, updated_at = datetime('now') WHERE id = ?")
+      .run(id)
   }
 
   updateEpisode(id: string, fields: Partial<Omit<Episode, 'id' | 'created_at'>>): void {

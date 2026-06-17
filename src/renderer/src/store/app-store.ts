@@ -13,6 +13,8 @@ export interface Episode {
   source_meta: string | null
   status: 'queued' | 'transcribing' | 'summarizing' | 'complete' | 'error' | 'cancelled' | 'downloading'
   error_message: string | null
+  is_starred: boolean
+  starred_at: string | null
   created_at: string
   updated_at: string
 }
@@ -54,8 +56,10 @@ interface AppState {
   transcriptPanelRatio: number
   inboxSort: InboxSortMode
   inboxCollapsed: boolean
+  starredCollapsed: boolean
   licenseGateModal: { open: boolean; action: string }
 
+  starredEpisodes: () => Episode[]
   hydrate: () => Promise<void>
   selectEpisode: (id: string) => void
   pinEpisode: (id: string) => void
@@ -86,6 +90,9 @@ interface AppState {
   setTranscriptPanelRatio: (ratio: number) => void
   cycleInboxSort: () => void
   toggleInboxCollapsed: () => void
+  toggleStarredCollapsed: () => void
+  starEpisode: (id: string) => Promise<void>
+  unstarEpisode: (id: string) => Promise<void>
   openLicenseGateModal: (action: string) => void
   closeLicenseGateModal: () => void
 }
@@ -102,6 +109,8 @@ function dbEpisodeToEpisode(row: DbEpisode): Episode {
     source_meta: row.source_meta,
     status: row.status as Episode['status'],
     error_message: row.error_message,
+    is_starred: row.is_starred === 1,
+    starred_at: row.starred_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -135,7 +144,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   transcriptPanelRatio: 0.4,
   inboxSort: (localStorage.getItem('inboxSort') as InboxSortMode) || 'newest',
   inboxCollapsed: localStorage.getItem('inboxCollapsed') === 'true',
+  starredCollapsed: localStorage.getItem('starredCollapsed') === 'true',
   licenseGateModal: { open: false, action: '' },
+
+  starredEpisodes: () => {
+    const { episodes } = get()
+    return episodes
+      .filter((ep) => ep.is_starred)
+      .sort((a, b) => {
+        if (!a.starred_at || !b.starred_at) return 0
+        return b.starred_at.localeCompare(a.starred_at)
+      })
+  },
 
   hydrate: async () => {
     const [dbEpisodes, dbFolders, dbTabs, savedRatio] = await Promise.all([
@@ -244,6 +264,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         source_meta: null,
         status: 'queued',
         error_message: null,
+        is_starred: false,
+        starred_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         ...updates,
@@ -388,6 +410,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     const next = !get().inboxCollapsed
     localStorage.setItem('inboxCollapsed', String(next))
     set({ inboxCollapsed: next })
+  },
+
+  toggleStarredCollapsed: () => {
+    const next = !get().starredCollapsed
+    localStorage.setItem('starredCollapsed', String(next))
+    set({ starredCollapsed: next })
+  },
+
+  starEpisode: async (id) => {
+    await window.api.starEpisode(id)
+    const { episodes } = get()
+    set({
+      episodes: episodes.map((ep) =>
+        ep.id === id ? { ...ep, is_starred: true, starred_at: new Date().toISOString() } : ep
+      ),
+    })
+  },
+
+  unstarEpisode: async (id) => {
+    await window.api.unstarEpisode(id)
+    const { episodes } = get()
+    set({
+      episodes: episodes.map((ep) =>
+        ep.id === id ? { ...ep, is_starred: false, starred_at: null } : ep
+      ),
+    })
   },
 
   openLicenseGateModal: (action) => set({ licenseGateModal: { open: true, action } }),

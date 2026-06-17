@@ -12,6 +12,8 @@ export interface DbEpisode {
   source_type: string | null
   status: string
   error_message: string | null
+  is_starred: number
+  starred_at: string | null
   created_at: string
   updated_at: string
 }
@@ -85,6 +87,8 @@ interface AudistillApi {
   deleteEpisode: (id: string) => Promise<void>
   moveEpisodes: (ids: string[], folderId: string | null) => Promise<void>
   deleteEpisodes: (ids: string[]) => Promise<void>
+  starEpisode: (id: string) => Promise<void>
+  unstarEpisode: (id: string) => Promise<void>
   createFolder: (name: string, parentId?: string | null) => Promise<string>
   renameFolder: (id: string, name: string) => Promise<void>
   deleteFolder: (id: string) => Promise<void>

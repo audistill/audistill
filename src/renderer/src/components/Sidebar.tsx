@@ -6,7 +6,7 @@ import { DragDropLayer, DRAG_MIME } from './DragDropLayer'
 import { FolderTreePopover } from './FolderTreePopover'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
 import { UrlImportPopover } from './UrlImportPopover'
-import { sortInboxEpisodes, groupInboxEpisodes } from '../lib/sort-inbox'
+import { groupInboxEpisodes } from '../lib/sort-inbox'
 
 function formatRelativeDate(dateStr: string): string {
   const now = Date.now()
@@ -60,11 +60,15 @@ export function Sidebar(): React.JSX.Element {
   const renameEpisode = useAppStore((s) => s.renameEpisode)
   const inboxSort = useAppStore((s) => s.inboxSort)
   const inboxCollapsed = useAppStore((s) => s.inboxCollapsed)
+  const starredCollapsed = useAppStore((s) => s.starredCollapsed)
   const cycleInboxSort = useAppStore((s) => s.cycleInboxSort)
   const toggleInboxCollapsed = useAppStore((s) => s.toggleInboxCollapsed)
+  const toggleStarredCollapsed = useAppStore((s) => s.toggleStarredCollapsed)
+  const starEpisode = useAppStore((s) => s.starEpisode)
+  const unstarEpisode = useAppStore((s) => s.unstarEpisode)
+  const starredEpisodes = useAppStore((s) => s.starredEpisodes)
 
   const selectedEpisodeIds = useSelectionStore((s) => s.selectedEpisodeIds)
-  const selectionContainer = useSelectionStore((s) => s.selectionContainer)
   const toggleEpisodeSelection = useSelectionStore((s) => s.toggleEpisodeSelection)
   const selectEpisodeRange = useSelectionStore((s) => s.selectEpisodeRange)
   const selectAllInContainer = useSelectionStore((s) => s.selectAllInContainer)
@@ -126,10 +130,24 @@ export function Sidebar(): React.JSX.Element {
           selectAllInContainer(containerEpisodes.map((ep) => ep.id), container)
         }
       }
+      if (e.key === 'd' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault()
+        const { activeTabId: currentActiveId, episodes: currentEpisodes } = useAppStore.getState()
+        if (currentActiveId) {
+          const ep = currentEpisodes.find((ep) => ep.id === currentActiveId)
+          if (ep) {
+            if (ep.is_starred) {
+              unstarEpisode(ep.id)
+            } else {
+              starEpisode(ep.id)
+            }
+          }
+        }
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [selectedEpisodeIds.size, clearSelection, selectAllInContainer, episodes])
+  }, [selectedEpisodeIds.size, clearSelection, selectAllInContainer, episodes, starEpisode, unstarEpisode])
 
   const filteredEpisodes = searchQuery
     ? episodes.filter((ep) => {
@@ -316,11 +334,6 @@ export function Sidebar(): React.JSX.Element {
     setContextMenu({ x: e.clientX, y: e.clientY, type: 'episode', episodeId })
   }
 
-  const handleMoveEpisode = (episodeId: string, folderId: string | null): void => {
-    setContextMenu(null)
-    moveEpisode(episodeId, folderId)
-  }
-
   const handleMoveEpisodePopover = (episodeId: string): void => {
     setContextMenu(null)
     setMovePopoverEpisodeId(episodeId)
@@ -499,6 +512,58 @@ export function Sidebar(): React.JSX.Element {
         onDragLeave={handleTreeDragLeave}
         onDrop={handleTreeDrop}
       >
+        {/* Starred */}
+        {starredEpisodes().length > 0 && (
+          <div className="mb-4">
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150"
+              onClick={toggleStarredCollapsed}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`transition-[transform] duration-200 shrink-0 ${starredCollapsed ? '' : 'rotate-90'}`}
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              Starred
+              <span className="bg-[var(--surface)] text-[var(--secondary)] px-1.5 py-0.5 rounded text-[10px]">
+                {starredEpisodes().length}
+              </span>
+            </div>
+            <div className={`overflow-hidden transition-[max-height] duration-200 ${starredCollapsed ? 'max-h-0' : 'max-h-[2000px]'}`}>
+              {starredEpisodes().map((ep) => (
+                <SidebarEpisode
+                  key={`starred-${ep.id}`}
+                  episode={ep}
+                  isActive={activeTabId === ep.id && !settingsOpen}
+                  isSelected={selectedEpisodeIds.has(ep.id)}
+                  isEditing={editingEpisodeId === ep.id}
+                  isFading={fadingEpisodeIds.has(ep.id)}
+                  isStarred={true}
+                  onStarToggle={(id) => unstarEpisode(id)}
+                  onClick={(e) => handleEpisodeClick(e, ep.id, 'starred', starredEpisodes().map((s) => s.id))}
+                  onDragStart={(e) => handleEpisodeDragStart(e, ep)}
+                  onPin={pinEpisode}
+                  onContextMenu={handleEpisodeContextMenu}
+                  onRenameSubmit={async (id, name) => {
+                    await renameEpisode(id, name)
+                    setEditingEpisodeId(null)
+                  }}
+                  onRenameCancel={() => setEditingEpisodeId(null)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Inbox */}
         <div className="mb-4">
           <div
@@ -1221,6 +1286,8 @@ function SidebarEpisode({
   isSelected,
   isEditing,
   isFading,
+  isStarred,
+  onStarToggle,
   onClick,
   onDragStart,
   onPin,
@@ -1233,6 +1300,8 @@ function SidebarEpisode({
   isSelected: boolean
   isEditing: boolean
   isFading?: boolean
+  isStarred?: boolean
+  onStarToggle?: (id: string) => void
   onClick: (e: React.MouseEvent) => void
   onDragStart: (e: React.DragEvent) => void
   onPin: (id: string) => void
@@ -1302,7 +1371,7 @@ function SidebarEpisode({
 
   return (
     <div
-      className={`sidebar-item flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''} ${isSelected ? 'bg-[var(--accent-bg)] ring-1 ring-[var(--accent-ring)]' : ''} ${isFading ? 'opacity-0 transition-[opacity] duration-150' : ''}`}
+      className={`sidebar-item group relative flex flex-col gap-0.5 px-3 py-1.5 rounded-lg cursor-pointer ${isActive ? 'active' : ''} ${isSelected ? 'bg-[var(--accent-bg)] ring-1 ring-[var(--accent-ring)]' : ''} ${isFading ? 'opacity-0 transition-[opacity] duration-150' : ''}`}
       draggable
       onClick={onClick}
       onDragStart={onDragStart}
@@ -1310,7 +1379,7 @@ function SidebarEpisode({
       onContextMenu={(e) => onContextMenu(e, episode.id)}
       tabIndex={0}
     >
-      <span className={`truncate text-sm ${isProcessing ? 'text-[var(--secondary)]' : 'text-[var(--text)]'}`}>
+      <span className={`truncate text-sm pr-5 ${isProcessing ? 'text-[var(--secondary)]' : 'text-[var(--text)]'}`}>
         {title}
       </span>
       {statusLine}
@@ -1321,6 +1390,38 @@ function SidebarEpisode({
             style={{ width: `${progressEntry.percent}%` }}
           />
         </div>
+      )}
+      {/* Star icon */}
+      {isStarred || episode.is_starred ? (
+        <button
+          className={`absolute right-2 top-1.5 flex items-center justify-center w-5 h-5 text-[var(--secondary)] hover:text-yellow-400 transition-[color,opacity] duration-150 ${isStarred ? 'opacity-0 group-hover:opacity-100' : 'opacity-50 group-hover:opacity-100'}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (onStarToggle) {
+              onStarToggle(episode.id)
+            } else {
+              useAppStore.getState().unstarEpisode(episode.id)
+            }
+          }}
+          title="Unstar (⌘D)"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" className="text-yellow-400">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </button>
+      ) : (
+        <button
+          className="absolute right-2 top-1.5 flex items-center justify-center w-5 h-5 text-[var(--secondary)] hover:text-yellow-400 opacity-0 group-hover:opacity-100 transition-[color,opacity] duration-150"
+          onClick={(e) => {
+            e.stopPropagation()
+            useAppStore.getState().starEpisode(episode.id)
+          }}
+          title="Star (⌘D)"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </button>
       )}
     </div>
   )

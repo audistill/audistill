@@ -140,6 +140,14 @@ function registerDatabaseHandlers(): void {
     db.deleteEpisodes(ids)
   })
 
+  ipcMain.handle('db:star-episode', (_event, id: string) => {
+    db.starEpisode(id)
+  })
+
+  ipcMain.handle('db:unstar-episode', (_event, id: string) => {
+    db.unstarEpisode(id)
+  })
+
   ipcMain.handle('db:create-folder', (_event, name: string, parentId?: string | null) => {
     return db.createFolder(name, parentId)
   })

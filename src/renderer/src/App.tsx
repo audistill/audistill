@@ -153,6 +153,8 @@ function App(): React.JSX.Element {
       useAppStore.getState().updateEpisode(episode.id, {
         ...episode,
         status: episode.status as Episode['status'],
+        is_starred: (episode as { is_starred?: number }).is_starred === 1,
+        starred_at: (episode as { starred_at?: string | null }).starred_at ?? null,
       })
     })
     return unsubscribe
