@@ -58,6 +58,10 @@ _Avoid_: Unsorted, default folder, queue
 A user-created container for organizing Episodes within the Library. Supports nesting via parent-child relationships. An Episode belongs to exactly one Folder, or to the Inbox.
 _Avoid_: Category, tag, collection, group
 
+**Starred**:
+A cross-cutting shortcut that marks an Episode for quick access in the sidebar. Starring is orthogonal to folder membership — the Episode remains in its Folder or Inbox and additionally appears in the Starred section. Any Episode can be starred regardless of status. Ordered newest-starred-first. The Starred section is hidden when no Episodes are starred.
+_Avoid_: Pinned (overloaded with Workspace Tab pinning), bookmarked, favorited
+
 ### Interaction
 
 **Chat**:

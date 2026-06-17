@@ -254,7 +254,7 @@ function Pipeline() {
                   Distill it
                 </h3>
                 <p className="text-secondary text-[15px] leading-relaxed max-w-sm">
-                  Transcribed on-device in minutes using Whisper on Apple Silicon. Then summarized, structured, and tagged by the LLM of your choice.
+                  Transcribed on-device in minutes using Parakeet TDT on Apple Silicon. Then summarized, structured, and tagged by the LLM of your choice.
                 </p>
                 <p className="text-stone text-[13px] mt-4 font-[family-name:var(--font-accent)] italic">
                   Audio never leaves your machine.

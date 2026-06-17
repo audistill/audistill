@@ -1,6 +1,6 @@
 ---
 title: Terms of Service page content
-status: ready-for-agent
+status: done
 created: 2025-06-16
 ---
 

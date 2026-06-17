@@ -1,6 +1,6 @@
 ---
 title: Open-source section between Pricing and FAQ
-status: ready-for-agent
+status: done
 created: 2025-06-16
 ---
 

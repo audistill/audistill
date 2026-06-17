@@ -1,6 +1,6 @@
 ---
 title: Landing page visual variety, open-source social proof, and shared layout
-status: ready-for-agent
+status: done
 created: 2025-06-16
 ---
 
