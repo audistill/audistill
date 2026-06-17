@@ -152,6 +152,11 @@ function applyMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
 
       // — Background (container handles this via CSS) —
       background: 'transparent',
+
+      // — Error handling —
+      // Suppress Mermaid's built-in error SVG rendering (injects into document.body)
+      // so our own React error fallback handles it cleanly.
+      suppressErrorRendering: true,
     },
   })
 }
@@ -164,18 +169,22 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
   useEffect(() => {
     let cancelled = false
 
+    const currentId = `mermaid-${++renderCounter}`
+
     getMermaid()
       .then((mermaid) => {
         if (cancelled) return
         applyMermaidTheme(mermaid)
-        const id = `mermaid-${++renderCounter}`
-        return mermaid.render(id, code)
+        return mermaid.render(currentId, code)
       })
       .then((result) => {
         if (cancelled || !result) return
         setSvg(result.svg)
       })
       .catch(() => {
+        // Defensive cleanup: remove any orphaned temp element Mermaid
+        // may have injected into the DOM before throwing
+        document.getElementById(`d${currentId}`)?.remove()
         if (!cancelled) setError(true)
       })
 
