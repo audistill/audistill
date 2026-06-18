@@ -234,6 +234,7 @@ function RecipeRow({
 }
 
 export function SettingsView(): React.JSX.Element {
+  const [appearance, setAppearance] = useState<'system' | 'light' | 'dark'>('system')
   const [apiKey, setApiKey] = useState('')
   const [defaultModel, setDefaultModel] = useState('google/gemini-3.5-flash')
   const [pipelineRecipeId, setPipelineRecipeId] = useState('')
@@ -247,13 +248,15 @@ export function SettingsView(): React.JSX.Element {
 
   useEffect(() => {
     Promise.all([
+      window.api.getSetting('appearance'),
       window.api.getSetting('openrouter_api_key'),
       window.api.getSetting('model_quality'),
       window.api.getSetting('pipeline_recipe_id'),
       window.api.recipesGetAll(),
       window.api.getSetting('ytdlp_path'),
       window.api.getSetting('ytdlp_custom_args'),
-    ]).then(([key, savedModel, savedPipelineId, allRecipes, savedYtdlpPath, savedYtdlpArgs]) => {
+    ]).then(([savedAppearance, key, savedModel, savedPipelineId, allRecipes, savedYtdlpPath, savedYtdlpArgs]) => {
+      if (savedAppearance) setAppearance(savedAppearance as 'system' | 'light' | 'dark')
       if (key) setApiKey(key)
       if (savedModel) setDefaultModel(savedModel)
       if (savedPipelineId) setPipelineRecipeId(savedPipelineId)
@@ -324,6 +327,29 @@ export function SettingsView(): React.JSX.Element {
       <h1 className="font-heading text-2xl font-semibold text-[var(--text)] mb-8">Settings</h1>
 
       <LicensePane />
+
+      <div className="mb-8">
+        <label className="block font-heading text-sm font-medium text-[var(--text)] mb-0.5">Appearance</label>
+        <p className="text-xs text-[var(--secondary)] mb-2">Choose light or dark, or follow your system setting.</p>
+        <div className="inline-flex rounded-[10px] bg-[var(--surface)] p-1">
+          {(['system', 'light', 'dark'] as const).map((option) => (
+            <button
+              key={option}
+              onClick={() => {
+                setAppearance(option)
+                window.api.setSetting('appearance', option)
+              }}
+              className={`px-4 py-1.5 text-sm font-medium rounded-[8px] capitalize transition-colors ${
+                appearance === option
+                  ? 'bg-[var(--bg)] text-[var(--text)] shadow-sm'
+                  : 'text-[var(--secondary)] hover:text-[var(--text)]'
+              }`}
+            >
+              {option === 'system' ? 'System' : option === 'light' ? 'Light' : 'Dark'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="mb-8">
         <label className="block font-heading text-sm font-medium text-[var(--text)] mb-2">OpenRouter API Key</label>

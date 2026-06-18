@@ -23,7 +23,7 @@ if (app.isPackaged && process.platform === 'darwin') {
   process.env.PATH = [process.env.PATH, '/opt/homebrew/bin', '/usr/local/bin'].filter(Boolean).join(':')
 }
 
-nativeTheme.themeSource = 'system'
+// Appearance is set after DB init, before window creation (see app.whenReady)
 
 let db: DatabaseService
 let recipeService: RecipeService
@@ -110,6 +110,9 @@ function registerDatabaseHandlers(): void {
 
   ipcMain.handle('db:set-setting', (_event, key: string, value: string) => {
     db.setSetting(key, value)
+    if (key === 'appearance') {
+      nativeTheme.themeSource = (value as 'system' | 'light' | 'dark') || 'system'
+    }
   })
 
   ipcMain.handle('db:search-episodes', (_event, query: string) => {
@@ -520,6 +523,10 @@ app.whenReady().then(() => {
   recipeService = new RecipeService(db)
   tabService = new TabService(db)
   new MigrationService(db, recipeService, tabService).run()
+
+  // Apply saved appearance before window creation to avoid theme flash
+  const savedAppearance = db.getSetting('appearance') as 'system' | 'light' | 'dark' | null
+  nativeTheme.themeSource = savedAppearance || 'system'
   chatService = new ChatService(db)
   ytdlpService = new YtdlpService(db)
 
