@@ -4,3 +4,15 @@ dist
 *.log
 .DS_Store
 pnpm-debug.log*
+
+# Agent / personal tooling
+.scratch/
+.agents/
+.pi/
+.claude/
+CLAUDE.md
+CONTEXT.md
+ralph-*
+prototypes/
+skills-lock.json
+docs/

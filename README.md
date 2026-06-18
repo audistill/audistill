@@ -9,9 +9,9 @@
 
 A local-first AI audio knowledge base for macOS. Turn podcasts, YouTube videos, meetings, and any audio into searchable summaries, notes, and a knowledge base you can chat with — without your audio ever leaving your Mac.
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)](#download)
-[![GitHub stars](https://img.shields.io/github/stars/OWNER/audistill?style=social)](https://github.com/OWNER/audistill/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/audistill/audistill?style=social)](https://github.com/audistill/audistill/stargazers)
 
 [Download](#download) · [Features](#features) · [How it works](#how-it-works) · [Build from source](#build-from-source) · [FAQ](#faq)
 
@@ -43,7 +43,7 @@ You listen to hours of podcasts, talks, and meetings — and forget most of it. 
 
 ## Download
 
-Audistill is open source (GPL v3) **and** a paid app. Both are intentional:
+Audistill is open source (AGPL-3.0) **and** a paid app. Both are intentional:
 
 | | |
 |---|---|
@@ -63,14 +63,21 @@ The only data that leaves your machine is the transcript text sent to the LLM yo
 
 ## Build from source
 
+Self-builds have all features unlocked — no license key or trial required.
+
 ```bash
-git clone https://github.com/OWNER/audistill.git
+git clone https://github.com/audistill/audistill.git
 cd audistill
 pnpm install
-pnpm build:mac
+pnpm dev          # run in development mode
+pnpm build:mac    # build a .dmg for yourself
 ```
 
-Requirements: macOS 13+, Node 20+, pnpm. The built app is unsigned — you'll need to allow it in System Settings → Privacy & Security.
+Requirements: macOS 13+, Node 20+, pnpm.
+
+The built app is unsigned — you'll need to allow it in System Settings → Privacy & Security.
+
+> **How it works:** Licensing is only enforced when the `OFFICIAL_BUILD=true` environment variable is set during build (used for signed releases). Dev builds and self-builds skip licensing entirely — all features are available without a key.
 
 ## FAQ
 
@@ -92,12 +99,12 @@ Issues and PRs welcome — bug reports with reproduction steps are the most valu
 
 ## License
 
-[GPL v3](LICENSE). The Audistill name, logo, and icon are **not** covered by the license — forks must use their own branding.
+[AGPL-3.0](LICENSE). The Audistill name, logo, and icon are **not** covered by the license — forks must use their own branding.
 
 ---
 
 <div align="center">
 
-**Found this useful? [⭐ Star the repo](https://github.com/OWNER/audistill) — it genuinely helps more than you'd think.**
+**Found this useful? [⭐ Star the repo](https://github.com/audistill/audistill) — it genuinely helps more than you'd think.**
 
 </div>

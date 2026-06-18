@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "polar": {
-      "transport": "streamable-http",
-      "url": "https://mcp.polar.sh/mcp/polar-mcp",
-      "lifecycle": "lazy"
-    }
-  }
-}
