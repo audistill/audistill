@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
+import { useModelStatusStore } from '../store/model-status-store'
 import { LicensePane } from './LicensePane'
 
 interface Recipe {
@@ -328,6 +329,8 @@ export function SettingsView(): React.JSX.Element {
 
       <LicensePane />
 
+      <TranscriptionModelSection />
+
       <div className="mb-8">
         <label className="block font-heading text-sm font-medium text-[var(--text)] mb-0.5">Appearance</label>
         <p className="text-xs text-[var(--secondary)] mb-2">Choose light or dark, or follow your system setting.</p>
@@ -469,6 +472,128 @@ export function SettingsView(): React.JSX.Element {
               models={models}
             />
           ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+function TranscriptionModelSection(): React.JSX.Element {
+  const status = useModelStatusStore((s) => s.status)
+  const hydrate = useModelStatusStore((s) => s.hydrate)
+
+  useEffect(() => {
+    hydrate()
+  }, [hydrate])
+
+  const handleDelete = async (): Promise<void> => {
+    await window.api.modelDelete()
+  }
+
+  const handleDownload = (): void => {
+    window.api.modelDownload()
+  }
+
+  const stateBadge = (): React.JSX.Element => {
+    switch (status.state) {
+      case 'ready':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-green-500/10 text-green-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            Ready
+          </span>
+        )
+      case 'downloading':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+            Downloading {status.percent ?? 0}%
+          </span>
+        )
+      case 'error':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-red-500/10 text-red-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+            Error
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-[var(--surface)] text-[var(--secondary)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--secondary)]" />
+            Not Downloaded
+          </span>
+        )
+    }
+  }
+
+  return (
+    <div className="mb-8">
+      <label className="block font-heading text-sm font-medium text-[var(--text)] mb-0.5">Transcription Model</label>
+      <p className="text-xs text-[var(--secondary)] mb-3">
+        Local model used for on-device speech recognition.
+      </p>
+
+      <div className="max-w-lg p-4 rounded-[12px] border border-[var(--surface)] bg-[var(--surface)]/30">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-[var(--text)]">Parakeet TDT 0.6B v3 fp16</span>
+              {stateBadge()}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-[var(--secondary)]">
+              {status.state === 'ready' && status.sizeOnDisk != null && (
+                <span>{formatBytes(status.sizeOnDisk)} on disk</span>
+              )}
+              {status.state === 'error' && status.error && (
+                <span className="text-red-400 truncate max-w-[250px]" title={status.error}>{status.error}</span>
+              )}
+              {status.state === 'downloading' && (
+                <div className="flex items-center gap-2">
+                  <div className="w-24 h-1.5 rounded-full bg-[var(--bg)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300 ease-out"
+                      style={{ width: `${status.percent ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            {status.state === 'ready' && (
+              <button
+                onClick={handleDelete}
+                className="px-3 py-1.5 text-xs font-medium rounded-[8px] border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+              >
+                Delete
+              </button>
+            )}
+            {(status.state === 'not-downloaded' || status.state === 'error') && (
+              <button
+                onClick={handleDownload}
+                className="px-3 py-1.5 text-xs font-medium rounded-[8px] bg-[var(--accent)] text-white hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                Download
+              </button>
+            )}
+            {status.state === 'downloading' && (
+              <button
+                disabled
+                className="px-3 py-1.5 text-xs font-medium rounded-[8px] bg-[var(--surface)] text-[var(--secondary)] cursor-not-allowed"
+              >
+                Downloading…
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

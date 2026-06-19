@@ -7,6 +7,7 @@ import { FolderTreePopover } from './FolderTreePopover'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
 import { UrlImportPopover } from './UrlImportPopover'
 import { groupInboxEpisodes } from '../lib/sort-inbox'
+import { useIngestGate } from '../lib/use-ingest-gate'
 
 function formatRelativeDate(dateStr: string): string {
   const now = Date.now()
@@ -95,6 +96,7 @@ export function Sidebar(): React.JSX.Element {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const treeRef = useRef<HTMLDivElement>(null)
   const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const ingestGate = useIngestGate()
 
   useEffect(() => {
     const handler = (): void => setContextMenu(null)
@@ -414,8 +416,14 @@ export function Sidebar(): React.JSX.Element {
           </button>
           <div className="relative" ref={addMenuRef}>
             <button
-              onClick={() => setAddMenuOpen(!addMenuOpen)}
-              className="flex items-center gap-1 px-2 py-1 rounded-[12px] text-xs font-medium text-[var(--accent)] hover:bg-[var(--surface)] transition-[background-color] duration-150"
+              onClick={() => ingestGate.available && setAddMenuOpen(!addMenuOpen)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-[12px] text-xs font-medium transition-[background-color] duration-150 ${
+                ingestGate.available
+                  ? 'text-[var(--accent)] hover:bg-[var(--surface)] cursor-pointer'
+                  : 'text-[var(--secondary)] opacity-50 cursor-not-allowed'
+              }`}
+              title={ingestGate.reason ?? 'Add content'}
+              disabled={!ingestGate.available}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 5v14M5 12h14" />

@@ -557,9 +557,36 @@ app.whenReady().then(() => {
 
   const modelManager = new ModelManager()
   modelManager.on('progress', (percent) => {
-    const win = BrowserWindow.getFocusedWindow()
-    if (win && !win.isDestroyed()) {
-      win.webContents.send('model-download-progress', percent)
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('model-download-progress', percent)
+      }
+    }
+  })
+  modelManager.on('status-changed', (status) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('model:status-changed', status)
+      }
+    }
+  })
+
+  // Model IPC handlers
+  ipcMain.handle('model:get-status', async () => {
+    return modelManager.getStatusWithSize()
+  })
+  ipcMain.handle('model:delete', async () => {
+    return modelManager.delete()
+  })
+  ipcMain.handle('model:download', () => {
+    modelManager.download()
+  })
+
+  // Initialize model state and trigger eager download on first launch
+  modelManager.init().then(() => {
+    const status = modelManager.getStatus()
+    if (status.state === 'not-downloaded') {
+      modelManager.download()
     }
   })
 

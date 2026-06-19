@@ -1,4 +1,8 @@
+import { useIngestGate } from '../lib/use-ingest-gate'
+
 export function EmptyLibraryState(): React.JSX.Element {
+  const ingestGate = useIngestGate()
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-12">
       <div className="text-center max-w-sm">
@@ -10,16 +14,24 @@ export function EmptyLibraryState(): React.JSX.Element {
         </div>
         <h2 className="font-heading text-xl font-semibold text-[var(--text)] mb-2">Your knowledge base is empty</h2>
         <p className="text-sm text-[var(--secondary)] mb-6">
-          Drop audio files here or click Add to get started.
+          {ingestGate.available
+            ? 'Drop audio files here or click Add to get started.'
+            : ingestGate.reason}
         </p>
         <button
           onClick={async () => {
+            if (!ingestGate.available) return
             const filePaths = await window.api.selectFiles()
             if (filePaths && filePaths.length > 0) {
               await window.api.addFiles(filePaths)
             }
           }}
-          className="px-5 py-2.5 rounded-[12px] bg-[var(--accent)] text-white font-heading text-sm font-medium hover:opacity-90 transition-[opacity] duration-150"
+          disabled={!ingestGate.available}
+          className={`px-5 py-2.5 rounded-[12px] font-heading text-sm font-medium transition-[opacity] duration-150 ${
+            ingestGate.available
+              ? 'bg-[var(--accent)] text-white hover:opacity-90 cursor-pointer'
+              : 'bg-[var(--surface)] text-[var(--secondary)] cursor-not-allowed'
+          }`}
         >
           Add Your First Audio File
         </button>

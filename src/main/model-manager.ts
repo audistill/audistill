@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { createWriteStream } from 'node:fs'
-import { access, mkdir, rename, rm } from 'node:fs/promises'
+import { access, mkdir, rename, rm, stat, readdir } from 'node:fs/promises'
 import https from 'node:https'
 import http from 'node:http'
 import { join } from 'node:path'
@@ -15,22 +15,140 @@ const MODEL_FILES = [
   'config.json'
 ]
 
+export const MODEL_DESCRIPTOR = {
+  id: 'parakeet-tdt-0.6b-fp16',
+  name: 'Parakeet TDT 0.6B v3 fp16',
+  repo: MODEL_REPO,
+  files: MODEL_FILES,
+} as const
+
+export type ModelState = 'not-downloaded' | 'downloading' | 'ready' | 'error'
+
+export interface ModelStatus {
+  state: ModelState
+  percent?: number
+  sizeOnDisk?: number
+  error?: string
+}
+
 export interface ModelManagerEvents {
   progress: [percent: number]
+  'status-changed': [status: ModelStatus]
 }
 
 export class ModelManager extends EventEmitter<ModelManagerEvents> {
   private modelDir: string
+  private _state: ModelState = 'not-downloaded'
+  private _percent = 0
+  private _error: string | undefined
+  private _downloadPromise: Promise<string> | null = null
 
   constructor(modelDir?: string) {
     super()
     this.modelDir = modelDir ?? join(app.getPath('userData'), 'models')
   }
 
-  async ensureModel(): Promise<string> {
-    const allExist = await this.allFilesExist()
-    if (allExist) return this.modelDir
+  /** Synchronously initialize state by checking disk. Call once at startup. */
+  async init(): Promise<void> {
+    const exists = await this.allFilesExist()
+    if (exists) {
+      this.transition('ready')
+    } else {
+      this.transition('not-downloaded')
+    }
+  }
 
+  getStatus(): ModelStatus {
+    const status: ModelStatus = { state: this._state }
+    if (this._state === 'downloading') {
+      status.percent = this._percent
+    }
+    if (this._state === 'error') {
+      status.error = this._error
+    }
+    return status
+  }
+
+  async getStatusWithSize(): Promise<ModelStatus> {
+    const status = this.getStatus()
+    if (this._state === 'ready') {
+      status.sizeOnDisk = await this.computeSizeOnDisk()
+    }
+    return status
+  }
+
+  async delete(): Promise<ModelStatus> {
+    if (this._downloadPromise) {
+      // Can't delete while downloading — just return current status
+      return this.getStatus()
+    }
+    await rm(this.modelDir, { recursive: true, force: true })
+    this.transition('not-downloaded')
+    return this.getStatus()
+  }
+
+  download(): void {
+    if (this._state === 'downloading') return
+    this.transition('downloading')
+    this._percent = 0
+    this._downloadPromise = this.performDownload()
+    this._downloadPromise
+      .then(() => {
+        this._downloadPromise = null
+        this.transition('ready')
+      })
+      .catch((err) => {
+        this._downloadPromise = null
+        this._error = err instanceof Error ? err.message : String(err)
+        this.transition('error')
+      })
+  }
+
+  async ensureModel(): Promise<string> {
+    if (this._state === 'ready') return this.modelDir
+
+    // Check disk in case init() wasn't called (e.g., called from IngestPipeline)
+    if (this._state === 'not-downloaded') {
+      const exists = await this.allFilesExist()
+      if (exists) {
+        this.transition('ready')
+        return this.modelDir
+      }
+    }
+
+    if (this._state === 'downloading' && this._downloadPromise) {
+      return this._downloadPromise
+    }
+
+    this.transition('downloading')
+    this._percent = 0
+    this._downloadPromise = this.performDownload()
+
+    try {
+      const result = await this._downloadPromise
+      this._downloadPromise = null
+      this.transition('ready')
+      return result
+    } catch (err) {
+      this._downloadPromise = null
+      this._error = err instanceof Error ? err.message : String(err)
+      this.transition('error')
+      throw err
+    }
+  }
+
+  private transition(newState: ModelState): void {
+    this._state = newState
+    if (newState !== 'downloading') {
+      this._percent = newState === 'ready' ? 100 : 0
+    }
+    if (newState !== 'error') {
+      this._error = undefined
+    }
+    this.emit('status-changed', this.getStatus())
+  }
+
+  private async performDownload(): Promise<string> {
     const tempDir = this.modelDir + '.downloading'
     await rm(tempDir, { recursive: true, force: true })
     await mkdir(tempDir, { recursive: true })
@@ -48,7 +166,8 @@ export class ModelManager extends EventEmitter<ModelManagerEvents> {
         await this.downloadFile(url, dest, (bytes) => {
           downloadedBytes += bytes
           const percent = totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : 0
-          this.emit('progress', Math.min(percent, 100))
+          this._percent = Math.min(percent, 100)
+          this.emit('progress', this._percent)
         })
       }
 
@@ -71,6 +190,20 @@ export class ModelManager extends EventEmitter<ModelManagerEvents> {
       }
     }
     return true
+  }
+
+  private async computeSizeOnDisk(): Promise<number> {
+    try {
+      const files = await readdir(this.modelDir)
+      let total = 0
+      for (const file of files) {
+        const s = await stat(join(this.modelDir, file))
+        total += s.size
+      }
+      return total
+    } catch {
+      return 0
+    }
   }
 
   private async fetchFileSizes(): Promise<number[]> {

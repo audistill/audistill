@@ -39,6 +39,16 @@ const api = {
     ipcRenderer.on('model-download-progress', handler)
     return () => ipcRenderer.removeListener('model-download-progress', handler)
   },
+  modelGetStatus: (): Promise<{ state: string; percent?: number; sizeOnDisk?: number; error?: string }> =>
+    ipcRenderer.invoke('model:get-status'),
+  modelDelete: (): Promise<{ state: string; percent?: number; sizeOnDisk?: number; error?: string }> =>
+    ipcRenderer.invoke('model:delete'),
+  modelDownload: (): Promise<void> => ipcRenderer.invoke('model:download'),
+  onModelStatusChanged: (callback: (status: { state: string; percent?: number; sizeOnDisk?: number; error?: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, status: { state: string; percent?: number; sizeOnDisk?: number; error?: string }): void => callback(status)
+    ipcRenderer.on('model:status-changed', handler)
+    return () => ipcRenderer.removeListener('model:status-changed', handler)
+  },
 
   // Database API
   getEpisodes: (folderId?: string | null) => ipcRenderer.invoke('db:get-episodes', folderId),

@@ -6,6 +6,7 @@ import { SettingsView } from './SettingsView'
 import { ContentTabBar } from './ContentTabBar'
 import { TabContentView } from './TabContentView'
 import { TranscriptPanel } from './TranscriptPanel'
+import { ModelDownloadBanner } from './ModelDownloadBanner'
 import { EmptyLibraryState, NoTabsOpenState } from './EmptyState'
 
 export function ContentPane(): React.JSX.Element {
@@ -16,6 +17,7 @@ export function ContentPane(): React.JSX.Element {
   if (settingsOpen) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
+        <ModelDownloadBanner />
         <SettingsView />
       </div>
     )
@@ -25,6 +27,7 @@ export function ContentPane(): React.JSX.Element {
   if (!episode) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
+        <ModelDownloadBanner />
         {episodes.length === 0 ? <EmptyLibraryState /> : <NoTabsOpenState />}
       </div>
     )
@@ -33,6 +36,7 @@ export function ContentPane(): React.JSX.Element {
   if (episode.status !== 'complete') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
+        <ModelDownloadBanner />
         <EpisodeView episode={episode} />
       </div>
     )
@@ -40,6 +44,7 @@ export function ContentPane(): React.JSX.Element {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
+      <ModelDownloadBanner />
       <EpisodeContentWithTabs episodeId={episode.id} />
     </div>
   )

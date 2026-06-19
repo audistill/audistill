@@ -72,6 +72,10 @@ interface AudistillApi {
   onTranscriptionComplete: (callback: () => void) => () => void
   onTranscriptionError: (callback: (message: string) => void) => () => void
   onModelDownloadProgress: (callback: (percent: number) => void) => () => void
+  modelGetStatus: () => Promise<{ state: string; percent?: number; sizeOnDisk?: number; error?: string }>
+  modelDelete: () => Promise<{ state: string; percent?: number; sizeOnDisk?: number; error?: string }>
+  modelDownload: () => Promise<void>
+  onModelStatusChanged: (callback: (status: { state: string; percent?: number; sizeOnDisk?: number; error?: string }) => void) => () => void
 
   // Database API
   getEpisodes: (folderId?: string | null) => Promise<DbEpisode[]>

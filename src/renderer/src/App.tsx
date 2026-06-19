@@ -18,6 +18,7 @@ import {
 } from './components/ResizeHandle'
 import { useAppStore, Episode } from './store/app-store'
 import { useContentTabStore } from './store/content-tab-store'
+import { useModelStatusStore } from './store/model-status-store'
 import { SUPPORTED_EXTENSIONS } from '../../shared/supported-formats'
 
 const SIDEBAR_TRANSITION_MS = 200
@@ -45,6 +46,8 @@ function App(): React.JSX.Element {
   const [droppedUrl, setDroppedUrl] = useState<string | null>(null)
   const dragCounter = useRef(0)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const modelState = useModelStatusStore((s) => s.status.state)
+  const hydrateModelStatus = useModelStatusStore((s) => s.hydrate)
 
   const showToast = useCallback((message: string) => {
     setToast(message)
@@ -75,6 +78,12 @@ function App(): React.JSX.Element {
     if (e.dataTransfer?.types.includes('application/x-audistill-episode')) return
     dragCounter.current = 0
     setDropActive(false)
+
+    // Gate ingest when Transcription Model is not ready
+    if (modelState !== 'ready') {
+      showToast('Transcription Model not ready — cannot ingest')
+      return
+    }
 
     const files = e.dataTransfer?.files
     if (files && files.length > 0) {
@@ -121,7 +130,7 @@ function App(): React.JSX.Element {
         showToast('Unsupported content dropped')
       }
     }
-  }, [showToast])
+  }, [showToast, modelState])
 
   useEffect(() => {
     document.addEventListener('dragenter', handleDragEnter)
@@ -138,7 +147,8 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     hydrate()
-  }, [hydrate])
+    hydrateModelStatus()
+  }, [hydrate, hydrateModelStatus])
 
   useEffect(() => {
     if (!hydrated) return
@@ -242,6 +252,7 @@ function App(): React.JSX.Element {
       if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || (active as HTMLElement)?.isContentEditable) {
         return
       }
+      if (modelState !== 'ready') return
       const text = e.clipboardData?.getData('text/plain')?.trim()
       if (!text) return
       try {
@@ -253,7 +264,7 @@ function App(): React.JSX.Element {
     }
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
-  }, [])
+  }, [modelState])
 
   if (!hydrated || needsOnboarding === null) {
     return (
