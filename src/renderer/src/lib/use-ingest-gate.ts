@@ -6,17 +6,17 @@ export interface IngestGate {
 }
 
 export function useIngestGate(): IngestGate {
-  const status = useModelStatusStore((s) => s.status)
+  const state = useModelStatusStore((s) => s.status.state)
 
-  if (status.state === 'ready') {
+  if (state === 'ready') {
     return { available: true, reason: null }
   }
 
-  if (status.state === 'downloading') {
+  if (state === 'downloading') {
     return { available: false, reason: 'Transcription Model is downloading…' }
   }
 
-  if (status.state === 'error') {
+  if (state === 'error') {
     return { available: false, reason: 'Transcription Model download failed' }
   }
 

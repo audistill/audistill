@@ -1,18 +1,27 @@
 import { useEffect } from 'react'
 import { useModelStatusStore } from '../store/model-status-store'
+import type { ModelStatus } from '../store/model-status-store'
+
+// Shallow-compare selector that only triggers re-render on meaningful changes
+function selectBannerStatus(s: { status: ModelStatus }): { state: string; percent: number; error?: string } {
+  return {
+    state: s.status.state,
+    percent: s.status.percent ?? 0,
+    error: s.status.error,
+  }
+}
 
 export function ModelDownloadBanner(): React.JSX.Element | null {
-  const status = useModelStatusStore((s) => s.status)
+  const { state, percent, error } = useModelStatusStore(selectBannerStatus)
   const hydrate = useModelStatusStore((s) => s.hydrate)
 
   useEffect(() => {
     hydrate()
   }, [hydrate])
 
-  if (status.state === 'ready') return null
+  if (state === 'ready') return null
 
-  if (status.state === 'downloading') {
-    const percent = status.percent ?? 0
+  if (state === 'downloading') {
     return (
       <div className="shrink-0 px-4 py-2 bg-[var(--surface)] border-b border-[var(--border)] flex items-center gap-3">
         <div className="flex-1 flex items-center gap-3 min-w-0">
@@ -37,7 +46,7 @@ export function ModelDownloadBanner(): React.JSX.Element | null {
     )
   }
 
-  if (status.state === 'error') {
+  if (state === 'error') {
     return (
       <div className="shrink-0 px-4 py-2 bg-[var(--surface)] border-b border-[var(--border)] flex items-center gap-3">
         <div className="flex-1 flex items-center gap-3 min-w-0">
@@ -47,9 +56,9 @@ export function ModelDownloadBanner(): React.JSX.Element | null {
           <span className="text-xs text-[var(--text)]">
             Transcription Model download failed
           </span>
-          {status.error && (
-            <span className="text-xs text-[var(--secondary)] truncate max-w-[200px]" title={status.error}>
-              — {status.error}
+          {error && (
+            <span className="text-xs text-[var(--secondary)] truncate max-w-[200px]" title={error}>
+              — {error}
             </span>
           )}
         </div>

@@ -556,7 +556,12 @@ app.whenReady().then(() => {
   registerLicenseHandlers()
 
   const modelManager = new ModelManager()
+  let lastProgressSent = 0
   modelManager.on('progress', (percent) => {
+    const now = Date.now()
+    // Throttle: send at most every 500ms, or on 100%
+    if (now - lastProgressSent < 500 && percent < 100) return
+    lastProgressSent = now
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {
         win.webContents.send('model-download-progress', percent)
