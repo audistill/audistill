@@ -538,11 +538,18 @@ app.whenReady().then(() => {
     : '35976264-5788-49be-8f65-1e7cf950c958'
   const polar = new PolarClient({ baseUrl: polarBaseUrl, organizationId: polarOrgId })
 
+  let machineId = 'unknown'
+  try {
+    machineId = machineIdSync()
+  } catch {
+    // machineIdSync can fail with EPIPE in some environments
+  }
+
   licenseService = new LicenseService({
     db,
     polar,
     clock: () => Date.now(),
-    machineId: machineIdSync(),
+    machineId,
     officialBuild: typeof __OFFICIAL_BUILD__ !== 'undefined' ? __OFFICIAL_BUILD__ : false,
   })
 
