@@ -1,18 +1,11 @@
 import { useEffect } from 'react'
 import { useModelStatusStore } from '../store/model-status-store'
-import type { ModelStatus } from '../store/model-status-store'
-
-// Shallow-compare selector that only triggers re-render on meaningful changes
-function selectBannerStatus(s: { status: ModelStatus }): { state: string; percent: number; error?: string } {
-  return {
-    state: s.status.state,
-    percent: s.status.percent ?? 0,
-    error: s.status.error,
-  }
-}
 
 export function ModelDownloadBanner(): React.JSX.Element | null {
-  const { state, percent, error } = useModelStatusStore(selectBannerStatus)
+  // Subscribe to primitives only to avoid infinite re-render loops
+  const state = useModelStatusStore((s) => s.status.state)
+  const percent = useModelStatusStore((s) => s.status.percent ?? 0)
+  const error = useModelStatusStore((s) => s.status.error)
   const hydrate = useModelStatusStore((s) => s.hydrate)
 
   useEffect(() => {

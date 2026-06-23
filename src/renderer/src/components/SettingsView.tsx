@@ -486,7 +486,10 @@ function formatBytes(bytes: number): string {
 }
 
 function TranscriptionModelSection(): React.JSX.Element {
-  const status = useModelStatusStore((s) => s.status)
+  const state = useModelStatusStore((s) => s.status.state)
+  const percent = useModelStatusStore((s) => s.status.percent ?? 0)
+  const error = useModelStatusStore((s) => s.status.error)
+  const sizeOnDisk = useModelStatusStore((s) => s.status.sizeOnDisk)
   const hydrate = useModelStatusStore((s) => s.hydrate)
 
   useEffect(() => {
@@ -502,7 +505,7 @@ function TranscriptionModelSection(): React.JSX.Element {
   }
 
   const stateBadge = (): React.JSX.Element => {
-    switch (status.state) {
+    switch (state) {
       case 'ready':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-green-500/10 text-green-400">
@@ -514,7 +517,7 @@ function TranscriptionModelSection(): React.JSX.Element {
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-            Downloading {status.percent ?? 0}%
+            Downloading {percent}%
           </span>
         )
       case 'error':
@@ -549,18 +552,18 @@ function TranscriptionModelSection(): React.JSX.Element {
               {stateBadge()}
             </div>
             <div className="flex items-center gap-3 text-xs text-[var(--secondary)]">
-              {status.state === 'ready' && status.sizeOnDisk != null && (
-                <span>{formatBytes(status.sizeOnDisk)} on disk</span>
+              {state === 'ready' && sizeOnDisk != null && (
+                <span>{formatBytes(sizeOnDisk)} on disk</span>
               )}
-              {status.state === 'error' && status.error && (
-                <span className="text-red-400 truncate max-w-[250px]" title={status.error}>{status.error}</span>
+              {state === 'error' && error && (
+                <span className="text-red-400 truncate max-w-[250px]" title={error}>{error}</span>
               )}
-              {status.state === 'downloading' && (
+              {state === 'downloading' && (
                 <div className="flex items-center gap-2">
                   <div className="w-24 h-1.5 rounded-full bg-[var(--bg)] overflow-hidden">
                     <div
                       className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300 ease-out"
-                      style={{ width: `${status.percent ?? 0}%` }}
+                      style={{ width: `${percent}%` }}
                     />
                   </div>
                 </div>
@@ -569,7 +572,7 @@ function TranscriptionModelSection(): React.JSX.Element {
           </div>
 
           <div>
-            {status.state === 'ready' && (
+            {state === 'ready' && (
               <button
                 onClick={handleDelete}
                 className="px-3 py-1.5 text-xs font-medium rounded-[8px] border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
@@ -577,7 +580,7 @@ function TranscriptionModelSection(): React.JSX.Element {
                 Delete
               </button>
             )}
-            {(status.state === 'not-downloaded' || status.state === 'error') && (
+            {(state === 'not-downloaded' || state === 'error') && (
               <button
                 onClick={handleDownload}
                 className="px-3 py-1.5 text-xs font-medium rounded-[8px] bg-[var(--accent)] text-white hover:opacity-90 transition-opacity cursor-pointer"
@@ -585,7 +588,7 @@ function TranscriptionModelSection(): React.JSX.Element {
                 Download
               </button>
             )}
-            {status.state === 'downloading' && (
+            {state === 'downloading' && (
               <button
                 disabled
                 className="px-3 py-1.5 text-xs font-medium rounded-[8px] bg-[var(--surface)] text-[var(--secondary)] cursor-not-allowed"
