@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { RichMarkdown } from './RichMarkdown'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useAppStore } from '../store/app-store'
@@ -236,8 +236,7 @@ function TabEditor({
   content: string
   onUpdate: (tabId: string, content: string) => void
 }): React.JSX.Element {
-  const localRef = useRef(content)
-  localRef.current = content
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -246,10 +245,19 @@ function TabEditor({
     [tabId, onUpdate]
   )
 
+  // Auto-resize textarea to fit content so the outer div owns scrolling
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [content])
+
   return (
     <div className="flex-1 overflow-y-auto px-12 py-4">
       <textarea
-        className="w-full h-full min-h-[300px] resize-none bg-transparent text-sm text-[var(--text)] font-mono leading-relaxed outline-none placeholder:text-[var(--secondary)] placeholder:opacity-50"
+        ref={textareaRef}
+        className="w-full resize-none overflow-hidden bg-transparent text-sm text-[var(--text)] font-mono leading-relaxed outline-none placeholder:text-[var(--secondary)] placeholder:opacity-50"
         value={content}
         onChange={handleChange}
         placeholder="Start typing, or ask the AI to generate something..."
