@@ -144,19 +144,19 @@ export class LicenseService {
         this.db.upsertLicenseRecord({
           last_validated_at: new Date(this.clock()).toISOString(),
         })
-        this.state = 'licensed'
+        this.setState('licensed')
       } else {
-        this.state = 'license-invalid'
+        this.setState('license-invalid')
       }
     } catch (err) {
       if (err instanceof PolarError && err.type === 'network-error') {
         if (record.last_validated_at && !this.isGraceExpired(record.last_validated_at)) {
-          this.state = 'licensed'
+          this.setState('licensed')
         } else {
-          this.state = 'license-invalid'
+          this.setState('license-invalid')
         }
       } else {
-        this.state = 'license-invalid'
+        this.setState('license-invalid')
       }
     }
   }
