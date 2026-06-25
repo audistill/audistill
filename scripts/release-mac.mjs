@@ -9,6 +9,7 @@
  *   pnpm release:mac --bump patch           (bump version first)
  *   pnpm release:mac --publish              (build + publish to GitHub Releases + update Homebrew tap)
  *   pnpm release:mac --bump minor --publish (bump + build + publish + update tap)
+ *   pnpm release:mac --publish --recreate   (delete existing release and re-publish same version)
  */
 
 import { execSync } from 'child_process'
@@ -18,6 +19,7 @@ import { resolve } from 'path'
 const args = process.argv.slice(2)
 const bump = args.find((_, i, a) => a[i - 1] === '--bump') || null
 const publish = args.includes('--publish')
+const recreate = args.includes('--recreate')
 
 const root = resolve(import.meta.dirname, '..')
 
@@ -95,7 +97,7 @@ run('pnpm run test')
 // ─── Build ──────────────────────────────────────────────────────────────────
 
 console.log('\n━━━ Build (electron-vite) ━━━')
-run('pnpm run build')
+run('OFFICIAL_BUILD=true pnpm run build')
 
 // ─── Package + Sign + Notarize ──────────────────────────────────────────────
 
@@ -177,10 +179,35 @@ Signed and notarized with Developer ID.`
     run(`git push`)
   }
 
+  // Delete existing release if --recreate
+  if (recreate) {
+    try {
+      run(`gh release delete ${tag} --yes --cleanup-tag`)
+      console.log(`  ✔ Deleted existing release ${tag}`)
+    } catch {
+      // Release may not exist yet — that's fine
+    }
+  }
+
   // Create the release
   run(`gh release create ${tag} ${assets} --title "${tag}" --notes "${notes.replace(/"/g, '\\"')}" --latest`)
 
   console.log(`  ✔ Published: https://github.com/audistill/audistill/releases/tag/${tag}`)
+
+  // Wait for GitHub CDN to propagate release assets
+  console.log('  ⏳ Waiting for release assets to propagate...')
+  const dmgUrl = `https://github.com/audistill/audistill/releases/download/${tag}/Audistill-${version}-arm64.dmg`
+  for (let attempt = 1; attempt <= 20; attempt++) {
+    try {
+      const status = runCapture(`curl -sI -o /dev/null -w '%{http_code}' -L "${dmgUrl}"`)
+      if (status === '200') {
+        console.log(`  ✔ Assets available (attempt ${attempt})`)
+        break
+      }
+    } catch { /* ignore */ }
+    if (attempt === 20) fail('Release assets not available after 60s — check GitHub.')
+    await new Promise(r => setTimeout(r, 3000))
+  }
 
   // ─── Update Homebrew tap ────────────────────────────────────────────────
 
