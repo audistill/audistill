@@ -2,16 +2,17 @@
 
 /**
  * Release pipeline for macOS.
- * Runs: preflight → typecheck → test → build → package+sign+notarize → verify
+ * Runs: preflight → typecheck → test → build → package+sign+notarize → verify → publish → update brew
  *
  * Usage:
- *   pnpm release:mac
- *   pnpm release:mac --bump patch|minor|major
- *   pnpm release:mac --publish   (uploads to GitHub Releases)
+ *   pnpm release:mac                        (build + verify only, no publish)
+ *   pnpm release:mac --bump patch           (bump version first)
+ *   pnpm release:mac --publish              (build + publish to GitHub Releases + update Homebrew tap)
+ *   pnpm release:mac --bump minor --publish (bump + build + publish + update tap)
  */
 
 import { execSync } from 'child_process'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 
 const args = process.argv.slice(2)
@@ -23,6 +24,10 @@ const root = resolve(import.meta.dirname, '..')
 function run(cmd, opts = {}) {
   console.log(`\n▸ ${cmd}`)
   execSync(cmd, { cwd: root, stdio: 'inherit', ...opts })
+}
+
+function runCapture(cmd, opts = {}) {
+  return execSync(cmd, { cwd: root, encoding: 'utf8', ...opts }).trim()
 }
 
 function fail(msg) {
@@ -39,7 +44,7 @@ if (!process.env.CSC_NAME) {
 }
 
 try {
-  const identities = execSync('security find-identity -v -p codesigning', { encoding: 'utf8' })
+  const identities = runCapture('security find-identity -v -p codesigning')
   if (!identities.includes(process.env.CSC_NAME)) {
     fail(`Signing identity "${process.env.CSC_NAME}" not found in Keychain.`)
   }
@@ -52,10 +57,20 @@ if (!process.env.APPLE_API_KEY_ID || !process.env.APPLE_API_ISSUER || !process.e
   fail('Notarization credentials missing. Set APPLE_API_KEY_ID, APPLE_API_ISSUER, and APPLE_API_KEY.')
 }
 
-if (!existsSync(process.env.APPLE_API_KEY.replace('~', process.env.HOME))) {
+const apiKeyPath = process.env.APPLE_API_KEY.replace('~', process.env.HOME)
+if (!existsSync(apiKeyPath)) {
   fail(`API key file not found at: ${process.env.APPLE_API_KEY}`)
 }
 console.log('  ✔ Notarization credentials set')
+
+if (publish) {
+  try {
+    runCapture('gh auth status')
+  } catch {
+    fail('GitHub CLI not authenticated. Run: gh auth login')
+  }
+  console.log('  ✔ GitHub CLI authenticated')
+}
 
 // ─── Version bump ───────────────────────────────────────────────────────────
 
@@ -63,6 +78,9 @@ if (bump) {
   console.log('\n━━━ Version bump ━━━')
   run(`npm version ${bump} --no-git-tag-version`)
 }
+
+const version = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).version
+console.log(`\n  Version: ${version}`)
 
 // ─── Typecheck ──────────────────────────────────────────────────────────────
 
@@ -82,8 +100,7 @@ run('pnpm run build')
 // ─── Package + Sign + Notarize ──────────────────────────────────────────────
 
 console.log('\n━━━ Package + Sign + Notarize ━━━')
-const publishFlag = publish ? ' --publish always' : ''
-run(`pnpm exec electron-builder --mac${publishFlag}`)
+run('pnpm exec electron-builder --mac')
 
 // ─── Post-build verification ────────────────────────────────────────────────
 
@@ -109,28 +126,114 @@ try {
   fail('Gatekeeper assessment failed (spctl).')
 }
 
-// Notarize + staple the DMG (electron-builder only notarizes the .app inside the zip)
-const dmg = execSync('ls dist/*.dmg 2>/dev/null | head -1', { cwd: root, encoding: 'utf8' }).trim()
+// ─── Notarize + staple DMG ──────────────────────────────────────────────────
+
+const dmg = runCapture('ls dist/*.dmg 2>/dev/null | head -1')
 
 if (dmg) {
   console.log('\n━━━ Notarize DMG ━━━')
-  const apiKey = process.env.APPLE_API_KEY.replace('~', process.env.HOME)
-  run(`xcrun notarytool submit "${dmg}" --key "${apiKey}" --key-id "${process.env.APPLE_API_KEY_ID}" --issuer "${process.env.APPLE_API_ISSUER}" --wait`)
+  run(`xcrun notarytool submit "${dmg}" --key "${apiKeyPath}" --key-id "${process.env.APPLE_API_KEY_ID}" --issuer "${process.env.APPLE_API_ISSUER}" --wait`)
   run(`xcrun stapler staple "${dmg}"`)
   console.log('  ✔ DMG notarized and stapled')
 
-  // Verify
   run(`xcrun stapler validate "${dmg}"`)
   console.log('  ✔ Stapler validation passed')
-
-  const size = execSync(`du -h "${dmg}"`, { cwd: root, encoding: 'utf8' }).trim()
-  console.log(`\n━━━ Done ━━━`)
-  console.log(`  📦 ${dmg}`)
-  console.log(`  📏 ${size.split('\t')[0]}`)
 }
+
+// ─── Publish to GitHub Releases ─────────────────────────────────────────────
 
 if (publish) {
-  console.log('  🚀 Uploaded to GitHub Releases')
+  console.log('\n━━━ Publish to GitHub Releases ━━━')
+
+  const tag = `v${version}`
+  const zip = runCapture('ls dist/*-mac.zip 2>/dev/null | head -1')
+  const latestYml = resolve(root, 'dist/latest-mac.yml')
+
+  const assets = [dmg, zip, latestYml].filter(Boolean).map(f => `"${f}"`).join(' ')
+
+  const notes = `## Download
+
+- **[Audistill-${version}-arm64.dmg](https://github.com/audistill/audistill/releases/download/${tag}/Audistill-${version}-arm64.dmg)** — drag to Applications
+- Or install via Homebrew: \`brew tap audistill/tap && brew install --cask audistill\`
+
+## Install via Homebrew
+
+\`\`\`bash
+brew tap audistill/tap
+brew install --cask audistill
+\`\`\`
+
+## System requirements
+
+- macOS 13+ (Ventura or later)
+- Apple Silicon (M1/M2/M3/M4)
+
+Signed and notarized with Developer ID.`
+
+  // Commit version bump if applicable
+  if (bump) {
+    run(`git add package.json`)
+    run(`git commit -m "v${version}"`)
+    run(`git push`)
+  }
+
+  // Create the release
+  run(`gh release create ${tag} ${assets} --title "${tag}" --notes "${notes.replace(/"/g, '\\"')}" --latest`)
+
+  console.log(`  ✔ Published: https://github.com/audistill/audistill/releases/tag/${tag}`)
+
+  // ─── Update Homebrew tap ────────────────────────────────────────────────
+
+  console.log('\n━━━ Update Homebrew tap ━━━')
+
+  const sha256 = runCapture(`shasum -a 256 "${dmg}"`).split(' ')[0]
+
+  const tapDir = '/tmp/homebrew-tap-update'
+  run(`rm -rf ${tapDir}`)
+  run(`git clone git@github.com:audistill/homebrew-tap.git ${tapDir}`)
+
+  const caskPath = `${tapDir}/Casks/audistill.rb`
+  const caskContent = `cask "audistill" do
+  version "${version}"
+  sha256 "${sha256}"
+
+  url "https://github.com/audistill/audistill/releases/download/v#{version}/Audistill-#{version}-arm64.dmg"
+  name "Audistill"
+  desc "Local-first audio transcription and summarization for macOS"
+  homepage "https://audistill.com"
+
+  depends_on arch: :arm64
+  depends_on macos: :ventura
+
+  app "Audistill.app"
+
+  zap trash: [
+    "~/Library/Application Support/Audistill",
+    "~/Library/Preferences/com.audistill.app.plist",
+    "~/Library/Saved Application State/com.audistill.app.savedState",
+  ]
+end
+`
+
+  const { writeFileSync } = await import('fs')
+  writeFileSync(caskPath, caskContent)
+
+  run(`git -C ${tapDir} add -A`)
+  run(`git -C ${tapDir} commit -m "Update Audistill to ${version}"`)
+  run(`git -C ${tapDir} push`)
+  run(`rm -rf ${tapDir}`)
+
+  console.log(`  ✔ Homebrew tap updated to ${version}`)
 }
 
+// ─── Summary ────────────────────────────────────────────────────────────────
+
+const size = dmg ? runCapture(`du -h "${dmg}"`).split('\t')[0] : '?'
+console.log(`\n━━━ Done ━━━`)
+console.log(`  📦 ${dmg || 'no DMG found'}`)
+console.log(`  📏 ${size}`)
+if (publish) {
+  console.log(`  🚀 GitHub Release: https://github.com/audistill/audistill/releases/tag/v${version}`)
+  console.log(`  🍺 Homebrew: brew install --cask audistill`)
+}
 console.log('')
