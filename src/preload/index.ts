@@ -1,5 +1,8 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type { UpdateStatus } from '../shared/update-types'
+
+export type { UpdateStatus }
 
 export interface LicenseStateSnapshot {
   state: 'trial' | 'trial-expired' | 'licensed' | 'license-invalid'
@@ -240,6 +243,19 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, snapshot: LicenseStateSnapshot): void => callback(snapshot)
       ipcRenderer.on('license:state-changed', handler)
       return () => ipcRenderer.removeListener('license:state-changed', handler)
+    },
+  },
+
+  // Update API
+  update: {
+    getStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke('update:get-status'),
+    check: (): Promise<UpdateStatus> => ipcRenderer.invoke('update:check'),
+    install: (): Promise<void> => ipcRenderer.invoke('update:install'),
+    dismiss: (version: string): Promise<void> => ipcRenderer.invoke('update:dismiss', version),
+    onStatusChanged: (callback: (status: UpdateStatus) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: UpdateStatus): void => callback(status)
+      ipcRenderer.on('update:status-changed', handler)
+      return () => ipcRenderer.removeListener('update:status-changed', handler)
     },
   },
 }

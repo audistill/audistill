@@ -1,4 +1,7 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
+import type { UpdateStatus } from '../shared/update-types'
+
+export type { UpdateStatus }
 
 export interface DbEpisode {
   id: string
@@ -185,6 +188,15 @@ interface AudistillApi {
     activate: (key: string) => Promise<{ success: boolean; error?: { type: string; message: string } }>
     deactivate: () => Promise<void>
     onStateChange: (callback: (snapshot: LicenseStateSnapshot) => void) => () => void
+  }
+
+  // Update API
+  update: {
+    getStatus: () => Promise<UpdateStatus>
+    check: () => Promise<UpdateStatus>
+    install: () => Promise<void>
+    dismiss: (version: string) => Promise<void>
+    onStatusChanged: (callback: (status: UpdateStatus) => void) => () => void
   }
 }
 

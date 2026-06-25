@@ -7,6 +7,7 @@ import { OnboardingView } from './components/OnboardingView'
 import { DropOverlay } from './components/DropOverlay'
 import { UrlImportPopover } from './components/UrlImportPopover'
 import { TrialBanner } from './components/TrialBanner'
+import { UpdateBanner } from './components/UpdateBanner'
 import { LicenseGateModal } from './components/LicenseGateModal'
 import { isLicenseError } from './components/LicenseBlockedPrompt'
 import {
@@ -294,6 +295,7 @@ function App(): React.JSX.Element {
         className="relative flex items-center h-12 px-4 bg-[var(--bg)] border-b border-[var(--surface)] select-none shrink-0"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
+        <UpdateBanner />
         <TrialBanner />
         <div className="w-[70px] shrink-0" />
         <div className="flex-1">

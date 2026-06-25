@@ -17,6 +17,7 @@ import { getWindowOptions, trackWindowState, getSavedBounds } from './window-sta
 import { LicenseService } from './license-service'
 import { PolarClient } from './polar-client'
 import { requireLicense } from './license-guard'
+import { UpdateService } from './update-service'
 import { machineIdSync } from 'node-machine-id'
 
 if (app.isPackaged && process.platform === 'darwin') {
@@ -32,6 +33,7 @@ let ingestPipeline: IngestPipeline
 let chatService: ChatService
 let ytdlpService: YtdlpService
 let licenseService: LicenseService
+let updateService: UpdateService
 
 function getLicenseSnapshot(): { state: string; trialDaysRemaining?: number; maskedKey?: string; activationLabel?: string } {
   const state = licenseService.getState()
@@ -561,6 +563,10 @@ app.whenReady().then(() => {
   registerYtdlpHandlers()
   registerUrlHandlers()
   registerLicenseHandlers()
+
+  updateService = new UpdateService(db)
+  updateService.registerIPC()
+  updateService.init()
 
   const modelManager = new ModelManager()
   let lastProgressSent = 0

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
 import { useModelStatusStore } from '../store/model-status-store'
 import { LicensePane } from './LicensePane'
+import { UpdateSettingsSection } from './UpdateSettingsSection'
 
 interface Recipe {
   id: string
@@ -326,6 +327,8 @@ export function SettingsView(): React.JSX.Element {
   return (
     <div className="flex-1 overflow-y-auto px-12 py-8">
       <h1 className="font-heading text-2xl font-semibold text-[var(--text)] mb-8">Settings</h1>
+
+      <UpdateSettingsSection />
 
       <LicensePane />
 
