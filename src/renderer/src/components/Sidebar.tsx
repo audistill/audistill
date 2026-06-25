@@ -159,6 +159,13 @@ export function Sidebar(): React.JSX.Element {
       })
     : episodes
 
+  const filteredStarred = searchQuery
+    ? starredEpisodes().filter((ep) => {
+        const title = (ep.title || ep.file_path || '').toLowerCase()
+        return title.includes(searchQuery.toLowerCase())
+      })
+    : starredEpisodes()
+
   const inboxItems = filteredEpisodes.filter((e) => e.folder_id === null)
   const inboxGroups = groupInboxEpisodes(inboxItems, inboxSort)
   const inboxVisibleIds = inboxGroups.flatMap((g) => g.episodes.map((ep) => ep.id))
@@ -521,7 +528,7 @@ export function Sidebar(): React.JSX.Element {
         onDrop={handleTreeDrop}
       >
         {/* Starred */}
-        {starredEpisodes().length > 0 && (
+        {filteredStarred.length > 0 && (
           <div className="mb-4">
             <div
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150"
@@ -543,11 +550,11 @@ export function Sidebar(): React.JSX.Element {
               </svg>
               Starred
               <span className="bg-[var(--surface)] text-[var(--secondary)] px-1.5 py-0.5 rounded text-[10px]">
-                {starredEpisodes().length}
+                {filteredStarred.length}
               </span>
             </div>
             <div className={`overflow-hidden transition-[max-height] duration-200 ${starredCollapsed ? 'max-h-0' : 'max-h-[2000px]'}`}>
-              {starredEpisodes().map((ep) => (
+              {filteredStarred.map((ep) => (
                 <SidebarEpisode
                   key={`starred-${ep.id}`}
                   episode={ep}
@@ -557,7 +564,7 @@ export function Sidebar(): React.JSX.Element {
                   isFading={fadingEpisodeIds.has(ep.id)}
                   isStarred={true}
                   onStarToggle={(id) => unstarEpisode(id)}
-                  onClick={(e) => handleEpisodeClick(e, ep.id, 'starred', starredEpisodes().map((s) => s.id))}
+                  onClick={(e) => handleEpisodeClick(e, ep.id, 'starred', filteredStarred.map((s) => s.id))}
                   onDragStart={(e) => handleEpisodeDragStart(e, ep)}
                   onPin={pinEpisode}
                   onContextMenu={handleEpisodeContextMenu}

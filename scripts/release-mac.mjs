@@ -94,6 +94,12 @@ run('pnpm run typecheck')
 console.log('\n━━━ Tests ━━━')
 run('pnpm run test')
 
+// ─── Clean dist ─────────────────────────────────────────────────────────────
+
+console.log('\n━━━ Clean dist ━━━')
+run('rm -rf dist')
+console.log('  ✔ Removed stale artifacts')
+
 // ─── Build ──────────────────────────────────────────────────────────────────
 
 console.log('\n━━━ Build (electron-vite) ━━━')
@@ -130,17 +136,18 @@ try {
 
 // ─── Notarize + staple DMG ──────────────────────────────────────────────────
 
-const dmg = runCapture('ls dist/*.dmg 2>/dev/null | head -1')
-
-if (dmg) {
-  console.log('\n━━━ Notarize DMG ━━━')
-  run(`xcrun notarytool submit "${dmg}" --key "${apiKeyPath}" --key-id "${process.env.APPLE_API_KEY_ID}" --issuer "${process.env.APPLE_API_ISSUER}" --wait`)
-  run(`xcrun stapler staple "${dmg}"`)
-  console.log('  ✔ DMG notarized and stapled')
-
-  run(`xcrun stapler validate "${dmg}"`)
-  console.log('  ✔ Stapler validation passed')
+const dmg = resolve(root, `dist/Audistill-${version}-arm64.dmg`)
+if (!existsSync(dmg)) {
+  fail(`DMG not found at ${dmg} — build may have failed.`)
 }
+
+console.log('\n━━━ Notarize DMG ━━━')
+run(`xcrun notarytool submit "${dmg}" --key "${apiKeyPath}" --key-id "${process.env.APPLE_API_KEY_ID}" --issuer "${process.env.APPLE_API_ISSUER}" --wait`)
+run(`xcrun stapler staple "${dmg}"`)
+console.log('  ✔ DMG notarized and stapled')
+
+run(`xcrun stapler validate "${dmg}"`)
+console.log('  ✔ Stapler validation passed')
 
 // ─── Publish to GitHub Releases ─────────────────────────────────────────────
 
@@ -148,10 +155,17 @@ if (publish) {
   console.log('\n━━━ Publish to GitHub Releases ━━━')
 
   const tag = `v${version}`
-  const zip = runCapture('ls dist/*-mac.zip 2>/dev/null | head -1')
+  const zip = resolve(root, `dist/Audistill-${version}-arm64-mac.zip`)
   const latestYml = resolve(root, 'dist/latest-mac.yml')
 
-  const assets = [dmg, zip, latestYml].filter(Boolean).map(f => `"${f}"`).join(' ')
+  if (!existsSync(zip)) {
+    fail(`ZIP not found at ${zip} — build may have failed.`)
+  }
+  if (!existsSync(latestYml)) {
+    fail(`latest-mac.yml not found — electron-builder may not have generated update metadata.`)
+  }
+
+  const assets = [dmg, zip, latestYml].map(f => `"${f}"`).join(' ')
 
   const notes = `## Download
 
@@ -189,8 +203,15 @@ Signed and notarized with Developer ID.`
     }
   }
 
-  // Create the release
-  run(`gh release create ${tag} ${assets} --title "${tag}" --notes "${notes.replace(/"/g, '\\"')}" --latest`)
+  // Create the release (write notes to temp file to avoid shell interpretation of backticks)
+  const { writeFileSync: writeTmp, unlinkSync } = await import('fs')
+  const notesFile = resolve(root, 'dist/.release-notes.md')
+  writeTmp(notesFile, notes)
+  try {
+    run(`gh release create ${tag} ${assets} --title "${tag}" --notes-file "${notesFile}" --latest`)
+  } finally {
+    try { unlinkSync(notesFile) } catch {}
+  }
 
   console.log(`  ✔ Published: https://github.com/audistill/audistill/releases/tag/${tag}`)
 
@@ -255,9 +276,9 @@ end
 
 // ─── Summary ────────────────────────────────────────────────────────────────
 
-const size = dmg ? runCapture(`du -h "${dmg}"`).split('\t')[0] : '?'
+const size = runCapture(`du -h "${dmg}"`).split('\t')[0]
 console.log(`\n━━━ Done ━━━`)
-console.log(`  📦 ${dmg || 'no DMG found'}`)
+console.log(`  📦 ${dmg}`)
 console.log(`  📏 ${size}`)
 if (publish) {
   console.log(`  🚀 GitHub Release: https://github.com/audistill/audistill/releases/tag/v${version}`)
