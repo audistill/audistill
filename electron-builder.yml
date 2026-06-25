@@ -30,8 +30,15 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSDocumentsFolderUsageDescription: Application needs access to open audio files.
-  notarize: false
+  notarize: true
   target:
     - target: dmg
       arch:
         - arm64
+    - target: zip
+      arch:
+        - arm64
+publish:
+  provider: github
+  owner: audistill
+  repo: audistill

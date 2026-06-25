@@ -19,8 +19,8 @@ export interface FeedResult {
 
 const parser = new Parser({
   customFields: {
-    item: [['itunes:duration', 'itunesDuration']],
-    feed: [['itunes:image', 'itunesImage', { keepArray: false }]],
+    item: [['itunes:duration', 'itunesDuration'] as any],
+    feed: [['itunes:image', 'itunesImage', { keepArray: false }] as any],
   },
 })
 
@@ -51,7 +51,7 @@ export class FeedService {
       .map((item) => ({
         title: item.title || 'Untitled',
         enclosureUrl: getEnclosureUrl(item)!,
-        guid: item.guid || item.id || null,
+        guid: item.guid || (item as any).id || null,
         pubDate: item.pubDate || item.isoDate || null,
         duration: (item as any).itunesDuration || null,
         description: item.contentSnippet || item.content || null,

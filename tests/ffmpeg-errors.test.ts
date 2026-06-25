@@ -1,7 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { resolve } from 'node:path'
 import { writeFileSync, unlinkSync, mkdirSync } from 'node:fs'
 import { parseFfmpegError, preprocess } from '../src/main/audio-preprocessor'
+
+vi.mock('electron', () => ({
+  app: { isPackaged: false },
+}))
 
 describe('parseFfmpegError', () => {
   it('returns friendly message for "no audio stream" stderr', () => {

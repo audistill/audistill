@@ -1,6 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { resolve } from 'node:path'
 import { preprocess } from '../src/main/audio-preprocessor'
+
+vi.mock('electron', () => ({
+  app: { isPackaged: false },
+}))
 
 const FIXTURE_MP3 = resolve(__dirname, 'fixtures/tone-2s.mp3')
 const SAMPLE_RATE = 16000

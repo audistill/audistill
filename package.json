@@ -1,7 +1,7 @@
 {
   "name": "audistill",
   "version": "0.1.0",
-  "description": "Distill knowledge from every conversation — local-first for macOS",
+  "description": "Distill knowledge from every conversation \u2014 local-first for macOS",
   "type": "module",
   "main": "./out/main/index.js",
   "author": "Audistill",
@@ -17,7 +17,9 @@
     "test": "vitest run",
     "posttest": "electron-rebuild -f -w better-sqlite3 --build-from-source",
     "postinstall": "rm -rf node_modules/better-sqlite3/build && electron-rebuild -f -w better-sqlite3 --build-from-source",
-    "build:mac": "pnpm run build && electron-builder --mac"
+    "build:mac": "pnpm run build && electron-builder --mac",
+    "release:mac": "node scripts/release-mac.mjs",
+    "release:mac:publish": "node scripts/release-mac.mjs --publish"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

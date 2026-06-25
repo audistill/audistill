@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { DatabaseService, Episode } from './database-service'
+import { DatabaseService } from './database-service'
 
 vi.mock('electron', () => ({
   app: { getPath: () => '/tmp' },

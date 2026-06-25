@@ -183,7 +183,6 @@ export class ChatToolExecutor {
   private extractSnippet(ep: Episode, query: string): string {
     const lowerQuery = query.toLowerCase()
     const source = ep.transcript || ep.title || ''
-    const lowerSource = source.toLowerCase()
 
     let text = source
     if (ep.transcript) {
