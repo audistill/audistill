@@ -51,6 +51,9 @@ export class LicenseService {
     }
 
     if (record.license_key && record.activation_id) {
+      // Optimistically assume licensed to avoid a Trial banner flash
+      // while the async revalidation network call is in-flight.
+      this.state = 'licensed'
       await this.revalidateOnLaunch(record)
       return
     }
