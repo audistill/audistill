@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Video, Rss, Globe, FileAudio } from 'lucide-react'
 import { useContentTabStore, ContentTab } from '../store/content-tab-store'
 import { useAppStore, Episode } from '../store/app-store'
@@ -68,6 +68,8 @@ export function EpisodeHeaderBar({ episode, showTabs = true }: EpisodeHeaderBarP
   const secondaryLabel = getSecondaryLabel(episode)
   const fullPath = getFullPath(episode)
   const displayTitle = episode.title || episode.file_path?.split('/').pop() || 'Untitled'
+  const renameEpisode = useAppStore((s) => s.renameEpisode)
+  const [editing, setEditing] = useState(false)
 
   return (
     <div className="border-b border-[var(--surface)] shrink-0 px-4 pt-3 pb-0">
@@ -79,12 +81,24 @@ export function EpisodeHeaderBar({ episode, showTabs = true }: EpisodeHeaderBarP
         >
           <Icon size={13} style={{ color: source.color }} />
         </div>
-        <h1
-          className="text-[15px] font-heading font-semibold text-[var(--text)] truncate flex-1 leading-tight"
-          title={fullPath ?? displayTitle}
-        >
-          {displayTitle}
-        </h1>
+        {editing ? (
+          <HeaderInlineEdit
+            initialValue={displayTitle}
+            onSubmit={(name) => {
+              setEditing(false)
+              renameEpisode(episode.id, name)
+            }}
+            onCancel={() => setEditing(false)}
+          />
+        ) : (
+          <h1
+            className="text-[15px] font-heading font-semibold text-[var(--text)] truncate flex-1 leading-tight cursor-default"
+            title={fullPath ?? displayTitle}
+            onDoubleClick={() => setEditing(true)}
+          >
+            {displayTitle}
+          </h1>
+        )}
       </div>
 
       {/* Line 2: Metadata */}
@@ -390,5 +404,49 @@ function TabItem({
         </button>
       )}
     </div>
+  )
+}
+
+// --- Inline edit for header title ---
+
+function HeaderInlineEdit({
+  initialValue,
+  onSubmit,
+  onCancel,
+}: {
+  initialValue: string
+  onSubmit: (value: string) => void
+  onCancel: () => void
+}): React.JSX.Element {
+  const [value, setValue] = useState(initialValue)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
+
+  const handleSubmit = useCallback((): void => {
+    const trimmed = value.trim()
+    if (trimmed && trimmed !== initialValue) {
+      onSubmit(trimmed)
+    } else {
+      onCancel()
+    }
+  }, [value, initialValue, onSubmit, onCancel])
+
+  return (
+    <input
+      ref={inputRef}
+      className="flex-1 bg-[var(--surface)] text-[var(--text)] text-[15px] font-heading font-semibold px-1.5 py-0.5 rounded outline-none border border-[var(--accent)] leading-tight"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={handleSubmit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') handleSubmit()
+        if (e.key === 'Escape') onCancel()
+      }}
+      onClick={(e) => e.stopPropagation()}
+    />
   )
 }
