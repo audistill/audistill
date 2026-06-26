@@ -83,6 +83,7 @@ export class IngestPipeline {
         const id = this.db.createEpisode({
           title: basename(filePath),
           file_path: filePath,
+          source_type: 'local',
           status: 'queued',
         })
         ids.push(id)

@@ -31,7 +31,7 @@ function getSecondaryLabel(episode: Episode): string | null {
     } catch { /* ignore */ }
   }
 
-  if (episode.source_type === 'local' && episode.file_path) {
+  if ((episode.source_type === 'local' || !episode.source_type) && episode.file_path) {
     const parts = episode.file_path.split('/')
     return parts[parts.length - 1] ?? null
   }
