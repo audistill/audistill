@@ -8,7 +8,6 @@ export function EpisodeView({ episode }: { episode: Episode }): React.JSX.Elemen
 }
 
 function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
-  const fileName = episode.file_path?.split('/').pop() || episode.file_path || 'Untitled'
   const progressEntry = useAppStore((s) => s.progress[episode.id])
   const statusText =
     episode.status === 'queued'
@@ -72,7 +71,6 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
             </svg>
           )}
         </div>
-        <p className="font-heading text-sm font-medium text-[var(--text)] mb-2">{fileName}</p>
         <p className="text-sm text-[var(--secondary)] mb-4">{statusText}</p>
 
         {showRichProgress && (
@@ -124,8 +122,6 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
 }
 
 function CancelledState({ episode }: { episode: Episode }): React.JSX.Element {
-  const fileName = episode.file_path?.split('/').pop() || episode.file_path || 'Untitled'
-
   const handleRestart = async (): Promise<void> => {
     await window.api.retryEpisode(episode.id)
   }
@@ -139,7 +135,6 @@ function CancelledState({ episode }: { episode: Episode }): React.JSX.Element {
             <path d="M8 12h8" />
           </svg>
         </div>
-        <p className="font-heading text-sm font-medium text-[var(--text)] mb-2">{fileName}</p>
         <p className="text-sm text-[var(--secondary)] mb-4">Transcription cancelled</p>
         <button
           onClick={handleRestart}
