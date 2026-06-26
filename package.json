@@ -1,6 +1,6 @@
 {
   "name": "audistill",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Distill knowledge from every conversation — local-first for macOS",
   "type": "module",
   "main": "./out/main/index.js",
