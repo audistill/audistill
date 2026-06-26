@@ -3,7 +3,7 @@ import { useAppStore } from '../store/app-store'
 import { useContentTabStore } from '../store/content-tab-store'
 import { EpisodeView } from './EpisodeView'
 import { SettingsView } from './SettingsView'
-import { ContentTabBar } from './ContentTabBar'
+import { EpisodeHeaderBar } from './EpisodeHeaderBar'
 import { TabContentView } from './TabContentView'
 import { TranscriptPanel } from './TranscriptPanel'
 import { ModelDownloadBanner } from './ModelDownloadBanner'
@@ -37,6 +37,7 @@ export function ContentPane(): React.JSX.Element {
     return (
       <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
         <ModelDownloadBanner />
+        <EpisodeHeaderBar episode={episode} showTabs={false} />
         <EpisodeView episode={episode} />
       </div>
     )
@@ -69,10 +70,14 @@ function EpisodeContentWithTabs({ episodeId }: { episodeId: string }): React.JSX
     )
   }
 
+  if (!episode) {
+    return <div className="flex-1" />
+  }
+
   if (tabs.length === 0) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <ContentTabBar episodeId={episodeId} />
+        <EpisodeHeaderBar episode={episode} showTabs={true} />
         <div className="flex-1 flex flex-col items-center justify-center text-center px-12">
           <p className="text-sm text-[var(--secondary)]">
             No content tabs yet. Click + to create one.
@@ -91,7 +96,7 @@ function EpisodeContentWithTabs({ episodeId }: { episodeId: string }): React.JSX
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ minHeight: 200 }}>
-      <ContentTabBar episodeId={episodeId} />
+      <EpisodeHeaderBar episode={episode} showTabs={true} />
       <div className="flex-1 flex flex-col overflow-hidden min-h-0">
         <div className="flex-1 overflow-hidden min-h-[200px]">
           <TabContentView />
