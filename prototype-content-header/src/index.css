@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #141413;
+    --text: #faf9f5;
+    --secondary: #c2c0b8;
+    --surface: #1e1e1c;
+    --accent: #d97757;
+    --border: #2a2a28;
+    --accent-ring: rgba(217, 119, 87, 0.35);
+    --accent-bg: rgba(217, 119, 87, 0.10);
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    height: 100vh;
+  }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

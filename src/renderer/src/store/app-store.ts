@@ -11,6 +11,7 @@ export interface Episode {
   transcript: string | null
   source_url: string | null
   source_meta: string | null
+  source_type: string | null
   status: 'queued' | 'transcribing' | 'summarizing' | 'complete' | 'error' | 'cancelled' | 'downloading'
   error_message: string | null
   is_starred: boolean
@@ -107,6 +108,7 @@ function dbEpisodeToEpisode(row: DbEpisode): Episode {
     transcript: row.transcript,
     source_url: row.source_url,
     source_meta: row.source_meta,
+    source_type: row.source_type,
     status: row.status as Episode['status'],
     error_message: row.error_message,
     is_starred: row.is_starred === 1,
@@ -262,6 +264,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         transcript: null,
         source_url: null,
         source_meta: null,
+        source_type: null,
         status: 'queued',
         error_message: null,
         is_starred: false,

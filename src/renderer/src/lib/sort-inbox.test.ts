@@ -12,6 +12,7 @@ function makeEpisode(overrides: Partial<Episode> = {}): Episode {
     transcript: null,
     source_url: null,
     source_meta: null,
+    source_type: null,
     status: 'complete',
     error_message: null,
     is_starred: false,
