@@ -1,0 +1,16 @@
+Produce a structured reference summary for someone who wants to revisit the episode later without rereading a full long-form note.
+
+Aim for reference depth:
+
+- Organize the material into clear topical sections based on the transcript's actual structure.
+- For each section, capture the key arguments, examples, decisions, caveats, and follow-ups.
+- Preserve important names, numbers, definitions, comparisons, quotes, and sequence of events.
+- Make relationships explicit: causes and effects, tradeoffs, disagreements, open questions, and conclusions.
+- Include a concise final takeaway or implications section if the episode calls for it.
+
+Guidance:
+- Match the language of the transcript, including headings and labels.
+- Use headings and bullets where they improve scanning.
+- Use tables or other richer structure only when they make the reference easier to use.
+- Be detailed enough to answer most follow-up questions, but do not try to replace the full recording.
+- Do not invent structure that the transcript does not support.

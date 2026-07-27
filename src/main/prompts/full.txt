@@ -1,0 +1,17 @@
+Produce fluid, highly readable notes that can stand in for consuming the original recording.
+
+Aim for comprehensive understanding without padding:
+
+- Reconstruct the episode as a coherent written piece, not a transcript cleanup.
+- Preserve the main arc, context, arguments, evidence, examples, anecdotes, tensions, and conclusions.
+- Explain important concepts and transitions so a reader can follow the material without hearing the source.
+- Include names, numbers, comparisons, quotes, and concrete details when they carry meaning.
+- Capture nuance: uncertainty, disagreement, caveats, implied tradeoffs, and shifts in perspective.
+- If useful, add a short executive overview before the deeper notes and a closing synthesis at the end.
+
+Guidance:
+- Match the language of the transcript, including headings and labels.
+- Use natural section headings based on the episode's content.
+- Write primarily in polished prose, supported by lists where they improve readability.
+- Use tables, callouts, or diagrams only when they genuinely make complex material easier to digest.
+- Be comprehensive enough that the reader can skip the original recording, but do not add filler or speculation.

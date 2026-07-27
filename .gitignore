@@ -1,0 +1,27 @@
+node_modules
+out
+dist
+/build/native/
+*.log
+*.tsbuildinfo
+.DS_Store
+pnpm-debug.log*
+.pnpm-store/
+
+# Private development and agent tooling
+/.scratch/
+/.agents/
+/.pi/
+/.claude/
+/.superpowers/
+/AGENTS.md
+/CLAUDE.md
+/CONTEXT.md
+/tickets.md
+/ralph-*
+/skills-lock.json
+
+# Private prototypes and release-only files
+/prototypes/
+/prototype-content-header/
+/scripts/public-repo.gitignore

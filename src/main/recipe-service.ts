@@ -1,0 +1,244 @@
+import { net } from 'electron'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { randomUUID } from 'crypto'
+import { DatabaseService } from './database-service'
+import { FORMATTING_INSTRUCTIONS } from '../shared/formatting-instructions'
+
+export interface Recipe {
+  id: string
+  name: string
+  prompt: string
+  model_override: string | null
+  is_builtin: number
+  sort_order: number
+  created_at: string
+}
+
+export interface RecipeExecutionResult {
+  model: string
+}
+
+const PROMPTS_DIR = join(__dirname, 'prompts')
+const DEFAULT_MODEL = 'google/gemini-3.5-flash'
+
+const RECIPE_SYSTEM_FRAME = `You are a knowledge assistant that summarises audio transcripts.
+
+<output-format>
+Your response MUST use this exact structure:
+
+TITLE: <short descriptive title, under 80 characters>
+---
+<markdown body>
+
+The first line is the title. The separator (---) marks where the body begins.
+Do not wrap output in JSON, code fences, or any other container.
+</output-format>
+
+${FORMATTING_INSTRUCTIONS}`
+
+const BUILTIN_RECIPES = [
+  { name: 'Brief', file: 'brief.txt', sort_order: 0 },
+  { name: 'Detailed', file: 'detailed.txt', sort_order: 1 },
+  { name: 'Full', file: 'full.txt', sort_order: 2 }
+]
+
+export class RecipeService {
+  private db: DatabaseService
+
+  constructor(db: DatabaseService, promptsDir?: string) {
+    this.db = db
+    this.initSchema()
+    this.seedBuiltins(promptsDir ?? PROMPTS_DIR)
+  }
+
+  private initSchema(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS recipes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        model_override TEXT,
+        is_builtin INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `)
+  }
+
+  private seedBuiltins(promptsDir: string): void {
+    const existing = this.db.queryAll<{ id: string; name: string; prompt: string }>(
+      'SELECT id, name, prompt FROM recipes WHERE is_builtin = 1'
+    )
+
+    if (existing.length === 0) {
+      let firstId: string | null = null
+      for (const builtin of BUILTIN_RECIPES) {
+        const id = randomUUID()
+        if (!firstId) firstId = id
+        const prompt = readFileSync(join(promptsDir, builtin.file), 'utf-8')
+        this.db.run(
+          `INSERT INTO recipes (id, name, prompt, is_builtin, sort_order) VALUES (?, ?, ?, 1, ?)`,
+          id, builtin.name, prompt, builtin.sort_order
+        )
+      }
+      if (firstId && !this.db.getSetting('pipeline_recipe_id')) {
+        this.db.setSetting('pipeline_recipe_id', firstId)
+      }
+      return
+    }
+
+    for (const builtin of BUILTIN_RECIPES) {
+      const prompt = readFileSync(join(promptsDir, builtin.file), 'utf-8')
+      const row = existing.find((r) => r.name === builtin.name)
+      if (row && row.prompt !== prompt) {
+        this.db.run('UPDATE recipes SET prompt = ? WHERE id = ?', prompt, row.id)
+      }
+    }
+  }
+
+  getRecipes(): Recipe[] {
+    return this.db.queryAll<Recipe>('SELECT * FROM recipes ORDER BY sort_order, created_at')
+  }
+
+  getRecipe(id: string): Recipe | undefined {
+    return this.db.queryOne<Recipe>('SELECT * FROM recipes WHERE id = ?', id)
+  }
+
+  createRecipe(data: { name: string; prompt: string; model_override?: string }): string {
+    const id = randomUUID()
+    const maxOrder = this.db.queryOne<{ max_order: number }>(
+      'SELECT COALESCE(MAX(sort_order), -1) as max_order FROM recipes'
+    )
+    const sortOrder = (maxOrder?.max_order ?? -1) + 1
+    this.db.run(
+      `INSERT INTO recipes (id, name, prompt, model_override, is_builtin, sort_order) VALUES (?, ?, ?, ?, 0, ?)`,
+      id, data.name, data.prompt, data.model_override ?? null, sortOrder
+    )
+    return id
+  }
+
+  updateRecipe(id: string, fields: Partial<Pick<Recipe, 'name' | 'prompt' | 'model_override'>>): void {
+    const allowed = ['name', 'prompt', 'model_override']
+    const entries = Object.entries(fields).filter(([key]) => allowed.includes(key))
+    if (entries.length === 0) return
+
+    const sets = entries.map(([key]) => `${key} = ?`).join(', ')
+    const values = entries.map(([, val]) => val ?? null)
+    this.db.run(`UPDATE recipes SET ${sets} WHERE id = ?`, ...values, id)
+  }
+
+  async validateApiKey(key: string): Promise<boolean> {
+    try {
+      const response = await net.fetch('https://openrouter.ai/api/v1/key', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${key}` },
+      })
+      return response.status === 200
+    } catch {
+      return false
+    }
+  }
+
+  deleteRecipe(id: string): void {
+    const recipe = this.getRecipe(id)
+    if (!recipe) return
+    if (recipe.is_builtin) {
+      throw new Error('Cannot delete built-in recipe')
+    }
+    this.db.run('DELETE FROM recipes WHERE id = ?', id)
+  }
+
+  getPipelineRecipe(): Recipe | undefined {
+    const pipelineId = this.db.getSetting('pipeline_recipe_id')
+    if (pipelineId) {
+      const recipe = this.getRecipe(pipelineId)
+      if (recipe) return recipe
+    }
+    return this.db.queryOne<Recipe>(
+      "SELECT * FROM recipes WHERE is_builtin = 1 ORDER BY sort_order LIMIT 1"
+    )
+  }
+
+  resolveModelForRecipe(recipeId: string): string {
+    const recipe = this.getRecipe(recipeId)
+    if (!recipe) throw new Error('Recipe not found')
+    return recipe.model_override ?? this.db.getSetting('model_quality') ?? this.db.getSetting('default_model') ?? DEFAULT_MODEL
+  }
+
+  async executeRecipe(
+    recipeId: string,
+    transcript: string,
+    onToken: (token: string) => void
+  ): Promise<RecipeExecutionResult> {
+    const recipe = this.getRecipe(recipeId)
+    if (!recipe) throw new Error('Recipe not found')
+
+    const apiKey = this.db.getSetting('openrouter_api_key')
+    if (!apiKey) {
+      throw new Error('No API key configured. Please set your OpenRouter API key in Settings.')
+    }
+
+    const model = this.resolveModelForRecipe(recipeId)
+    const customInstructions = this.db.getSetting('custom_instructions') ?? ''
+
+    let templateMessage = `<template>\n${recipe.prompt}\n</template>`
+    if (customInstructions.trim()) {
+      templateMessage = `<instructions>\n${customInstructions.trim()}\n</instructions>\n\n${templateMessage}`
+    }
+
+    const messages = [
+      { role: 'system', content: RECIPE_SYSTEM_FRAME },
+      { role: 'user', content: templateMessage },
+      { role: 'user', content: `<transcript>\n${transcript}\n</transcript>` }
+    ]
+
+    const response = await net.fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: true
+      })
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(`OpenRouter API error (${response.status}): ${text}`)
+    }
+
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('No response body')
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const data = line.slice(6).trim()
+        if (data === '[DONE]') return { model }
+        try {
+          const parsed = JSON.parse(data)
+          const content = parsed.choices?.[0]?.delta?.content
+          if (content) onToken(content)
+        } catch {
+          // skip malformed SSE lines
+        }
+      }
+    }
+
+    return { model }
+  }
+}

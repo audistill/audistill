@@ -1,0 +1,53 @@
+/* PROTOTYPE — THROWAWAY */
+
+.recording-prototype {
+  --recording-danger: #dc5a55;
+  --recording-warning: #d39a42;
+  min-height: 0;
+}
+
+@keyframes recording-meter-bounce {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.55; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes recording-spin {
+  to { transform: rotate(360deg); }
+}
+
+.recording-meter-bar {
+  animation: recording-meter-bounce 900ms ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+.recording-meter-bar:nth-child(2) { animation-delay: -620ms; }
+.recording-meter-bar:nth-child(3) { animation-delay: -310ms; }
+.recording-meter-bar:nth-child(4) { animation-delay: -760ms; }
+.recording-meter-bar:nth-child(5) { animation-delay: -180ms; }
+
+.recording-meter-idle .recording-meter-bar {
+  animation: none;
+  opacity: 0.32;
+  transform: scaleY(0.3);
+}
+
+.recording-spinner {
+  animation: recording-spin 900ms linear infinite;
+}
+
+.recording-prototype-switcher {
+  box-shadow: 0 14px 40px color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+@media (max-width: 850px) {
+  .recording-control-desk {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recording-meter-bar,
+  .recording-spinner {
+    animation: none;
+  }
+}

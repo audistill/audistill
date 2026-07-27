@@ -1,0 +1,14 @@
+Produce a quick, scannable overview that helps someone understand the episode in under a minute.
+
+Aim for orientation, not exhaustiveness:
+
+- Open with the core idea or situation in 1-2 crisp sentences.
+- List the most important points, decisions, claims, or story beats.
+- Include concrete names, numbers, comparisons, examples, and outcomes when they matter.
+- End with the practical takeaway: why this episode is worth remembering.
+
+Guidance:
+- Match the language of the transcript, including headings and labels.
+- Prefer short sections and tight bullets over long paragraphs.
+- Cover the breadth of the episode without deep elaboration.
+- Do not pad. If the episode is simple, keep the overview simple.

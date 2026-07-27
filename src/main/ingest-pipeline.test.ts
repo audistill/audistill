@@ -1,0 +1,480 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { join } from 'node:path'
+import { DatabaseService } from './database-service'
+import { RecipeService } from './recipe-service'
+import { TabService } from './tab-service'
+import { IngestPipeline } from './ingest-pipeline'
+import { HttpDownloadService } from './http-download-service'
+
+const promptsDir = join(__dirname, 'prompts')
+
+function createTestDb(): DatabaseService {
+  const db = new DatabaseService(':memory:')
+  return db
+}
+
+vi.mock('electron', () => ({
+  BrowserWindow: {
+    getAllWindows: () => [],
+    fromWebContents: () => null,
+    getFocusedWindow: () => null,
+  },
+  dialog: { showOpenDialog: vi.fn() },
+  ipcMain: { handle: vi.fn() },
+  net: { fetch: vi.fn() },
+}))
+
+describe('IngestPipeline - recipe execution on ingest', () => {
+  let db: DatabaseService
+  let recipeService: RecipeService
+  let tabService: TabService
+  let pipeline: IngestPipeline
+
+  beforeEach(() => {
+    db = createTestDb()
+    recipeService = new RecipeService(db, promptsDir)
+    tabService = new TabService(db)
+
+    const modelManager = { ensureModel: vi.fn() } as any
+    const ytdlpService = { detect: vi.fn(), download: vi.fn(), kill: vi.fn() } as any
+    pipeline = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  describe('summarizeEpisode (now recipe-based)', () => {
+    it('fetches the pipeline recipe from settings', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const getPipelineSpy = vi.spyOn(recipeService, 'getPipelineRecipe')
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue({ model: 'google/gemini-3.5-flash' })
+
+      await pipeline.runSummarization(episodeId)
+
+      expect(getPipelineSpy).toHaveBeenCalled()
+    })
+
+    it('creates a pipeline tab for the episode before generation begins', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      let tabCreatedBeforeExecution = false
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(async () => {
+        const tabs = tabService.getTabs(episodeId)
+        tabCreatedBeforeExecution = tabs.some((t) => t.is_pipeline === 1)
+        return { model: 'google/gemini-3.5-flash' }
+      })
+
+      await pipeline.runSummarization(episodeId)
+
+      expect(tabCreatedBeforeExecution).toBe(true)
+    })
+
+    it('streams tokens into the pipeline tab content', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken('Hello ')
+          onToken('World')
+          return { model: 'google/gemini-3.5-flash' }
+        }
+      )
+
+      await pipeline.runSummarization(episodeId)
+
+      const tabs = tabService.getTabs(episodeId)
+      expect(tabs).toHaveLength(1)
+      expect(tabs[0].content).toBe('Hello World')
+      expect(tabs[0].is_pipeline).toBe(1)
+    })
+
+    it('extracts title and summary from TITLE:/--- plaintext format', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'test.mp3',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const plaintext = 'TITLE: My Great Episode\n---\n## Summary\n\nContent here'
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken(plaintext)
+          return { model: 'google/gemini-3.5-flash' }
+        }
+      )
+
+      await pipeline.runSummarization(episodeId)
+
+      const episode = db.getEpisode(episodeId)
+      expect(episode?.title).toBe('My Great Episode')
+      const tabs = tabService.getTabs(episodeId)
+      expect(tabs[0].content).toBe('## Summary\n\nContent here')
+    })
+
+    it('graceful degradation: no separator treats entire output as summary', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'test.mp3',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const noSeparator = '## Just a summary\n\nWith no title line'
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken(noSeparator)
+          return { model: 'google/gemini-3.5-flash' }
+        }
+      )
+
+      await pipeline.runSummarization(episodeId)
+
+      const episode = db.getEpisode(episodeId)
+      expect(episode?.title).toBe('test.mp3')
+      const tabs = tabService.getTabs(episodeId)
+      expect(tabs[0].content).toBe('## Just a summary\n\nWith no title line')
+    })
+
+    it('sets episode status to complete on success', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken('some content')
+          return { model: 'google/gemini-3.5-flash' }
+        }
+      )
+
+      await pipeline.runSummarization(episodeId)
+
+      const episode = db.getEpisode(episodeId)
+      expect(episode?.status).toBe('complete')
+    })
+
+    it('records provenance on successful pipeline recipe generation after saving content', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-07-01T12:00:00.000Z'))
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken('generated content')
+          return { model: 'openai/gpt-4.1-mini' }
+        }
+      )
+
+      await pipeline.runSummarization(episodeId)
+
+      const tab = tabService.getTabs(episodeId)[0]
+      expect(tab.content).toBe('generated content')
+      expect(tab.generated_at).toBe('2026-07-01T12:00:00.000Z')
+      expect(tab.generated_model).toBe('openai/gpt-4.1-mini')
+      vi.useRealTimers()
+    })
+
+    it('sets episode status to error on failure', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockRejectedValue(new Error('API failed'))
+
+      await pipeline.runSummarization(episodeId)
+
+      const episode = db.getEpisode(episodeId)
+      expect(episode?.status).toBe('error')
+      expect(episode?.error_message).toBe('API failed')
+    })
+
+    it('sets error when no transcript available', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+
+      await pipeline.runSummarization(episodeId)
+
+      const episode = db.getEpisode(episodeId)
+      expect(episode?.status).toBe('error')
+      expect(episode?.error_message).toBe('No transcript available for summarization')
+    })
+
+    it('uses the pipeline recipe name as the tab name', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue({ model: 'google/gemini-3.5-flash' })
+
+      await pipeline.runSummarization(episodeId)
+
+      const tabs = tabService.getTabs(episodeId)
+      expect(tabs).toHaveLength(1)
+      const pipelineRecipe = recipeService.getPipelineRecipe()
+      expect(tabs[0].tab_name).toBe(pipelineRecipe?.name)
+    })
+
+    it('links the tab to the pipeline recipe via recipe_id', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue({ model: 'google/gemini-3.5-flash' })
+
+      await pipeline.runSummarization(episodeId)
+
+      const tabs = tabService.getTabs(episodeId)
+      const pipelineRecipe = recipeService.getPipelineRecipe()
+      expect(tabs[0].recipe_id).toBe(pipelineRecipe?.id)
+    })
+  })
+
+  describe('download routing by source_type', () => {
+    it('routes source_type direct to HttpDownloadService', async () => {
+      const mockHttpDownload = vi.fn().mockResolvedValue(undefined)
+      const httpService = { download: mockHttpDownload } as unknown as HttpDownloadService
+
+      const modelManager = { ensureModel: vi.fn() } as any
+      const ytdlpService = { detect: vi.fn(), download: vi.fn(), kill: vi.fn() } as any
+      const pipelineWithHttp = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService, httpService)
+
+      const episodeId = db.createEpisode({
+        title: 'Direct Download',
+        source_url: 'https://example.com/episode.mp3',
+        source_type: 'direct',
+        status: 'queued',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue({ model: 'google/gemini-3.5-flash' })
+
+      await pipelineWithHttp.processEpisodePublic(episodeId)
+
+      expect(mockHttpDownload).toHaveBeenCalled()
+      expect(ytdlpService.download).not.toHaveBeenCalled()
+    })
+
+    it('routes source_type rss to HttpDownloadService', async () => {
+      const mockHttpDownload = vi.fn().mockResolvedValue(undefined)
+      const httpService = { download: mockHttpDownload } as unknown as HttpDownloadService
+
+      const modelManager = { ensureModel: vi.fn() } as any
+      const ytdlpService = { detect: vi.fn(), download: vi.fn(), kill: vi.fn() } as any
+      const pipelineWithHttp = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService, httpService)
+
+      const episodeId = db.createEpisode({
+        title: 'RSS Episode',
+        source_url: 'https://example.com/podcast/ep1.mp3',
+        source_type: 'rss',
+        status: 'queued',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue({ model: 'google/gemini-3.5-flash' })
+
+      await pipelineWithHttp.processEpisodePublic(episodeId)
+
+      expect(mockHttpDownload).toHaveBeenCalled()
+      expect(ytdlpService.download).not.toHaveBeenCalled()
+    })
+
+    it('routes source_type youtube to YtdlpService', async () => {
+      const mockHttpDownload = vi.fn()
+      const httpService = { download: mockHttpDownload } as unknown as HttpDownloadService
+
+      const modelManager = { ensureModel: vi.fn() } as any
+      const ytdlpService = { detect: vi.fn(), download: vi.fn().mockResolvedValue(undefined), kill: vi.fn() } as any
+      const pipelineWithHttp = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService, httpService)
+
+      const episodeId = db.createEpisode({
+        title: 'YouTube Video',
+        source_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        source_type: 'youtube',
+        status: 'queued',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue({ model: 'google/gemini-3.5-flash' })
+
+      await pipelineWithHttp.processEpisodePublic(episodeId)
+
+      expect(ytdlpService.download).toHaveBeenCalled()
+      expect(mockHttpDownload).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('regeneration', () => {
+    it('re-executes recipe on an existing pipeline tab', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'complete',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const pipelineRecipe = recipeService.getPipelineRecipe()!
+      const tabId = tabService.createTab(episodeId, {
+        recipe_id: pipelineRecipe.id,
+        tab_name: pipelineRecipe.name,
+        is_pipeline: true,
+        content: 'old content',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken('new content')
+          return { model: 'google/gemini-3.5-flash' }
+        }
+      )
+
+      await pipeline.regenerateTab(episodeId, tabId)
+
+      const tabs = tabService.getTabs(episodeId)
+      expect(tabs[0].content).toBe('new content')
+    })
+
+    it('records provenance when executing a newly-created recipe tab', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-07-01T12:00:00.000Z'))
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'complete',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const recipe = recipeService.getRecipes().find((r) => r.name === 'Detailed')!
+      const tabId = tabService.createTab(episodeId, {
+        recipe_id: recipe.id,
+        tab_name: recipe.name,
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken('new recipe tab content')
+          return { model: 'anthropic/claude-sonnet-4' }
+        }
+      )
+
+      await pipeline.regenerateTab(episodeId, tabId)
+
+      const tab = tabService.getTab(tabId)!
+      expect(tab.content).toBe('new recipe tab content')
+      expect(tab.generated_at).toBe('2026-07-01T12:00:00.000Z')
+      expect(tab.generated_model).toBe('anthropic/claude-sonnet-4')
+      vi.useRealTimers()
+    })
+
+    it('updates provenance only after successful regeneration saves content', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-07-01T13:00:00.000Z'))
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'complete',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const pipelineRecipe = recipeService.getPipelineRecipe()!
+      const tabId = tabService.createTab(episodeId, {
+        recipe_id: pipelineRecipe.id,
+        tab_name: pipelineRecipe.name,
+        content: 'old content',
+        generated_at: '2026-07-01T12:00:00.000Z',
+        generated_model: 'old/model',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockImplementation(
+        async (_recipeId, _transcript, onToken) => {
+          onToken('malformed but saved output')
+          return { model: 'new/model' }
+        }
+      )
+
+      await pipeline.regenerateTab(episodeId, tabId)
+
+      const tab = tabService.getTab(tabId)!
+      expect(tab.content).toBe('malformed but saved output')
+      expect(tab.generated_at).toBe('2026-07-01T13:00:00.000Z')
+      expect(tab.generated_model).toBe('new/model')
+      vi.useRealTimers()
+    })
+
+    it('leaves content and provenance unchanged when regeneration fails', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'complete',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const pipelineRecipe = recipeService.getPipelineRecipe()!
+      const tabId = tabService.createTab(episodeId, {
+        recipe_id: pipelineRecipe.id,
+        tab_name: pipelineRecipe.name,
+        content: 'old content',
+        generated_at: '2026-07-01T12:00:00.000Z',
+        generated_model: 'old/model',
+      })
+
+      vi.spyOn(recipeService, 'executeRecipe').mockRejectedValue(new Error('API failed'))
+
+      await expect(pipeline.regenerateTab(episodeId, tabId)).rejects.toThrow('API failed')
+
+      const tab = tabService.getTab(tabId)!
+      expect(tab.content).toBe('old content')
+      expect(tab.generated_at).toBe('2026-07-01T12:00:00.000Z')
+      expect(tab.generated_model).toBe('old/model')
+    })
+
+    it('throws when tab has no recipe_id', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'complete',
+      })
+      db.updateEpisode(episodeId, { transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]) })
+
+      const tabId = tabService.createTab(episodeId, { tab_name: 'Blank' })
+
+      await expect(pipeline.regenerateTab(episodeId, tabId)).rejects.toThrow(
+        'Tab has no associated recipe'
+      )
+    })
+  })
+})
