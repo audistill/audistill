@@ -1,7 +1,7 @@
 import { basename } from 'path'
 import { BrowserWindow } from 'electron'
 import { DatabaseService, Episode } from './database-service'
-import { TabService } from './tab-service'
+import { EpisodeTab, TabService } from './tab-service'
 import { RecipeService } from './recipe-service'
 import { searchDDG } from './web-search-service'
 
@@ -13,6 +13,7 @@ export interface ToolServices {
 
 export interface ToolContext {
   currentEpisodeId: string
+  activeContentTabId: string | null
 }
 
 function formatDuration(seconds: number | null): string {
@@ -293,12 +294,33 @@ export class ChatToolExecutor {
       return JSON.stringify({ error: 'Missing required parameter: content' })
     }
 
-    const tabName = (args.tab_name as string) || 'Canvas'
     const episodeId = context.currentEpisodeId
-    const tab = this.getOrCreateTab(episodeId, tabName)
+    const requestedName = this.readTabName(args)
+    let tab = this.resolveTargetTab(episodeId, requestedName, context.activeContentTabId)
+    let created = false
+
+    if (!tab) {
+      if (!requestedName) {
+        return JSON.stringify({ error: 'No active tab is available. Open a tab or provide tab_name.' })
+      }
+      const tabId = this.tabService.createTab(episodeId, { tab_name: requestedName })
+      tab = this.tabService.getTab(tabId)
+      if (!tab) {
+        return JSON.stringify({ error: `Failed to create tab "${requestedName}"` })
+      }
+      created = true
+      this.broadcast('tab:created', { episodeId, tabId, tabName: tab.tab_name })
+    }
+
     this.tabService.updateTabContent(tab.id, content)
     this.broadcast('tab:content-updated', { episodeId, tabId: tab.id, content })
-    return JSON.stringify({ success: true, message: `Tab "${tabName}" content written successfully` })
+    return JSON.stringify({
+      success: true,
+      tab_id: tab.id,
+      tab_name: tab.tab_name,
+      created,
+      message: `${created ? 'Created' : 'Updated'} tab "${tab.tab_name}"`,
+    })
   }
 
   private editTab(args: Record<string, unknown>, context: ToolContext): string {
@@ -308,27 +330,50 @@ export class ChatToolExecutor {
       return JSON.stringify({ error: 'Missing required parameters: old_text and new_text' })
     }
 
-    const tabName = (args.tab_name as string) || 'Canvas'
     const episodeId = context.currentEpisodeId
-    const tab = this.getOrCreateTab(episodeId, tabName)
-    const current = tab.content
-    if (!current.includes(oldText)) {
-      return JSON.stringify({ error: `Could not find the specified text in tab "${tabName}". Make sure old_text matches exactly.` })
+    const requestedName = this.readTabName(args)
+    const tab = this.resolveTargetTab(episodeId, requestedName, context.activeContentTabId)
+    if (!tab) {
+      const error = requestedName
+        ? `Tab "${requestedName}" not found`
+        : 'No active tab is available. Open a tab or provide tab_name.'
+      return JSON.stringify({ error })
     }
 
-    const updated = current.replace(oldText, newText)
+    if (!tab.content.includes(oldText)) {
+      return JSON.stringify({ error: `Could not find the specified text in tab "${tab.tab_name}". Make sure old_text matches exactly.` })
+    }
+
+    const updated = tab.content.replace(oldText, newText)
     this.tabService.updateTabContent(tab.id, updated)
     this.broadcast('tab:content-updated', { episodeId, tabId: tab.id, content: updated })
-    return JSON.stringify({ success: true, message: `Tab "${tabName}" content edited successfully` })
+    return JSON.stringify({
+      success: true,
+      tab_id: tab.id,
+      tab_name: tab.tab_name,
+      message: `Edited tab "${tab.tab_name}"`,
+    })
   }
 
-  private getOrCreateTab(episodeId: string, tabName: string): { id: string; content: string } {
+  private readTabName(args: Record<string, unknown>): string | undefined {
+    const tabName = args.tab_name
+    if (typeof tabName !== 'string') return undefined
+    const trimmed = tabName.trim()
+    return trimmed || undefined
+  }
+
+  private resolveTargetTab(
+    episodeId: string,
+    requestedName: string | undefined,
+    activeContentTabId: string | null
+  ): EpisodeTab | undefined {
     const tabs = this.tabService.getTabs(episodeId)
-    const existing = tabs.find((t) => t.tab_name === tabName && !t.recipe_id)
-    if (existing) return existing
-    const id = this.tabService.createTab(episodeId, { tab_name: tabName })
-    this.broadcast('tab:created', { episodeId, tabId: id, tabName })
-    return { id, content: '' }
+    if (requestedName) {
+      const normalizedName = requestedName.toLowerCase()
+      return tabs.find((tab) => tab.tab_name.toLowerCase() === normalizedName)
+    }
+    if (!activeContentTabId) return undefined
+    return tabs.find((tab) => tab.id === activeContentTabId)
   }
 
   private navigateTab(args: Record<string, unknown>, context: ToolContext): string {

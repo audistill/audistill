@@ -56,7 +56,7 @@ describe('ChatToolExecutor', () => {
       ]),
     })
 
-    context = { currentEpisodeId: episodeId }
+    context = { currentEpisodeId: episodeId, activeContentTabId: null }
   })
 
   afterEach(() => {
@@ -167,7 +167,7 @@ describe('ChatToolExecutor', () => {
       const result = await executor.executeTool(
         'search_transcript',
         { query: 'cats' },
-        { currentEpisodeId: plainId }
+        { currentEpisodeId: plainId, activeContentTabId: null }
       )
       const parsed = JSON.parse(result)
       expect(parsed.matches).toHaveLength(2)
@@ -399,7 +399,7 @@ describe('ChatToolExecutor', () => {
       const result = await executor.executeTool(
         'read_summary',
         {},
-        { currentEpisodeId: noContentId }
+        { currentEpisodeId: noContentId, activeContentTabId: null }
       )
       const parsed = JSON.parse(result)
       expect(parsed.error).toContain('No summary tabs available')
@@ -471,162 +471,214 @@ describe('ChatToolExecutor', () => {
   })
 
   describe('write_tab', () => {
-    it('persists content to tab and returns success', async () => {
+    it('writes to the active user-authored tab when tab_name is omitted', async () => {
+      const tabId = tabService.createTab(episodeId, { tab_name: 'Notes', content: 'old content' })
+      context.activeContentTabId = tabId
+
       const result = await executor.executeTool(
         'write_tab',
         { content: '# Show Notes\n\nGreat episode about ML.' },
         context
       )
-      const parsed = JSON.parse(result)
-      expect(parsed.success).toBe(true)
-      expect(parsed.message).toContain('written successfully')
 
-      const tabs = tabService.getTabs(episodeId)
-      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')
-      expect(canvasTab?.content).toBe('# Show Notes\n\nGreat episode about ML.')
+      expect(JSON.parse(result)).toMatchObject({ success: true, tab_id: tabId, tab_name: 'Notes', created: false })
+      expect(tabService.getTab(tabId)?.content).toBe('# Show Notes\n\nGreat episode about ML.')
+      expect(tabService.getTabs(episodeId)).toHaveLength(1)
     })
 
-    it('broadcasts tab:content-updated event', async () => {
-      await executor.executeTool(
+    it('writes to the active Pipeline-generated tab without changing provenance', async () => {
+      const recipe = recipeService.getRecipes()[0]
+      const tabId = tabService.createTab(episodeId, {
+        recipe_id: recipe.id,
+        tab_name: recipe.name,
+        is_pipeline: true,
+        content: 'old content',
+        generated_at: '2026-07-01T12:00:00.000Z',
+        generated_model: 'old/model',
+      })
+      context.activeContentTabId = tabId
+
+      await executor.executeTool('write_tab', { content: 'Chat rewrite' }, context)
+
+      const tab = tabService.getTab(tabId)!
+      expect(tab.content).toBe('Chat rewrite')
+      expect(tab.recipe_id).toBe(recipe.id)
+      expect(tab.is_pipeline).toBe(1)
+      expect(tab.generated_at).toBe('2026-07-01T12:00:00.000Z')
+      expect(tab.generated_model).toBe('old/model')
+      expect(tabService.getTabs(episodeId)).toHaveLength(1)
+    })
+
+    it('matches an explicitly named Recipe-generated tab case-insensitively', async () => {
+      const recipe = recipeService.getRecipes()[0]
+      const tabId = tabService.createTab(episodeId, {
+        recipe_id: recipe.id,
+        tab_name: 'Detailed Notes',
+        content: 'old content',
+      })
+
+      const result = await executor.executeTool(
         'write_tab',
-        { content: 'Hello tab' },
+        { content: 'new content', tab_name: 'detailed notes' },
         context
       )
 
-      const writes = broadcasts.filter((b) => b.channel === 'tab:content-updated')
-      expect(writes).toHaveLength(1)
-      const payload = writes[0].args[0] as { episodeId: string; content: string }
-      expect(payload.episodeId).toBe(episodeId)
-      expect(payload.content).toBe('Hello tab')
+      expect(JSON.parse(result)).toMatchObject({ tab_id: tabId, tab_name: 'Detailed Notes', created: false })
+      expect(tabService.getTab(tabId)?.content).toBe('new content')
+      expect(tabService.getTabs(episodeId)).toHaveLength(1)
     })
 
-    it('broadcasts tab:created when creating a new tab', async () => {
-      await executor.executeTool(
-        'write_tab',
-        { content: 'Hello' },
-        context
-      )
-
-      const created = broadcasts.filter((b) => b.channel === 'tab:created')
-      expect(created).toHaveLength(1)
-      const payload = created[0].args[0] as { episodeId: string; tabName: string }
-      expect(payload.episodeId).toBe(episodeId)
-      expect(payload.tabName).toBe('Canvas')
-    })
-
-    it('returns error when content parameter is missing', async () => {
-      const result = await executor.executeTool('write_tab', {}, context)
-      const parsed = JSON.parse(result)
-      expect(parsed.error).toContain('Missing required parameter: content')
-    })
-
-    it('overwrites existing tab content', async () => {
-      tabService.createTab(episodeId, { tab_name: 'Canvas', content: 'old content' })
-
-      await executor.executeTool(
-        'write_tab',
-        { content: 'new content' },
-        context
-      )
-
-      const tabs = tabService.getTabs(episodeId)
-      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')
-      expect(canvasTab?.content).toBe('new content')
-    })
-
-    it('writes to a custom-named tab', async () => {
+    it('creates a user-authored tab for an unmatched explicit name', async () => {
       const result = await executor.executeTool(
         'write_tab',
         { content: 'Blog draft', tab_name: 'Blog Post' },
         context
       )
       const parsed = JSON.parse(result)
-      expect(parsed.success).toBe(true)
-      expect(parsed.message).toContain('Blog Post')
 
-      const tabs = tabService.getTabs(episodeId)
-      const blogTab = tabs.find((t) => t.tab_name === 'Blog Post')
-      expect(blogTab?.content).toBe('Blog draft')
+      expect(parsed).toMatchObject({ success: true, tab_name: 'Blog Post', created: true })
+      const tab = tabService.getTab(parsed.tab_id)
+      expect(tab?.content).toBe('Blog draft')
+      expect(tab?.recipe_id).toBeNull()
+
+      const created = broadcasts.filter((b) => b.channel === 'tab:created')
+      expect(created).toHaveLength(1)
+      expect(created[0].args[0]).toMatchObject({ episodeId, tabId: parsed.tab_id, tabName: 'Blog Post' })
     })
 
-    it('does not create provenance when Chat writes a new tab', async () => {
-      await executor.executeTool(
-        'write_tab',
-        { content: 'Chat-authored notes', tab_name: 'Chat Notes' },
-        context
-      )
+    it('broadcasts the ID and content of the tab actually updated', async () => {
+      const tabId = tabService.createTab(episodeId, { tab_name: 'Notes', content: 'old' })
+      context.activeContentTabId = tabId
 
-      const tab = tabService.getTabs(episodeId).find((t) => t.tab_name === 'Chat Notes')
-      expect(tab?.content).toBe('Chat-authored notes')
-      expect(tab?.generated_at).toBeNull()
-      expect(tab?.generated_model).toBeNull()
+      await executor.executeTool('write_tab', { content: 'Hello tab' }, context)
+
+      const writes = broadcasts.filter((b) => b.channel === 'tab:content-updated')
+      expect(writes).toHaveLength(1)
+      expect(writes[0].args[0]).toEqual({ episodeId, tabId, content: 'Hello tab' })
     })
 
-    it('does not update existing provenance when Chat overwrites tab content', async () => {
-      tabService.createTab(episodeId, {
-        tab_name: 'Canvas',
-        content: 'old content',
-        generated_at: '2026-07-01T12:00:00.000Z',
-        generated_model: 'old/model',
-      })
+    it('returns an error instead of falling back to Canvas when there is no active tab', async () => {
+      const result = await executor.executeTool('write_tab', { content: 'Hello' }, context)
 
-      await executor.executeTool(
-        'write_tab',
-        { content: 'Chat rewrite' },
-        context
-      )
+      expect(JSON.parse(result).error).toContain('No active tab')
+      expect(tabService.getTabs(episodeId)).toHaveLength(0)
+    })
 
-      const tab = tabService.getTabs(episodeId).find((t) => t.tab_name === 'Canvas')
-      expect(tab?.content).toBe('Chat rewrite')
-      expect(tab?.generated_at).toBe('2026-07-01T12:00:00.000Z')
-      expect(tab?.generated_model).toBe('old/model')
+    it('still targets an existing Canvas tab when named explicitly', async () => {
+      const tabId = tabService.createTab(episodeId, { tab_name: 'Canvas', content: 'old' })
+
+      await executor.executeTool('write_tab', { tab_name: 'canvas', content: 'new' }, context)
+
+      expect(tabService.getTab(tabId)?.content).toBe('new')
+      expect(tabService.getTabs(episodeId)).toHaveLength(1)
+    })
+
+    it('returns error when content parameter is missing', async () => {
+      const result = await executor.executeTool('write_tab', {}, context)
+      expect(JSON.parse(result).error).toContain('Missing required parameter: content')
     })
   })
 
   describe('edit_tab', () => {
-    beforeEach(() => {
-      tabService.createTab(episodeId, { tab_name: 'Canvas', content: '# Notes\n\n- First point\n- Second point\n- Third point' })
-    })
+    it('edits the active user-authored tab when tab_name is omitted', async () => {
+      const tabId = tabService.createTab(episodeId, {
+        tab_name: 'Notes',
+        content: '# Notes\n\n- First point\n- Second point\n- Third point',
+      })
+      context.activeContentTabId = tabId
 
-    it('applies find-and-replace correctly', async () => {
       const result = await executor.executeTool(
         'edit_tab',
         { old_text: 'Second point', new_text: 'Updated second point' },
         context
       )
-      const parsed = JSON.parse(result)
-      expect(parsed.success).toBe(true)
 
-      const tabs = tabService.getTabs(episodeId)
-      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')
-      expect(canvasTab?.content).toContain('Updated second point')
-      expect(canvasTab?.content).not.toContain('Second point')
-      expect(canvasTab?.content).toContain('First point')
-      expect(canvasTab?.content).toContain('Third point')
+      expect(JSON.parse(result)).toMatchObject({ success: true, tab_id: tabId, tab_name: 'Notes' })
+      const content = tabService.getTab(tabId)?.content
+      expect(content).toContain('Updated second point')
+      expect(content).toContain('First point')
+      expect(content).toContain('Third point')
     })
 
-    it('broadcasts tab:content-updated event with updated content', async () => {
+    it('edits the active Pipeline-generated tab without changing provenance', async () => {
+      const recipe = recipeService.getRecipes()[0]
+      const tabId = tabService.createTab(episodeId, {
+        recipe_id: recipe.id,
+        tab_name: recipe.name,
+        is_pipeline: true,
+        content: 'Original summary sentence',
+        generated_at: '2026-07-01T12:00:00.000Z',
+        generated_model: 'old/model',
+      })
+      context.activeContentTabId = tabId
+
       await executor.executeTool(
         'edit_tab',
-        { old_text: 'First point', new_text: 'Modified first' },
+        { old_text: 'Original', new_text: 'Revised' },
         context
       )
 
-      const updates = broadcasts.filter((b) => b.channel === 'tab:content-updated')
-      expect(updates).toHaveLength(1)
-      const payload = updates[0].args[0] as { episodeId: string; content: string }
-      expect(payload.episodeId).toBe(episodeId)
-      expect(payload.content).toContain('Modified first')
+      const tab = tabService.getTab(tabId)!
+      expect(tab.content).toBe('Revised summary sentence')
+      expect(tab.recipe_id).toBe(recipe.id)
+      expect(tab.is_pipeline).toBe(1)
+      expect(tab.generated_at).toBe('2026-07-01T12:00:00.000Z')
+      expect(tab.generated_model).toBe('old/model')
+      expect(tabService.getTabs(episodeId)).toHaveLength(1)
     })
 
-    it('returns error when old_text is not found in tab', async () => {
+    it('edits another Recipe-generated tab by case-insensitive explicit name', async () => {
+      const recipe = recipeService.getRecipes()[0]
+      const tabId = tabService.createTab(episodeId, {
+        recipe_id: recipe.id,
+        tab_name: 'Action Items',
+        content: '- Call Alice',
+      })
+
+      await executor.executeTool(
+        'edit_tab',
+        { tab_name: 'action items', old_text: 'Alice', new_text: 'Bob' },
+        context
+      )
+
+      expect(tabService.getTab(tabId)?.content).toBe('- Call Bob')
+      expect(tabService.getTabs(episodeId)).toHaveLength(1)
+    })
+
+    it('returns an error and creates no tab for an unmatched explicit name', async () => {
+      const result = await executor.executeTool(
+        'edit_tab',
+        { tab_name: 'Missing', old_text: 'anything', new_text: 'replacement' },
+        context
+      )
+
+      expect(JSON.parse(result).error).toContain('Tab "Missing" not found')
+      expect(tabService.getTabs(episodeId)).toHaveLength(0)
+      expect(broadcasts.filter((b) => b.channel === 'tab:created')).toHaveLength(0)
+    })
+
+    it('returns an error and creates no Canvas when there is no active tab', async () => {
+      const result = await executor.executeTool(
+        'edit_tab',
+        { old_text: 'anything', new_text: 'replacement' },
+        context
+      )
+
+      expect(JSON.parse(result).error).toContain('No active tab')
+      expect(tabService.getTabs(episodeId)).toHaveLength(0)
+    })
+
+    it('returns error when old_text is not found in the targeted tab', async () => {
+      const tabId = tabService.createTab(episodeId, { tab_name: 'Notes', content: 'existing text' })
+      context.activeContentTabId = tabId
+
       const result = await executor.executeTool(
         'edit_tab',
         { old_text: 'nonexistent text', new_text: 'replacement' },
         context
       )
-      const parsed = JSON.parse(result)
-      expect(parsed.error).toContain('Could not find the specified text')
+
+      expect(JSON.parse(result).error).toContain('Could not find the specified text')
     })
 
     it('returns error when parameters are missing', async () => {
@@ -635,42 +687,22 @@ describe('ChatToolExecutor', () => {
         { old_text: 'First point' },
         context
       )
-      const parsed = JSON.parse(result)
-      expect(parsed.error).toContain('Missing required parameters')
+      expect(JSON.parse(result).error).toContain('Missing required parameters')
     })
 
-    it('works on empty tab (old_text not found)', async () => {
-      const tabs = tabService.getTabs(episodeId)
-      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')!
-      tabService.updateTabContent(canvasTab.id, '')
-
-      const result = await executor.executeTool(
-        'edit_tab',
-        { old_text: 'anything', new_text: 'replacement' },
-        context
-      )
-      const parsed = JSON.parse(result)
-      expect(parsed.error).toContain('Could not find the specified text')
-    })
-
-    it('does not update provenance when Chat edits tab content', async () => {
-      const tabs = tabService.getTabs(episodeId)
-      const canvasTab = tabs.find((t) => t.tab_name === 'Canvas')!
-      tabService.updateTabGeneratedContent(canvasTab.id, '# Notes\n\n- First point\n- Second point', {
-        generated_at: '2026-07-01T12:00:00.000Z',
-        generated_model: 'old/model',
-      })
+    it('broadcasts the ID and content of the tab actually updated', async () => {
+      const tabId = tabService.createTab(episodeId, { tab_name: 'Notes', content: 'First point' })
+      context.activeContentTabId = tabId
 
       await executor.executeTool(
         'edit_tab',
-        { old_text: 'Second point', new_text: 'Edited by Chat' },
+        { old_text: 'First point', new_text: 'Modified first' },
         context
       )
 
-      const tab = tabService.getTab(canvasTab.id)!
-      expect(tab.content).toContain('Edited by Chat')
-      expect(tab.generated_at).toBe('2026-07-01T12:00:00.000Z')
-      expect(tab.generated_model).toBe('old/model')
+      const updates = broadcasts.filter((b) => b.channel === 'tab:content-updated')
+      expect(updates).toHaveLength(1)
+      expect(updates[0].args[0]).toEqual({ episodeId, tabId, content: 'Modified first' })
     })
   })
 
@@ -926,7 +958,7 @@ describe('ChatToolExecutor', () => {
       const result = await executor.executeTool(
         'read_transcript_range',
         { start: '1', end: '2' },
-        { currentEpisodeId: plainId }
+        { currentEpisodeId: plainId, activeContentTabId: null }
       )
       const parsed = JSON.parse(result)
       expect(parsed.segments).toHaveLength(2)
@@ -953,7 +985,7 @@ describe('ChatToolExecutor', () => {
       const result = await executor.executeTool(
         'read_transcript_range',
         { start: '0' },
-        { currentEpisodeId: noTrId }
+        { currentEpisodeId: noTrId, activeContentTabId: null }
       )
       const parsed = JSON.parse(result)
       expect(parsed.error).toContain('No transcript')

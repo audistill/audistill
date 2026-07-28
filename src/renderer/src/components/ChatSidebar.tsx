@@ -4,7 +4,7 @@ import { useAppStore } from '../store/app-store'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
 import { isLicenseError } from './LicenseBlockedPrompt'
-import { FORMATTING_INSTRUCTIONS } from '../../../shared/formatting-instructions'
+import { buildSystemPrompt, buildTabsContext } from '../lib/chat-context'
 import type { DbChatMessage } from '../../../preload/index.d'
 
 interface ChatMessage {
@@ -130,12 +130,12 @@ const TOOL_DEFINITIONS = [
     type: 'function' as const,
     function: {
       name: 'write_tab',
-      description: 'Write content to a tab. Creates the tab if it does not exist, then switches to it. Use this when the user asks you to write, draft, or create something (show notes, blog posts, summaries, etc.)',
+      description: 'Replace a tab\'s full content. Omit tab_name to target the active tab. With an explicit name, updates a case-insensitive match or creates a new tab when none exists.',
       parameters: {
         type: 'object',
         properties: {
           content: { type: 'string', description: 'Full markdown content to write to the tab' },
-          tab_name: { type: 'string', description: 'Name of the tab to write to (defaults to "Canvas")' },
+          tab_name: { type: 'string', description: 'Name of the tab to write to. Omit to target the active tab.' },
         },
         required: ['content'],
       },
@@ -145,13 +145,13 @@ const TOOL_DEFINITIONS = [
     type: 'function' as const,
     function: {
       name: 'edit_tab',
-      description: 'Make a targeted edit to a tab\'s content by finding and replacing specific text. Use this when the user asks to change, update, or modify a specific part of a tab.',
+      description: 'Find and replace exact text in an existing tab. Omit tab_name to target the active tab; explicit names match case-insensitively. This tool never creates a tab.',
       parameters: {
         type: 'object',
         properties: {
           old_text: { type: 'string', description: 'The exact text to find in the tab' },
           new_text: { type: 'string', description: 'The replacement text' },
-          tab_name: { type: 'string', description: 'Name of the tab to edit (defaults to "Canvas")' },
+          tab_name: { type: 'string', description: 'Name of the tab to edit. Omit to target the active tab.' },
         },
         required: ['old_text', 'new_text'],
       },
@@ -336,55 +336,6 @@ const TOOL_DEFINITIONS = [
     },
   },
 ]
-
-function buildSystemPrompt(context: {
-  episodeTitle: string
-  fileName: string
-  duration: string | null
-  date: string
-  activeSummary: string | null
-  tabsContext: string | null
-}): string {
-  let prompt = `You are a helpful AI assistant for the Audistill podcast app. You help users understand, explore, and create content from their podcast episodes.
-
-## Current Episode
-- Title: ${context.episodeTitle}
-- File: ${context.fileName}
-${context.duration ? `- Duration: ${context.duration}` : ''}
-- Date: ${context.date}
-`
-
-  if (context.activeSummary) {
-    prompt += `
-## Active Summary
-${context.activeSummary}
-`
-  }
-
-  if (context.tabsContext) {
-    prompt += `
-## Other Tabs
-${context.tabsContext}
-`
-  }
-
-  prompt += `
-## Available Tools
-You have access to tools for reading transcripts, searching content, accessing episode data, and writing to tabs.
-
-When answering questions about the episode content, prefer using the search_transcript tool to find relevant segments rather than relying only on the summary.
-
-To read the full content of a non-active tab listed above, use the read_summary tool with the tab_name parameter.
-
-When the user asks you to write, draft, or create something (show notes, blog posts, key takeaways, etc.), use the write_tab tool to put the content in a tab. When they ask for a targeted edit ("change X to Y", "update the third bullet"), use edit_tab for surgical replacement. Use navigate_tab to switch between tabs.
-
-Be concise and helpful. Format responses with markdown when appropriate.
-
-${FORMATTING_INSTRUCTIONS}`
-
-  return prompt
-}
-
 
 export function ChatSidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boolean }): React.JSX.Element {
   const activeTabId = useAppStore((s) => s.activeTabId)
@@ -572,17 +523,11 @@ export function ChatSidebar({ prototypeReadOnly = false }: { prototypeReadOnly?:
 
     const fileName = episode.file_path?.split('/').pop() || episode.file_path || 'Untitled'
     const activeTab = contentTabs.find((t) => t.id === activeContentTabId)
-    const activeSummary = activeTab?.content || null
 
     const model = selectedModel || (await window.api.getSetting('model_quality')) || 'google/gemini-3.5-flash'
 
     const allTabs = await window.api.tabsGet(activeTabId)
-    const tabsContext = allTabs
-      .filter((t: { tab_name: string; content: string; id: string }) => t.id !== activeContentTabId)
-      .map((t: { tab_name: string; content: string }) =>
-        t.content ? `- ${t.tab_name} (${t.content.length.toLocaleString()} chars)` : `- ${t.tab_name} (empty)`
-      )
-      .join('\n')
+    const tabsContext = buildTabsContext(allTabs, activeContentTabId)
 
     const allMessages = [...messages, newMessage]
     const chatMessages = allMessages
@@ -597,7 +542,8 @@ export function ChatSidebar({ prototypeReadOnly = false }: { prototypeReadOnly?:
       fileName,
       duration: episode.duration_sec ? formatDuration(episode.duration_sec) : null,
       date: episode.created_at,
-      activeSummary,
+      activeTabName: activeTab?.tab_name || null,
+      activeTabContent: activeTab?.content || null,
       tabsContext: tabsContext || null,
     })
 
@@ -610,6 +556,7 @@ export function ChatSidebar({ prototypeReadOnly = false }: { prototypeReadOnly?:
       messages: chatMessages,
       tools: TOOL_DEFINITIONS,
       episodeId: activeTabId,
+      activeContentTabId,
     }).catch((err: unknown) => {
       setStreaming(false)
       setStreamingState(null)

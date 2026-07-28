@@ -15,6 +15,8 @@ Chat can use tools to read and search the current Transcript, inspect Tabs, read
 
 Chat answers ordinary questions in the Chat history. When you ask it to draft, rewrite, or create a deliverable, it should put that work in a Tab so you can keep editing and exporting it.
 
+When you ask Chat to refine the content you are viewing—for example, “make this shorter” or “rewrite the introduction”—it edits the active Tab. This works for user-authored Tabs as well as Recipe-generated and Pipeline Tabs. You can name another Tab when you want Chat to update that document instead.
+
 You can also type `/` in Chat to run a Recipe against the active Episode. Choosing a Recipe creates a new Tab, or opens the existing Tab if that Recipe has already been run for the Episode.
 
 ## Models

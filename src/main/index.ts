@@ -215,8 +215,12 @@ function registerChatHandlers(): void {
   ipcMain.handle('chat:send-message', (_event, request) => {
     requireLicense(licenseService)
     const episodeId = request.episodeId || ''
+    const activeContentTabId = request.activeContentTabId || null
     chatService.setToolExecutor((toolName, args) =>
-      chatToolExecutor.executeTool(toolName, args, { currentEpisodeId: episodeId })
+      chatToolExecutor.executeTool(toolName, args, {
+        currentEpisodeId: episodeId,
+        activeContentTabId,
+      })
     )
     return chatService.sendMessage(request)
   })
