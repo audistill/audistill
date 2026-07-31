@@ -15,8 +15,7 @@ A local-first AI audio knowledge base for macOS. Turn podcasts, YouTube videos, 
 
 [Download](#download) · [Features](#features) · [How it works](#how-it-works) · [Build from source](#build-from-source) · [FAQ](#faq)
 
-<!-- TODO: demo GIF here — 10–15s: drop in a YouTube link → transcript appears → summary → chat. This is the most important asset in this README. -->
-<img src="docs/assets/demo.gif" width="720" alt="Audistill demo" />
+<img src="docs/assets/demo.gif" width="720" alt="Audistill full workflow demo" />
 
 </div>
 

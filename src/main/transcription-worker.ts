@@ -3,7 +3,11 @@ import { join } from 'node:path'
 import { cpus } from 'node:os'
 import { InferenceSession, Tensor } from 'onnxruntime-node'
 import { readFileSync } from 'node:fs'
-import { TRANSCRIPTION_SAMPLE_RATE, transcriptTimeRange } from './transcription-timeline'
+import {
+  TRANSCRIPTION_SAMPLE_RATE,
+  transcriptionWindowRanges,
+  transcriptTimeRange,
+} from './transcription-timeline'
 
 const INTRA_OP_THREADS = Math.max(1, Math.floor(cpus().length / 2))
 
@@ -58,8 +62,8 @@ type OutboundMessage = ProgressMessage | SegmentMessage | DoneMessage | ErrorMes
 const SAMPLE_RATE = TRANSCRIPTION_SAMPLE_RATE
 const CHUNK_SECONDS = 30
 const CHUNK_SAMPLES = CHUNK_SECONDS * SAMPLE_RATE
-const OVERLAP_SECONDS = 1
-const OVERLAP_SAMPLES = OVERLAP_SECONDS * SAMPLE_RATE
+// The packaged preprocessor uses reflect padding of 256 samples per side.
+const MIN_CHUNK_SAMPLES = 257
 const MAX_TOKENS_PER_STEP = 10
 
 function post(msg: OutboundMessage): void {
@@ -294,9 +298,12 @@ async function transcribe(audioBuffer: SharedArrayBuffer, modelPath: string): Pr
   post({ type: 'progress', percent: 0 })
   const sessions = await createSessions(modelPath)
   post({ type: 'progress', percent: 5 })
-  const stepSamples = CHUNK_SAMPLES - OVERLAP_SAMPLES
-  for (let startSample = 0; startSample < pcm.length; startSample += stepSamples) {
-    await processPcmChunk(sessions, pcm.slice(startSample, Math.min(startSample + CHUNK_SAMPLES, pcm.length)), startSample, pcm.length)
+  for (const { startSample, endSample } of transcriptionWindowRanges(
+    pcm.length,
+    CHUNK_SAMPLES,
+    MIN_CHUNK_SAMPLES,
+  )) {
+    await processPcmChunk(sessions, pcm.slice(startSample, endSample), startSample, pcm.length)
   }
   post({ type: 'done' })
 }
@@ -340,7 +347,6 @@ async function transcribeStreaming(queue: PcmChunkQueue, modelPath: string, tota
   let pending = new Float32Array(0)
   let startSample = 0
   let processedChunk = false
-  const stepSamples = CHUNK_SAMPLES - OVERLAP_SAMPLES
 
   while (true) {
     const item = await queue.take()
@@ -351,15 +357,16 @@ async function transcribeStreaming(queue: PcmChunkQueue, modelPath: string, tota
     pending = combined
     post({ type: 'stream-chunk-accepted', id: item.id })
 
-    while (pending.length >= CHUNK_SAMPLES) {
+    // Keep a minimum-sized tail so the model never receives an invalid tiny final window.
+    while (pending.length >= CHUNK_SAMPLES + MIN_CHUNK_SAMPLES) {
       await processPcmChunk(sessions, pending.slice(0, CHUNK_SAMPLES), startSample, totalSamples)
-      pending = pending.slice(stepSamples)
-      startSample += stepSamples
+      pending = pending.slice(CHUNK_SAMPLES)
+      startSample += CHUNK_SAMPLES
       processedChunk = true
     }
   }
 
-  if (pending.length > OVERLAP_SAMPLES || !processedChunk) {
+  if (pending.length > 0 || !processedChunk) {
     await processPcmChunk(sessions, pending, startSample, totalSamples)
   }
   post({ type: 'done' })

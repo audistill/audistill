@@ -1,5 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { UpdateStatus } from '../shared/update-types'
+import type { OpenSourceLocatorResult } from '../shared/source-locator'
 import type {
   RecordingSessionState,
   RecordingSourceKind,
@@ -98,6 +99,7 @@ interface AudistillApi {
   setSetting: (key: string, value: string) => Promise<void>
   deleteSetting: (key: string) => Promise<void>
   openExternal: (url: string) => Promise<void>
+  openEpisodeSource: (episodeId: string) => Promise<OpenSourceLocatorResult>
   searchEpisodes: (query: string) => Promise<DbEpisode[]>
   renameEpisode: (id: string, title: string) => Promise<void>
   moveEpisode: (id: string, folderId: string | null) => Promise<void>

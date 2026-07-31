@@ -26,6 +26,7 @@ const mockRecipes = [
 ]
 
 const mockApi = {
+  openEpisodeSource: vi.fn().mockResolvedValue({ success: true }),
   recipesGetAll: vi.fn().mockResolvedValue(mockRecipes),
   tabsCreate: vi.fn().mockResolvedValue('tab-new'),
   tabsGet: vi.fn().mockResolvedValue([]),
@@ -87,6 +88,75 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+})
+
+describe('EpisodeHeaderBar Source Locator', () => {
+  it.each([
+    ['youtube', 'https://www.youtube.com/watch?v=abc'],
+    ['direct', 'https://media.example.com/episode.mp3'],
+    ['rss', 'https://feeds.example.com/enclosures/episode.mp3'],
+  ])('opens a %s Source Locator in the default browser', async (sourceType, sourceUrl) => {
+    render(<EpisodeHeaderBar episode={makeEpisode({
+      source_type: sourceType,
+      source_url: sourceUrl,
+      source_meta: sourceType === 'rss' ? JSON.stringify({ feedTitle: 'Example feed' }) : null,
+      status: 'downloading',
+    })} />)
+
+    const openSource = screen.getByRole('button', { name: 'Open Source' })
+    expect(openSource).toHaveAttribute('title', `Open source: ${sourceUrl}`)
+    fireEvent.click(openSource)
+
+    await waitFor(() => {
+      expect(mockApi.openEpisodeSource).toHaveBeenCalledWith('episode-1')
+    })
+  })
+
+  it('opens a Local Source Locator in the default app', async () => {
+    render(<EpisodeHeaderBar episode={makeEpisode({ file_path: '/media/interview.mp3' })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Source' }))
+
+    await waitFor(() => {
+      expect(mockApi.openEpisodeSource).toHaveBeenCalledWith('episode-1')
+    })
+  })
+
+  it.each(['recorded', 'local'])(
+    'keeps a %s Source without a Source Locator non-clickable',
+    (sourceType) => {
+      render(<EpisodeHeaderBar episode={makeEpisode({
+        source_type: sourceType,
+        file_path: null,
+        source_url: null,
+      })} />)
+
+      expect(screen.queryByRole('button', { name: 'Open Source' })).not.toBeInTheDocument()
+    },
+  )
+
+  it('preserves Episode title rename behavior', () => {
+    render(<EpisodeHeaderBar episode={makeEpisode()} />)
+
+    fireEvent.doubleClick(screen.getByRole('heading', { name: 'Episode title' }))
+    const input = screen.getByDisplayValue('Episode title')
+    fireEvent.change(input, { target: { value: 'Renamed Episode' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(appState.renameEpisode).toHaveBeenCalledWith('episode-1', 'Renamed Episode')
+  })
+
+  it('shows a non-destructive error when a Local Source Locator cannot be opened', async () => {
+    mockApi.openEpisodeSource.mockResolvedValueOnce({
+      success: false,
+      error: 'Original file could not be opened.',
+    })
+    render(<EpisodeHeaderBar episode={makeEpisode({ file_path: '/missing/interview.mp3' })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Source' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Original file could not be opened.')
+  })
 })
 
 describe('EpisodeHeaderBar Tab lifecycle', () => {

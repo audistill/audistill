@@ -29,6 +29,7 @@ import { reconcileRecordingSessions } from './recording-session-recovery'
 import { machineIdSync } from 'node-machine-id'
 import { release as osRelease } from 'node:os'
 import { readFileSync } from 'node:fs'
+import { openEpisodeSource } from './source-locator'
 
 if (app.isPackaged && process.platform === 'darwin') {
   process.env.PATH = [process.env.PATH, '/opt/homebrew/bin', '/usr/local/bin'].filter(Boolean).join(':')
@@ -63,6 +64,19 @@ function getLicenseSnapshot(): { state: string; trialDaysRemaining?: number; mas
     snapshot.maskedKey = '****-' + record.license_key.slice(-6)
   }
   return snapshot
+}
+
+function registerSourceLocatorHandlers(): void {
+  ipcMain.handle('source:open-episode', (_event, episodeId: unknown) => {
+    return openEpisodeSource(
+      episodeId,
+      (id) => db.getEpisode(id),
+      {
+        openExternal: (url) => shell.openExternal(url),
+        openPath: (path) => shell.openPath(path),
+      },
+    )
+  })
 }
 
 function registerLicenseHandlers(): void {
@@ -592,6 +606,7 @@ app.whenReady().then(() => {
   registerExportHandlers()
   registerYtdlpHandlers()
   registerUrlHandlers()
+  registerSourceLocatorHandlers()
   registerLicenseHandlers()
 
   updateService = new UpdateService(db)

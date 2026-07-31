@@ -59,6 +59,12 @@ You can cancel active download or Transcription work from the Episode context me
 
 If a failure happens after the Transcript exists, retry may continue with generation instead of starting the whole Ingest path again.
 
+## Opening the original Source
+
+When an Episode has a Source Locator, select the Source icon and label in its header to open the original audio location. YouTube, Direct, and RSS Sources open in your default browser; RSS opens the stored media enclosure. Local Sources open the original file in its default app.
+
+Open Source is available during Ingest and after completion. If a local file was moved, deleted, or cannot be opened, Audistill reports the error but does not change the Episode. Recorded Sources are not openable because their temporary audio is deleted after Transcription.
+
 ## After completion
 
 A completed Episode is self-contained for reading and AI work. It does not need the original audio file to show its Transcript, Tabs, or Chat history.

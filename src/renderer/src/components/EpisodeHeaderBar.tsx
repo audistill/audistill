@@ -39,11 +39,19 @@ function getSecondaryLabel(episode: Episode): string | null {
   return null
 }
 
-function getFullPath(episode: Episode): string | null {
+function getSourceLocatorValue(episode: Episode): string | null {
   if (episode.source_type === 'local' && episode.file_path) {
     return episode.file_path
   }
-  return episode.source_url ?? null
+
+  if (
+    (episode.source_type === 'youtube' || episode.source_type === 'rss' || episode.source_type === 'direct') &&
+    episode.source_url
+  ) {
+    return episode.source_url
+  }
+
+  return null
 }
 
 function formatDuration(seconds: number | null): string {
@@ -63,24 +71,44 @@ interface EpisodeHeaderBarProps {
 }
 
 export function EpisodeHeaderBar({ episode, showTabs = true }: EpisodeHeaderBarProps): React.JSX.Element {
-  const source = getSourceIcon(episode.source_type)
-  const Icon = source.icon
+  const sourceIconConfig = getSourceIcon(episode.source_type)
+  const Icon = sourceIconConfig.icon
   const secondaryLabel = getSecondaryLabel(episode)
-  const fullPath = getFullPath(episode)
+  const sourceLocatorValue = getSourceLocatorValue(episode)
   const displayTitle = episode.title || episode.file_path?.split('/').pop() || 'Untitled'
   const renameEpisode = useAppStore((s) => s.renameEpisode)
   const [editing, setEditing] = useState(false)
+  const [sourceError, setSourceError] = useState<string | null>(null)
+
+  useEffect(() => setSourceError(null), [episode.id])
+
+  const handleOpenSource = async (): Promise<void> => {
+    if (!sourceLocatorValue) return
+    setSourceError(null)
+    try {
+      const result = await window.api.openEpisodeSource(episode.id)
+      if (!result.success) setSourceError(result.error)
+    } catch {
+      setSourceError('Source could not be opened.')
+    }
+  }
+
+  const sourceIndicator = (
+    <>
+      <span
+        className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+        style={{ backgroundColor: `${sourceIconConfig.color}26` }}
+      >
+        <Icon size={13} style={{ color: sourceIconConfig.color }} />
+      </span>
+      {secondaryLabel && <span className="truncate">{secondaryLabel}</span>}
+    </>
+  )
 
   return (
     <div className="border-b border-[var(--surface)] shrink-0 px-4 pt-3 pb-0">
-      {/* Line 1: Icon + Title */}
-      <div className="flex items-center gap-2.5">
-        <div
-          className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${source.color}26` }}
-        >
-          <Icon size={13} style={{ color: source.color }} />
-        </div>
+      {/* Line 1: Title */}
+      <div className="flex items-center">
         {editing ? (
           <HeaderInlineEdit
             initialValue={displayTitle}
@@ -93,7 +121,7 @@ export function EpisodeHeaderBar({ episode, showTabs = true }: EpisodeHeaderBarP
         ) : (
           <h1
             className="text-[15px] font-heading font-semibold text-[var(--text)] truncate flex-1 leading-tight cursor-default"
-            title={fullPath ?? displayTitle}
+            title={sourceLocatorValue ?? displayTitle}
             onDoubleClick={() => setEditing(true)}
           >
             {displayTitle}
@@ -101,22 +129,37 @@ export function EpisodeHeaderBar({ episode, showTabs = true }: EpisodeHeaderBarP
         )}
       </div>
 
-      {/* Line 2: Metadata */}
-      <div className="flex items-center gap-2 mt-1 pl-[34px]">
-        {secondaryLabel && (
-          <span className="text-[11px] text-[var(--secondary)] opacity-60 truncate">
-            {secondaryLabel}
-          </span>
-        )}
-        {secondaryLabel && episode.duration_sec && (
-          <span className="w-0.5 h-0.5 rounded-full bg-[var(--secondary)] opacity-40 shrink-0" />
+      {/* Line 2: Source + metadata */}
+      <div className="flex items-center gap-2 mt-1">
+        {sourceLocatorValue ? (
+          <button
+            type="button"
+            onClick={handleOpenSource}
+            className="flex items-center gap-1.5 min-w-0 rounded text-[11px] text-[var(--secondary)] opacity-70 hover:opacity-100 hover:text-[var(--text)] focus-visible:opacity-100 focus-visible:text-[var(--text)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)] cursor-pointer transition-colors"
+            aria-label="Open Source"
+            title={`Open source: ${sourceLocatorValue}`}
+          >
+            {sourceIndicator}
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 min-w-0 text-[11px] text-[var(--secondary)] opacity-60">
+            {sourceIndicator}
+          </div>
         )}
         {episode.duration_sec && (
-          <span className="text-[11px] text-[var(--secondary)] opacity-60 shrink-0">
-            {formatDuration(episode.duration_sec)}
-          </span>
+          <>
+            <span className="w-0.5 h-0.5 rounded-full bg-[var(--secondary)] opacity-40 shrink-0" />
+            <span className="text-[11px] text-[var(--secondary)] opacity-60 shrink-0">
+              {formatDuration(episode.duration_sec)}
+            </span>
+          </>
         )}
       </div>
+      {sourceError && (
+        <p role="alert" className="mt-1 text-[11px] text-red-400">
+          {sourceError}
+        </p>
+      )}
 
       {/* Line 3: Content tabs (only when episode is complete) */}
       {showTabs ? (

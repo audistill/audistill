@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { UpdateStatus } from '../shared/update-types'
+import type { OpenSourceLocatorResult } from '../shared/source-locator'
 import type {
   RecordingSessionState,
   RecordingSourceKind,
@@ -70,6 +71,8 @@ const api = {
   setSetting: (key: string, value: string) => ipcRenderer.invoke('db:set-setting', key, value),
   deleteSetting: (key: string) => ipcRenderer.invoke('db:delete-setting', key),
   openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
+  openEpisodeSource: (episodeId: string): Promise<OpenSourceLocatorResult> =>
+    ipcRenderer.invoke('source:open-episode', episodeId),
   searchEpisodes: (query: string) => ipcRenderer.invoke('db:search-episodes', query),
   createFolder: (name: string, parentId?: string | null): Promise<string> =>
     ipcRenderer.invoke('db:create-folder', name, parentId),
