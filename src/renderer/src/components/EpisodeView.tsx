@@ -111,6 +111,16 @@ function ProcessingState({ episode }: { episode: Episode }): React.JSX.Element {
         {episode.error_message && (
           <p className="text-sm text-red-400 mb-4">{episode.error_message}</p>
         )}
+        {episode.status === 'error' && episode.error_details && (
+          <details className="mb-4 text-left rounded-[12px] bg-[var(--surface)] px-3 py-2">
+            <summary className="cursor-pointer text-xs font-medium text-[var(--secondary)] hover:text-[var(--text)]">
+              Show details
+            </summary>
+            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words text-xs text-[var(--secondary)]">
+              {episode.error_details}
+            </pre>
+          </details>
+        )}
         {episode.status === 'error' && !retryUnavailable && (
           <button
             onClick={handleRetry}

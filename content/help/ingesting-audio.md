@@ -39,7 +39,9 @@ Transcription remains on-device. Captured audio is temporary and is deleted afte
 
 ## URL Sources
 
-YouTube import uses `yt-dlp`. If Audistill cannot find it, the URL popover shows install guidance. You can also set a custom `yt-dlp` path and custom arguments in Settings, such as cookies arguments for sources that require your browser session.
+YouTube Ingest uses the Homebrew-installed `yt-dlp`. If Audistill cannot find it, run `brew install yt-dlp`, then check again. Audistill supplies its own FFmpeg to `yt-dlp`; you do not need to install FFmpeg or Deno separately. You can also set the `yt-dlp` path and custom arguments in Settings, such as cookies arguments for Sources that require your browser session.
+
+If a download is interrupted or YouTube temporarily refuses or limits it, Audistill retries once from a clean temporary file. If Ingest still fails, open **Show details** on the Episode to see Diagnostic Details alongside the concise explanation.
 
 RSS and Atom feeds open a preview list so you can choose one or more feed items. Items that are already in your Library are marked as imported and cannot be selected again.
 

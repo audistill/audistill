@@ -22,6 +22,7 @@ export interface DbEpisode {
   source_type: string | null
   status: string
   error_message: string | null
+  error_details: string | null
   is_starred: number
   starred_at: string | null
   created_at: string

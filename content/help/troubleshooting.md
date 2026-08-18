@@ -13,7 +13,7 @@ If the banner says the model is downloading, wait for it to finish. If it says t
 
 ## A YouTube URL will not import
 
-YouTube import requires `yt-dlp`. If Audistill cannot find it, install it with Homebrew or download it from the yt-dlp releases page, then use the URL popover or Settings → YouTube Import to point Audistill at the binary.
+YouTube Ingest requires `yt-dlp`. If Audistill cannot find it, run `brew install yt-dlp`, then use the URL popover or Settings → YouTube Import to check the binary. Audistill supplies FFmpeg; do not install FFmpeg or Deno separately for YouTube Ingest.
 
 If the video needs cookies, membership access, or other special options, add them in Settings → YouTube Import → Custom arguments. Some videos may still be blocked by the site, region, account permissions, or a stale yt-dlp install.
 
@@ -25,7 +25,7 @@ For direct URLs, the server needs to return a supported audio or video media fil
 
 ## An Episode failed during Ingest
 
-Open the Episode and read the error message. If Retry is available, use it. Cancelled Episodes can also be restarted.
+Open the Episode and read the Ingest Failure explanation. Choose **Show details** to inspect the retained Diagnostic Details when troubleshooting. If Retry is available, use it. Cancelled Episodes can also be restarted.
 
 For URL-sourced Episodes, retry downloads the Source again. For Episodes that already have a Transcript, retry may continue with Recipe generation instead of repeating Transcription.
 
@@ -41,7 +41,7 @@ Open Settings → License and verify the current License state. If Activation li
 
 ## Still stuck
 
-Retry the Episode when available. If the same Source keeps failing, copy the error message before asking for help.
+Retry the Episode when available. If the same Source keeps failing, copy the explanation and Diagnostic Details before asking for help.
 
 ## Contact
 

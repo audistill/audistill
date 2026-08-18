@@ -42,6 +42,21 @@ describe('DatabaseService - URL episode support', () => {
     expect(episode!.source_meta).toBeNull()
   })
 
+  it('persists nullable Diagnostic Details separately from the explanation', () => {
+    const id = db.createEpisode({ title: 'Failed Source', status: 'error' })
+    expect(db.getEpisode(id)?.error_details).toBeNull()
+
+    db.updateEpisode(id, {
+      error_message: 'The YouTube download failed.',
+      error_details: 'yt-dlp exited with code 1\nERROR: extractor failed',
+    })
+
+    expect(db.getEpisode(id)).toMatchObject({
+      error_message: 'The YouTube download failed.',
+      error_details: 'yt-dlp exited with code 1\nERROR: extractor failed',
+    })
+  })
+
   it('getEpisodeBySourceUrl returns episode for matching URL', () => {
     const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     db.createEpisode({

@@ -174,6 +174,28 @@ describe('IngestPipeline - recipe execution on ingest', () => {
       expect(episode?.status).toBe('complete')
     })
 
+    it('does not retain stale Diagnostic Details after successful Ingest', async () => {
+      const episodeId = db.createEpisode({
+        file_path: '/test.mp3',
+        title: 'Test',
+        status: 'summarizing',
+      })
+      db.updateEpisode(episodeId, {
+        transcript: JSON.stringify([{ start: 0, end: 1, text: 'hello' }]),
+        error_message: 'Old failure',
+        error_details: 'Old diagnostics',
+      })
+      vi.spyOn(recipeService, 'executeRecipe').mockResolvedValue({ model: 'google/gemini-3.5-flash' })
+
+      await pipeline.runSummarization(episodeId)
+
+      expect(db.getEpisode(episodeId)).toMatchObject({
+        status: 'complete',
+        error_message: null,
+        error_details: null,
+      })
+    })
+
     it('records provenance on successful pipeline recipe generation after saving content', async () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2026-07-01T12:00:00.000Z'))

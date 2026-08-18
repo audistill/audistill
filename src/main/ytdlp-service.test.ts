@@ -22,7 +22,7 @@ vi.mock('node:child_process', () => ({
 }))
 
 import { DatabaseService } from './database-service'
-import { YtdlpService, YtdlpMetadata, YtdlpError } from './ytdlp-service'
+import { YtdlpService, YtdlpMetadata, YtdlpError, YtdlpDownloadError } from './ytdlp-service'
 
 function createMockProc() {
   const proc = new EventEmitter() as any
@@ -260,6 +260,7 @@ describe('YtdlpService', () => {
       expect(capturedArgs).toContain('--cookies-from-browser')
       expect(capturedArgs).toContain('chrome')
       expect(capturedArgs).toContain('--no-warnings')
+      expect(capturedArgs).toContain('--ffmpeg-location')
     })
   })
 
@@ -302,6 +303,41 @@ describe('YtdlpService', () => {
       expect(progressValues).toEqual([50, 100])
     })
 
+    it('passes Audistill bundled FFmpeg location to yt-dlp', async () => {
+      let capturedArgs: string[] = []
+      mockSpawnHandler = (_file, args) => {
+        capturedArgs = args
+        queueMicrotask(() => proc.emit('close', 0))
+        return proc
+      }
+
+      await service.download('https://www.youtube.com/watch?v=test', '/tmp/out.webm', 'ep-1', { onProgress: () => {} })
+
+      const flagIndex = capturedArgs.indexOf('--ffmpeg-location')
+      expect(flagIndex).toBeGreaterThanOrEqual(0)
+      expect(capturedArgs[flagIndex + 1]).toContain('ffmpeg')
+      const progressTemplateIndex = capturedArgs.indexOf('--progress-template')
+      expect(capturedArgs[progressTemplateIndex + 1]).toMatch(/^download:download:/)
+    })
+
+    it.each([
+      ['/workspace/node_modules/ffmpeg-static/ffmpeg', 'development'],
+      ['/Applications/Audistill.app/Contents/Resources/app.asar.unpacked/node_modules/ffmpeg-static/ffmpeg', 'packaged'],
+    ])('passes the resolved %s FFmpeg path', async (resolvedPath) => {
+      service = new YtdlpService(db, () => resolvedPath)
+      let capturedArgs: string[] = []
+      mockSpawnHandler = (_file, args) => {
+        capturedArgs = args
+        queueMicrotask(() => proc.emit('close', 0))
+        return proc
+      }
+
+      await service.download('https://www.youtube.com/watch?v=test', '/tmp/out.webm', 'ep-1', { onProgress: () => {} })
+
+      expect(capturedArgs).toContain('--ffmpeg-location')
+      expect(capturedArgs).toContain(resolvedPath)
+    })
+
     it('also parses progress from stderr', async () => {
       const progressValues: number[] = []
 
@@ -325,8 +361,12 @@ describe('YtdlpService', () => {
 
     it('kills process and throws after 30s of no progress', async () => {
       vi.useFakeTimers()
-
-      mockSpawnHandler = () => proc
+      const attempts: ReturnType<typeof createMockProc>[] = []
+      mockSpawnHandler = () => {
+        const attempt = createMockProc()
+        attempts.push(attempt)
+        return attempt
+      }
 
       const promise = service.download(
         'https://www.youtube.com/watch?v=test',
@@ -341,11 +381,12 @@ describe('YtdlpService', () => {
         (err) => err
       )
 
-      await vi.advanceTimersByTimeAsync(30_000)
+      await vi.advanceTimersByTimeAsync(60_000)
 
       const err = await resultPromise
-      expect(err.message).toContain('Download timed out')
-      expect(proc.kill).toHaveBeenCalled()
+      expect(err.message).toContain('download was interrupted')
+      expect(attempts).toHaveLength(2)
+      expect(attempts.every((attempt) => attempt.kill.mock.calls.length === 1)).toBe(true)
 
       vi.useRealTimers()
     })
@@ -367,7 +408,143 @@ describe('YtdlpService', () => {
           'ep-1',
           { onProgress: () => {} }
         )
-      ).rejects.toThrow('yt-dlp exited with code 1')
+      ).rejects.toThrow('The YouTube download failed.')
+    })
+
+    it('retains only the last 64 KiB of stderr, filters progress records, and includes the exit code', async () => {
+      mockSpawnHandler = () => {
+        queueMicrotask(() => {
+          proc.stderr.emit('data', Buffer.from(`${'x'.repeat(70 * 1024)}\n`))
+          proc.stderr.emit('data', Buffer.from('download:{"downloaded":1,"total":2,"speed":1,"eta":1}\n'))
+          proc.stderr.emit('data', Buffer.from('WARNING: final diagnostic\n'))
+          proc.emit('close', 7)
+        })
+        return proc
+      }
+
+      const error = await service.download(
+        'https://www.youtube.com/watch?v=test', '/tmp/out.webm', 'ep-1', { onProgress: () => {} }
+      ).then(
+        () => { throw new Error('expected download failure') },
+        (err) => err as YtdlpDownloadError,
+      )
+
+      expect(error.details).toContain('yt-dlp exited with code 7')
+      expect(error.details).toContain('WARNING: final diagnostic')
+      expect(error.details).not.toContain('download:{')
+      const retainedStderr = error.details.slice(error.details.indexOf('\n') + 1)
+      expect(Buffer.byteLength(retainedStderr)).toBeLessThanOrEqual(64 * 1024)
+    })
+
+    it('retries when an early transient signal is no longer present in retained stderr', async () => {
+      let spawnCount = 0
+      const cleanup = vi.fn()
+      mockSpawnHandler = () => {
+        const attemptProc = createMockProc()
+        spawnCount++
+        queueMicrotask(() => {
+          attemptProc.stderr.emit('data', Buffer.from('ERROR: HTTP Error 403: Forbidden\n'))
+          attemptProc.stderr.emit('data', Buffer.from(`${'x'.repeat(70 * 1024)}\n`))
+          attemptProc.emit('close', 1)
+        })
+        return attemptProc
+      }
+
+      const error = await service.download(
+        'https://www.youtube.com/watch?v=test', '/tmp/out.webm', 'ep-early-transient',
+        { onProgress: () => {}, cleanupPartialOutput: cleanup }
+      ).then(
+        () => { throw new Error('expected download failure') },
+        (err) => err as YtdlpDownloadError,
+      )
+
+      expect(spawnCount).toBe(2)
+      expect(cleanup).toHaveBeenCalledTimes(1)
+      expect(error.kind).toBe('http-403')
+      expect(error.details).not.toContain('HTTP Error 403')
+    })
+
+    it('does not retry when an early permanent signal is no longer present in retained stderr', async () => {
+      let spawnCount = 0
+      const cleanup = vi.fn()
+      mockSpawnHandler = () => {
+        const attemptProc = createMockProc()
+        spawnCount++
+        queueMicrotask(() => {
+          attemptProc.stderr.emit('data', Buffer.from('ERROR: Authentication required\n'))
+          attemptProc.stderr.emit('data', Buffer.from(`${'x'.repeat(70 * 1024)}\n`))
+          attemptProc.stderr.emit('data', Buffer.from('ERROR: HTTP Error 503: Service Unavailable\n'))
+          attemptProc.emit('close', 1)
+        })
+        return attemptProc
+      }
+
+      await expect(service.download(
+        'https://www.youtube.com/watch?v=test', '/tmp/out.webm', 'ep-early-permanent',
+        { onProgress: () => {}, cleanupPartialOutput: cleanup }
+      )).rejects.toThrow('The download was interrupted.')
+      expect(spawnCount).toBe(1)
+      expect(cleanup).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['HTTP Error 403: Forbidden', 'YouTube refused the audio download. Try again later.'],
+      ['HTTP Error 429: Too Many Requests', 'YouTube is temporarily limiting downloads. Try again later.'],
+      ['HTTP Error 503: Service Unavailable', 'The download was interrupted. Check your connection and retry.'],
+      ['Connection reset by peer', 'The download was interrupted. Check your connection and retry.'],
+      ['Remote end closed connection prematurely', 'The download was interrupted. Check your connection and retry.'],
+    ])('retries one transient failure in a fresh process: %s', async (stderr, expectedMessage) => {
+      let spawnCount = 0
+      const cleanup = vi.fn()
+      mockSpawnHandler = () => {
+        const attemptProc = createMockProc()
+        spawnCount++
+        queueMicrotask(() => {
+          attemptProc.stderr.emit('data', Buffer.from(`${stderr}\n`))
+          attemptProc.emit('close', 1)
+        })
+        return attemptProc
+      }
+
+      const error = await service.download(
+        'https://www.youtube.com/watch?v=test', '/tmp/out.webm', 'ep-retry',
+        { onProgress: () => {}, cleanupPartialOutput: cleanup }
+      ).then(
+        () => { throw new Error('expected download failure') },
+        (err) => err as YtdlpDownloadError,
+      )
+
+      expect(spawnCount).toBe(2)
+      expect(cleanup).toHaveBeenCalledTimes(1)
+      expect(error.message).toBe(expectedMessage)
+    })
+
+    it.each([
+      'Authentication required',
+      'ERROR: Private video. Sign in if you have been granted access',
+      'This video is not available in your country',
+      'Dependency not found: requested executable missing',
+      'Invalid argument: no such option',
+      'Post-processing error: ffmpeg conversion failed',
+    ])('does not retry permanent failure: %s', async (stderr) => {
+      let spawnCount = 0
+      const cleanup = vi.fn()
+      mockSpawnHandler = () => {
+        const attemptProc = createMockProc()
+        spawnCount++
+        queueMicrotask(() => {
+          attemptProc.stderr.emit('data', Buffer.from(`${stderr}\n`))
+          attemptProc.emit('close', 1)
+        })
+        return attemptProc
+      }
+
+      await expect(service.download(
+        'https://www.youtube.com/watch?v=test', '/tmp/out.webm', 'ep-permanent',
+        { onProgress: () => {}, cleanupPartialOutput: cleanup }
+      )).rejects.toThrow('The YouTube download failed.')
+      expect(spawnCount).toBe(1)
+      expect(cleanup).not.toHaveBeenCalled()
     })
 
     it('appends custom args from settings and opts', async () => {

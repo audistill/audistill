@@ -48,6 +48,7 @@ function makeEpisode(overrides: Partial<Episode> = {}): Episode {
     source_type: 'local',
     status: 'complete',
     error_message: null,
+    error_details: null,
     is_starred: false,
     starred_at: null,
     created_at: '2026-07-01T12:00:00.000Z',

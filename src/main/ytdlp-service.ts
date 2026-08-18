@@ -1,5 +1,8 @@
 import { spawn, ChildProcess, execFile } from 'node:child_process'
 import { DatabaseService } from './database-service'
+import { resolveFFmpegBin } from './audio-preprocessor'
+
+const MAX_STDERR_BYTES = 64 * 1024
 
 export interface YtdlpMetadata {
   title: string
@@ -17,14 +20,33 @@ export interface YtdlpError {
 export interface DownloadOpts {
   customArgs?: string
   onProgress: (pct: number, speed: number, eta: number) => void
+  cleanupPartialOutput?: () => void | Promise<void>
+}
+
+export type YtdlpDownloadFailureKind = 'http-403' | 'http-429' | 'network' | 'unknown'
+
+export class YtdlpDownloadError extends Error {
+  readonly details: string
+  readonly kind: YtdlpDownloadFailureKind
+  readonly retryable: boolean
+
+  constructor(message: string, details: string, kind: YtdlpDownloadFailureKind, retryable: boolean) {
+    super(message)
+    this.name = 'YtdlpDownloadError'
+    this.details = details
+    this.kind = kind
+    this.retryable = retryable
+  }
 }
 
 export class YtdlpService {
   private db: DatabaseService
   private activeProcesses = new Map<string, ChildProcess>()
+  private ffmpegPathResolver: () => string | null
 
-  constructor(db: DatabaseService) {
+  constructor(db: DatabaseService, ffmpegPathResolver: () => string | null = resolveFFmpegBin) {
     this.db = db
+    this.ffmpegPathResolver = ffmpegPathResolver
   }
 
   async detect(): Promise<string | null> {
@@ -45,7 +67,7 @@ export class YtdlpService {
     }
 
     const customArgs = this.getCustomArgs()
-    const args = [...customArgs, '--dump-json', url]
+    const args = [...this.ffmpegArgs(), ...customArgs, '--dump-json', url]
 
     try {
       const stdout = await this.execBinary(binPath, args)
@@ -83,18 +105,38 @@ export class YtdlpService {
 
     const args = [
       '-x',
+      ...this.ffmpegArgs(),
       '--newline',
       '--progress-template',
-      'download:{"downloaded":%(progress.downloaded_bytes)s,"total":%(progress.total_bytes)s,"speed":%(progress.speed)s,"eta":%(progress.eta)s}',
+      'download:download:{"downloaded":%(progress.downloaded_bytes)s,"total":%(progress.total_bytes)s,"speed":%(progress.speed)s,"eta":%(progress.eta)s}',
       '--progress-delta', '1',
       '-o', outputPath,
       ...customArgs,
       url,
     ]
 
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await this.runDownloadProcess(binPath, args, episodeId, opts)
+        return
+      } catch (error) {
+        if (!(error instanceof YtdlpDownloadError) || attempt === 1 || !error.retryable) {
+          throw error
+        }
+        await opts.cleanupPartialOutput?.()
+      }
+    }
+  }
+
+  private runDownloadProcess(binPath: string, args: string[], episodeId: string, opts: DownloadOpts): Promise<void> {
     return new Promise((resolve, reject) => {
       const proc = spawn(binPath, args)
       this.activeProcesses.set(episodeId, proc)
+      let stderr = Buffer.alloc(0)
+      let stderrRemainder = ''
+      let stdoutRemainder = ''
+      let observedFailureKind: YtdlpDownloadFailureKind = 'unknown'
+      let observedPermanentFailure = false
 
       let settled = false
       const settle = (fn: () => void) => {
@@ -110,36 +152,81 @@ export class YtdlpService {
           settle(() => {
             this.activeProcesses.delete(episodeId)
             proc.kill()
-            reject(new Error('Download timed out — no data received for 30 seconds'))
+            reject(failure(null, new Error('Download timed out — no data received for 30 seconds')))
           })
         }, 30_000)
       }
       resetStall()
 
-      const parseProgressLines = (chunk: Buffer) => {
-        const lines = chunk.toString().split('\n')
-        for (const line of lines) {
-          if (!line.startsWith('download:')) continue
-          resetStall()
-          try {
-            const json = JSON.parse(line.slice('download:'.length))
-            const total = json.total || 1
-            const pct = Math.round((json.downloaded / total) * 100)
-            opts.onProgress(pct, json.speed ?? 0, json.eta ?? 0)
-          } catch {
-            // ignore malformed progress lines
+      const parseProgressLine = (line: string) => {
+        if (!line.startsWith('download:')) return false
+        resetStall()
+        try {
+          const json = JSON.parse(line.slice('download:'.length))
+          const total = json.total || 1
+          const pct = Math.round((json.downloaded / total) * 100)
+          opts.onProgress(pct, json.speed ?? 0, json.eta ?? 0)
+        } catch {
+          // ignore malformed progress lines
+        }
+        return true
+      }
+
+      const appendStderr = (value: string) => {
+        stderr = Buffer.concat([stderr, Buffer.from(value)])
+        if (stderr.byteLength > MAX_STDERR_BYTES) stderr = stderr.subarray(stderr.byteLength - MAX_STDERR_BYTES)
+      }
+
+      const observeDiagnostic = (value: string) => {
+        const kind = this.failureKind(value)
+        if (kind !== 'unknown') observedFailureKind = kind
+        if (this.isPermanentFailure(value)) observedPermanentFailure = true
+      }
+
+      const parseStdout = (chunk: Buffer) => {
+        const parts = (stdoutRemainder + chunk.toString()).split('\n')
+        stdoutRemainder = parts.pop() ?? ''
+        for (const line of parts) parseProgressLine(line)
+      }
+
+      const parseStderr = (chunk: Buffer) => {
+        const parts = (stderrRemainder + chunk.toString()).split('\n')
+        stderrRemainder = parts.pop() ?? ''
+        for (const line of parts) {
+          if (!parseProgressLine(line)) {
+            observeDiagnostic(line)
+            appendStderr(`${line}\n`)
           }
         }
       }
 
-      proc.stdout.on('data', parseProgressLines)
-      proc.stderr.on('data', parseProgressLines)
+      const flushStderr = () => {
+        if (stderrRemainder && !parseProgressLine(stderrRemainder)) {
+          observeDiagnostic(stderrRemainder)
+          appendStderr(stderrRemainder)
+        }
+        stderrRemainder = ''
+      }
+
+      const failure = (code: number | null, fallback?: Error) => {
+        flushStderr()
+        if (fallback) observeDiagnostic(fallback.message)
+        const rawStderr = stderr.toString()
+        const exit = code === null ? 'yt-dlp process failed' : `yt-dlp exited with code ${code}`
+        const details = rawStderr ? `${exit}\n${rawStderr}` : `${exit}${fallback ? `\n${fallback.message}` : ''}`
+        const kind = observedFailureKind === 'unknown' ? this.failureKind(details) : observedFailureKind
+        const retryable = !observedPermanentFailure && kind !== 'unknown'
+        return new YtdlpDownloadError(this.friendlyMessage(kind), details, kind, retryable)
+      }
+
+      proc.stdout.on('data', parseStdout)
+      proc.stderr.on('data', parseStderr)
 
       proc.on('error', (err) => {
         if (stallTimer) clearTimeout(stallTimer)
         settle(() => {
           this.activeProcesses.delete(episodeId)
-          reject(err)
+          reject(failure(null, err))
         })
       })
 
@@ -150,11 +237,34 @@ export class YtdlpService {
           if (code === 0) {
             resolve()
           } else {
-            reject(new Error(`yt-dlp exited with code ${code}`))
+            reject(failure(code))
           }
         })
       })
     })
+  }
+
+  private ffmpegArgs(): string[] {
+    const ffmpegPath = this.ffmpegPathResolver()
+    return ffmpegPath ? ['--ffmpeg-location', ffmpegPath] : []
+  }
+
+  private isPermanentFailure(details: string): boolean {
+    return /authentication|login required|sign in|private video|video unavailable|not available in your (?:country|region)|geo.?restrict|dependency|not found|no such option|invalid (?:argument|option)|post.?process|conversion failed/i.test(details)
+  }
+
+  private failureKind(details: string): YtdlpDownloadFailureKind {
+    if (/HTTP Error 403|\b403 Forbidden\b/i.test(details)) return 'http-403'
+    if (/HTTP Error 429|\b429 Too Many Requests\b/i.test(details)) return 'http-429'
+    if (/HTTP Error 5\d\d|\b5\d\d (?:Internal Server Error|Bad Gateway|Service Unavailable|Gateway Timeout)\b|ECONNRESET|connection (?:was )?(?:reset|closed|aborted)|remote end closed|premature(?:ly)? (?:closed|disconnect|end)|unexpected eof|incomplete read|network is unreachable|timed out/i.test(details)) return 'network'
+    return 'unknown'
+  }
+
+  private friendlyMessage(kind: YtdlpDownloadFailureKind): string {
+    if (kind === 'http-403') return 'YouTube refused the audio download. Try again later.'
+    if (kind === 'http-429') return 'YouTube is temporarily limiting downloads. Try again later.'
+    if (kind === 'network') return 'The download was interrupted. Check your connection and retry.'
+    return 'The YouTube download failed.'
   }
 
   async checkVersion(): Promise<string> {

@@ -36,6 +36,7 @@ import { DatabaseService } from './database-service'
 import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
 import { IngestPipeline } from './ingest-pipeline'
+import { YtdlpDownloadError } from './ytdlp-service'
 
 const promptsDir = join(__dirname, 'prompts')
 
@@ -143,6 +144,54 @@ describe('IngestPipeline — resilience layer', () => {
       expect(episode?.error_message).toContain('Download timed out')
       expect(episode?.error_message).toContain('30 seconds')
     })
+
+    it('persists a friendly explanation separately from yt-dlp Diagnostic Details', async () => {
+      const id = db.createEpisode({
+        title: 'Forbidden Video',
+        source_url: 'https://www.youtube.com/watch?v=forbidden',
+        source_type: 'youtube',
+        status: 'queued',
+      })
+      ytdlpService.download.mockRejectedValue(new YtdlpDownloadError(
+        'YouTube refused the audio download. Try again later.',
+        'yt-dlp exited with code 1\nERROR: HTTP Error 403: Forbidden',
+        'http-403',
+        false,
+      ))
+      mockExistsSync = () => true
+      mockReaddirSync = () => []
+
+      await (pipeline as any).downloadEpisode(id, db.getEpisode(id)!)
+
+      expect(db.getEpisode(id)).toMatchObject({
+        status: 'error',
+        error_message: 'YouTube refused the audio download. Try again later.',
+        error_details: 'yt-dlp exited with code 1\nERROR: HTTP Error 403: Forbidden',
+      })
+    })
+
+    it('gives yt-dlp a cleanup callback that removes every partial output', async () => {
+      const id = db.createEpisode({
+        title: 'Retry Cleanup',
+        source_url: 'https://www.youtube.com/watch?v=cleanup',
+        source_type: 'youtube',
+        status: 'queued',
+      })
+      mockExistsSync = () => true
+      mockReaddirSync = () => [`${id}.webm.part`, `${id}.webm.ytdl`, 'other-episode.webm']
+      ytdlpService.download.mockImplementation(async (_url: string, _output: string, _id: string, opts: any) => {
+        await opts.cleanupPartialOutput()
+        throw new Error('failed after cleanup')
+      })
+
+      await (pipeline as any).downloadEpisode(id, db.getEpisode(id)!)
+
+      expect(deletedFiles).toEqual(expect.arrayContaining([
+        join(TMP_DIR, `${id}.webm.part`),
+        join(TMP_DIR, `${id}.webm.ytdl`),
+      ]))
+      expect(deletedFiles).not.toContain(join(TMP_DIR, 'other-episode.webm'))
+    })
   })
 
   describe('retry on URL episodes', () => {
@@ -175,7 +224,7 @@ describe('IngestPipeline — resilience layer', () => {
         source_url: 'https://www.youtube.com/watch?v=err',
         status: 'error',
       })
-      db.updateEpisode(id, { error_message: 'Something went wrong' })
+      db.updateEpisode(id, { error_message: 'Something went wrong', error_details: 'raw failure' })
 
       mockExistsSync = () => false
       mockReaddirSync = () => []
@@ -188,6 +237,7 @@ describe('IngestPipeline — resilience layer', () => {
       const episode = db.getEpisode(id)
       expect(episode?.status).toBe('queued')
       expect(episode?.error_message).toBeNull()
+      expect(episode?.error_details).toBeNull()
     })
 
     it('also allows retry from cancelled status', async () => {

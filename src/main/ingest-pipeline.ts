@@ -9,7 +9,7 @@ import { ModelManager } from './model-manager'
 import { DatabaseService, Episode } from './database-service'
 import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
-import { YtdlpService } from './ytdlp-service'
+import { YtdlpDownloadError, YtdlpService } from './ytdlp-service'
 import { HttpDownloadService } from './http-download-service'
 import { SUPPORTED_FILE_FILTER } from '../shared/supported-formats'
 import { LicenseService } from './license-service'
@@ -189,13 +189,10 @@ export class IngestPipeline {
       if (episode.source_type === 'recorded' && !episode.transcript && !episode.file_path) return
 
       if (episode.source_url) {
-        const existingTmp = this.findDownloadedFile(episodeId)
-        if (existingTmp) {
-          try { unlinkSync(existingTmp) } catch { /* ignore */ }
-        }
-        this.db.updateEpisode(episodeId, { status: 'queued', file_path: null, error_message: null })
+        this.removeDownloadedFiles(episodeId)
+        this.db.updateEpisode(episodeId, { status: 'queued', file_path: null, error_message: null, error_details: null })
       } else {
-        this.db.updateEpisode(episodeId, { status: 'queued', error_message: null })
+        this.db.updateEpisode(episodeId, { status: 'queued', error_message: null, error_details: null })
       }
       this.queue.push(episodeId)
       this.broadcastEpisodeUpdate(episodeId)
@@ -315,19 +312,18 @@ export class IngestPipeline {
         this.db.updateEpisode(episodeId, { file_path: destPath })
       } else {
         const outputTemplate = join(TMP_DIR, `${episodeId}.%(ext)s`)
-        const customArgs = this.db.getSetting('ytdlp_custom_args') || undefined
         await this.ytdlpService.download(episode.source_url!, outputTemplate, episodeId, {
-          customArgs,
           onProgress: (pct) => {
             this.broadcastProgress(episodeId, 'downloading', pct)
           },
+          cleanupPartialOutput: () => this.removeDownloadedFiles(episodeId),
         })
 
         const downloadedFile = this.findDownloadedFile(episodeId)
         if (!downloadedFile) {
           throw new Error('Download completed but output file not found')
         }
-        this.db.updateEpisode(episodeId, { file_path: downloadedFile })
+        this.db.updateEpisode(episodeId, { file_path: downloadedFile, error_message: null, error_details: null })
       }
 
       this.broadcastEpisodeUpdate(episodeId)
@@ -337,7 +333,8 @@ export class IngestPipeline {
       if (current?.status === 'cancelled') return false
 
       const message = err instanceof Error ? err.message : String(err)
-      this.db.updateEpisode(episodeId, { status: 'error', error_message: message })
+      const details = err instanceof YtdlpDownloadError ? err.details : null
+      this.db.updateEpisode(episodeId, { status: 'error', error_message: message, error_details: details })
       this.broadcastEpisodeUpdate(episodeId)
       return false
     }
@@ -358,6 +355,14 @@ export class IngestPipeline {
     const files = readdirSync(TMP_DIR)
     const match = files.find((f) => f.startsWith(episodeId))
     return match ? join(TMP_DIR, match) : null
+  }
+
+  private removeDownloadedFiles(episodeId: string): void {
+    if (!existsSync(TMP_DIR)) return
+    for (const file of readdirSync(TMP_DIR)) {
+      if (!file.startsWith(episodeId)) continue
+      try { unlinkSync(join(TMP_DIR, file)) } catch { /* ignore */ }
+    }
   }
 
   private async transcribeEpisode(episodeId: string, episode: Episode): Promise<boolean> {
@@ -394,14 +399,14 @@ export class IngestPipeline {
       }
 
       if (isUrlEpisode || isRecordedEpisode) {
-        this.db.updateEpisode(episodeId, { transcript, file_path: null, status: 'summarizing' })
+        this.db.updateEpisode(episodeId, { transcript, file_path: null, status: 'summarizing', error_message: null, error_details: null })
         if (isRecordedEpisode) {
           try { rmSync(dirname(ownershipPath), { recursive: true, force: true }) } catch { /* retry in later recovery work */ }
         } else {
           try { unlinkSync(ownershipPath) } catch { /* ignore */ }
         }
       } else {
-        this.db.updateEpisode(episodeId, { transcript, status: 'summarizing' })
+        this.db.updateEpisode(episodeId, { transcript, status: 'summarizing', error_message: null, error_details: null })
       }
       this.broadcastEpisodeUpdate(episodeId)
       return true
@@ -662,9 +667,9 @@ export class IngestPipeline {
       })
 
       if (title && episode.source_type !== 'recorded') {
-        this.db.updateEpisode(episodeId, { title, status: 'complete', error_message: null })
+        this.db.updateEpisode(episodeId, { title, status: 'complete', error_message: null, error_details: null })
       } else {
-        this.db.updateEpisode(episodeId, { status: 'complete', error_message: null })
+        this.db.updateEpisode(episodeId, { status: 'complete', error_message: null, error_details: null })
       }
 
       this.broadcastTabEvent('tab:stream-end', { episodeId, tabId, tab: this.tabService.getTab(tabId) })

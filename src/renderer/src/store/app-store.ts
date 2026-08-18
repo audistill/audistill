@@ -14,6 +14,7 @@ export interface Episode {
   source_type: string | null
   status: 'queued' | 'transcribing' | 'summarizing' | 'complete' | 'error' | 'cancelled' | 'downloading' | 'recovery-pending'
   error_message: string | null
+  error_details: string | null
   is_starred: boolean
   starred_at: string | null
   created_at: string
@@ -127,6 +128,7 @@ function dbEpisodeToEpisode(row: DbEpisode): Episode {
     source_type: row.source_type,
     status: row.status as Episode['status'],
     error_message: row.error_message,
+    error_details: row.error_details,
     is_starred: row.is_starred === 1,
     starred_at: row.starred_at,
     created_at: row.created_at,
@@ -383,6 +385,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         ...updates,
+        error_details: updates.error_details ?? null,
       }
       set({ episodes: [newEpisode, ...episodes] })
     }

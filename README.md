@@ -1,6 +1,5 @@
 <div align="center">
 
-<!-- TODO: replace with logo asset (droplet + audio ring mark, terracotta #d97757) -->
 <img src="build/icon.png" width="128" alt="Audistill icon" />
 
 # Audistill
@@ -46,7 +45,7 @@ Audistill is open source (AGPL-3.0) **and** a paid app. Both are intentional:
 
 | | |
 |---|---|
-| 💾 **[Download Audistill — $29 one-time](https://TODO-polar-link)** | Notarized build, automatic updates, supports development. 1 year of updates included; the app keeps working forever. |
+| 💾 **[Download Audistill — $29 one-time](https://audistill.com/#pricing)** | Notarized build, automatic updates, supports development. 1 year of updates included; the app keeps working forever. |
 | 🛠️ **[Build from source](#build-from-source)** | Free, forever. You handle building and updating yourself. |
 
 No subscription either way. If you build from source and end up liking it, buying a license (or starring the repo ⭐) is how you keep the project alive.
@@ -58,7 +57,7 @@ No subscription either way. If you build from source and end up liking it, buyin
 3. **Distill** — your chosen LLM (via your OpenRouter key) produces a structured summary
 4. **Keep & chat** — everything lands in your local knowledge base, ready to search and query
 
-The only data that leaves your machine is the transcript text sent to the LLM you chose, with your key, under your control. Want full offline? <!-- TODO: confirm/remove if local LLM support exists -->
+The only data that leaves your machine is the transcript text sent to the LLM you chose, with your key, under your control. There's no fully-offline mode: Audistill deliberately doesn't bundle a local LLM, because on-device models aren't good enough at distillation yet and the hardware requirements would rule out too many Macs. Transcription, storage, and search stay local regardless.
 
 ## Build from source
 
@@ -94,7 +93,11 @@ macOS only for now.
 
 ## Contributing
 
-Issues and PRs welcome — bug reports with reproduction steps are the most valuable thing you can file. Fair warning: this is a spare-time hobby project, so responses are best-effort. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and PRs are welcome — bug reports with reproduction steps are the most valuable thing you can file.
+
+One thing to know first: day-to-day development happens in a private repository, and this public repo is a source snapshot that receives one squashed commit per release. So `main` here is rewritten on every release, and a pull request can't be merged directly — it would be overwritten by the next snapshot. Accepted PRs get ported into the private tree by hand, ship in the next release, and are credited in the release notes. Small, focused changes land much more easily than large ones; for anything substantial, open an issue first.
+
+Fair warning: this is a spare-time hobby project, so responses are best-effort. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

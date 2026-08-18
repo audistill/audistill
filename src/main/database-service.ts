@@ -15,6 +15,7 @@ export interface Episode {
   source_type: string | null
   status: string
   error_message: string | null
+  error_details: string | null
   is_starred: number
   starred_at: string | null
   created_at: string
@@ -97,6 +98,7 @@ export class DatabaseService {
         source_type TEXT,
         status TEXT NOT NULL DEFAULT 'queued',
         error_message TEXT,
+        error_details TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -198,10 +200,11 @@ export class DatabaseService {
           source_type TEXT,
           status TEXT NOT NULL DEFAULT 'queued',
           error_message TEXT,
+          error_details TEXT,
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
-        INSERT INTO episodes_new SELECT id, title, file_path, folder_id, duration_sec, transcript, source_url, source_meta, NULL, status, error_message, created_at, updated_at FROM episodes;
+        INSERT INTO episodes_new SELECT id, title, file_path, folder_id, duration_sec, transcript, source_url, source_meta, NULL, status, error_message, NULL, created_at, updated_at FROM episodes;
         DROP TABLE episodes;
         ALTER TABLE episodes_new RENAME TO episodes;
       `)
@@ -224,6 +227,13 @@ export class DatabaseService {
     if (!colNamesLatest.has('is_starred')) {
       this.db.exec("ALTER TABLE episodes ADD COLUMN is_starred INTEGER NOT NULL DEFAULT 0")
       this.db.exec("ALTER TABLE episodes ADD COLUMN starred_at TEXT")
+    }
+
+    const finalColumnNames = new Set(
+      (this.db.prepare("PRAGMA table_info('episodes')").all() as { name: string }[]).map((c) => c.name)
+    )
+    if (!finalColumnNames.has('error_details')) {
+      this.db.exec('ALTER TABLE episodes ADD COLUMN error_details TEXT')
     }
   }
 
@@ -290,7 +300,7 @@ export class DatabaseService {
   }
 
   updateEpisode(id: string, fields: Partial<Omit<Episode, 'id' | 'created_at'>>): void {
-    const allowed = ['title', 'file_path', 'folder_id', 'duration_sec', 'transcript', 'source_url', 'source_meta', 'source_type', 'status', 'error_message']
+    const allowed = ['title', 'file_path', 'folder_id', 'duration_sec', 'transcript', 'source_url', 'source_meta', 'source_type', 'status', 'error_message', 'error_details']
     const entries = Object.entries(fields).filter(([key]) => allowed.includes(key))
     if (entries.length === 0) return
 

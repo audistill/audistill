@@ -258,14 +258,6 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
         <code className="block text-xs bg-[var(--surface)] rounded-[8px] px-3 py-2 text-[var(--text)] font-mono mb-3 select-all">
           brew install yt-dlp
         </code>
-        <a
-          href="https://github.com/yt-dlp/yt-dlp/releases"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-[var(--accent)] hover:underline block mb-3"
-        >
-          yt-dlp releases on GitHub
-        </a>
         <div className="flex gap-2">
           <button
             onClick={handleBrowse}
