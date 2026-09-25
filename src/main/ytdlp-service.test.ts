@@ -104,8 +104,131 @@ describe('YtdlpService', () => {
     })
   })
 
+  describe('fetchFeed()', () => {
+    const CHANNEL_FIXTURE = JSON.stringify({
+      id: 'UCfallback',
+      title: 'Fallback Channel - Videos',
+      channel: 'Fallback Channel',
+      channel_id: 'UCfallback',
+      channel_url: 'https://www.youtube.com/channel/UCfallback',
+      thumbnails: [{ url: 'https://example.com/channel-small.jpg' }, { url: 'https://example.com/channel.jpg' }],
+      entries: [
+        {
+          id: 'fallback123',
+          title: 'Available through yt-dlp',
+          url: 'https://www.youtube.com/watch?v=fallback123',
+          timestamp: 1788436800,
+          duration: 3723,
+          description: 'Episode description',
+          thumbnail: 'https://i.ytimg.com/vi/fallback123/hqdefault.jpg',
+        },
+      ],
+    })
+
+    beforeEach(() => {
+      mockExecFileHandler = (file, args, _opts, cb) => {
+        if (file === 'which' && args[0] === 'yt-dlp') {
+          cb(null, '/usr/local/bin/yt-dlp\n', '')
+        } else if (args.includes('--dump-single-json')) {
+          cb(null, CHANNEL_FIXTURE, '')
+        } else {
+          cb(new Error('unknown'))
+        }
+      }
+    })
+
+    it('gets channel metadata and recent videos through yt-dlp', async () => {
+      const result = await service.fetchFeed('https://www.youtube.com/@fallback')
+
+      expect(mockExecFileCalls[1]).toEqual({
+        file: '/usr/local/bin/yt-dlp',
+        args: [
+          '--flat-playlist',
+          '--playlist-end', '30',
+          '--dump-single-json',
+          'https://www.youtube.com/@fallback/videos',
+        ],
+      })
+      expect(result).toEqual({
+        title: 'Fallback Channel',
+        image: 'https://example.com/channel.jpg',
+        feedUrl: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCfallback',
+        siteUrl: 'https://www.youtube.com/channel/UCfallback',
+        items: [{
+          title: 'Available through yt-dlp',
+          enclosureUrl: 'https://www.youtube.com/watch?v=fallback123',
+          guid: 'yt:video:fallback123',
+          pubDate: '2026-09-03T12:00:00.000Z',
+          duration: '1:02:03',
+          description: 'Episode description',
+          image: 'https://i.ytimg.com/vi/fallback123/hqdefault.jpg',
+          link: 'https://www.youtube.com/watch?v=fallback123',
+        }],
+        notModified: false,
+        etag: null,
+        lastModified: null,
+      })
+    })
+
+    it('turns a stored channel feed URL back into a yt-dlp channel URL on refresh', async () => {
+      await service.fetchFeed('https://www.youtube.com/feeds/videos.xml?channel_id=UCfallback')
+
+      expect(mockExecFileCalls[1].args.at(-1)).toBe(
+        'https://www.youtube.com/channel/UCfallback/videos'
+      )
+    })
+
+    it('preserves playlist identity and title', async () => {
+      mockExecFileHandler = (file, args, _opts, cb) => {
+        if (file === 'which' && args[0] === 'yt-dlp') {
+          cb(null, '/usr/local/bin/yt-dlp\n', '')
+        } else if (args.includes('--dump-single-json')) {
+          cb(null, JSON.stringify({
+            id: 'PLfallback',
+            title: 'Research Playlist',
+            uploader: 'Fallback Channel',
+            entries: JSON.parse(CHANNEL_FIXTURE).entries,
+          }), '')
+        } else {
+          cb(new Error('unknown'))
+        }
+      }
+
+      const result = await service.fetchFeed(
+        'https://www.youtube.com/playlist?list=PLfallback'
+      )
+
+      expect(result.title).toBe('Research Playlist')
+      expect(result.feedUrl).toBe(
+        'https://www.youtube.com/feeds/videos.xml?playlist_id=PLfallback'
+      )
+    })
+
+    it('loads the owning channel when resolving from an individual video', async () => {
+      mockExecFileHandler = (file, args, _opts, cb) => {
+        if (file === 'which' && args[0] === 'yt-dlp') {
+          cb(null, '/usr/local/bin/yt-dlp\n', '')
+        } else if (args.at(-1) === 'https://www.youtube.com/watch?v=fallback123') {
+          cb(null, JSON.stringify({ id: 'fallback123', channel_id: 'UCfallback' }), '')
+        } else if (args.at(-1) === 'https://www.youtube.com/channel/UCfallback/videos') {
+          cb(null, CHANNEL_FIXTURE, '')
+        } else {
+          cb(new Error('unknown'))
+        }
+      }
+
+      const result = await service.fetchFeed('https://www.youtube.com/watch?v=fallback123')
+
+      expect(mockExecFileCalls.slice(1).map((call) => call.args.at(-1))).toEqual([
+        'https://www.youtube.com/watch?v=fallback123',
+        'https://www.youtube.com/channel/UCfallback/videos',
+      ])
+      expect(result.items).toHaveLength(1)
+    })
+  })
+
   describe('fetchMetadata()', () => {
-    const DUMP_JSON_FIXTURE = JSON.stringify({
+    const METADATA_FIXTURE = JSON.stringify({
       title: 'My Great Video',
       channel: 'TechChannel',
       duration: 3661,
@@ -117,8 +240,8 @@ describe('YtdlpService', () => {
       mockExecFileHandler = (file, args, _opts, cb) => {
         if (file === 'which' && args[0] === 'yt-dlp') {
           cb(null, '/usr/local/bin/yt-dlp\n', '')
-        } else if (args.includes('--dump-json')) {
-          cb(null, DUMP_JSON_FIXTURE, '')
+        } else if (args.includes('--print')) {
+          cb(null, METADATA_FIXTURE, '')
         } else if (args.includes('--version')) {
           cb(null, '2024.11.18', '')
         } else {
@@ -142,7 +265,7 @@ describe('YtdlpService', () => {
       mockExecFileHandler = (file, args, _opts, cb) => {
         if (file === 'which') {
           cb(null, '/usr/local/bin/yt-dlp\n', '')
-        } else if (args.includes('--dump-json')) {
+        } else if (args.includes('--print')) {
           const err = new Error('exit 1') as any
           err.stderr = 'ERROR: Video unavailable. This video is no longer available'
           cb(err)
@@ -161,7 +284,7 @@ describe('YtdlpService', () => {
       mockExecFileHandler = (file, args, _opts, cb) => {
         if (file === 'which') {
           cb(null, '/usr/local/bin/yt-dlp\n', '')
-        } else if (args.includes('--dump-json')) {
+        } else if (args.includes('--print')) {
           const err = new Error('exit 1') as any
           err.stderr = 'ERROR: This content is not available in your country'
           cb(err)
@@ -180,7 +303,7 @@ describe('YtdlpService', () => {
       mockExecFileHandler = (file, args, _opts, cb) => {
         if (file === 'which') {
           cb(null, '/usr/local/bin/yt-dlp\n', '')
-        } else if (args.includes('--dump-json')) {
+        } else if (args.includes('--print')) {
           const err = new Error('exit 1') as any
           err.stderr = 'ERROR: Sign in to confirm your age'
           cb(err)
@@ -195,11 +318,33 @@ describe('YtdlpService', () => {
       expect((result as YtdlpError).code).toBe('age-restricted')
     })
 
+    it('recommends installing Deno when yt-dlp reports no JavaScript runtime', async () => {
+      mockExecFileHandler = (file, args, _opts, cb) => {
+        if (file === 'which') {
+          cb(null, '/usr/local/bin/yt-dlp\n', '')
+        } else if (args.includes('--print')) {
+          const err = new Error('exit 1') as any
+          err.stderr = 'ERROR: No supported JavaScript runtime could be found'
+          cb(err)
+        } else if (args.includes('--version')) {
+          cb(null, '2023.01.01', '')
+        } else {
+          cb(new Error('unknown'))
+        }
+      }
+
+      const result = await service.fetchMetadata('https://www.youtube.com/watch?v=needs-js')
+      const err = result as YtdlpError
+      expect(err.code).toBe('extraction-failed')
+      expect(err.message).toContain('brew install deno')
+      expect(err.message).not.toContain('brew upgrade yt-dlp')
+    })
+
     it('enriches extraction-failed error with upgrade suggestion when version is stale', async () => {
       mockExecFileHandler = (file, args, _opts, cb) => {
         if (file === 'which') {
           cb(null, '/usr/local/bin/yt-dlp\n', '')
-        } else if (args.includes('--dump-json')) {
+        } else if (args.includes('--print')) {
           const err = new Error('exit 1') as any
           err.stderr = 'ERROR: Unable to extract video data'
           cb(err)
@@ -224,7 +369,7 @@ describe('YtdlpService', () => {
       mockExecFileHandler = (file, args, _opts, cb) => {
         if (file === 'which') {
           cb(null, '/usr/local/bin/yt-dlp\n', '')
-        } else if (args.includes('--dump-json')) {
+        } else if (args.includes('--print')) {
           const err = new Error('exit 1') as any
           err.stderr = 'ERROR: Unable to extract video data'
           cb(err)
@@ -241,16 +386,16 @@ describe('YtdlpService', () => {
       expect(err.message).not.toContain('brew upgrade')
     })
 
-    it('appends custom args from settings to --dump-json command', async () => {
+    it('appends custom args from settings to the metadata command', async () => {
       db.setSetting('ytdlp_custom_args', '--cookies-from-browser chrome --no-warnings')
       let capturedArgs: string[] = []
 
       mockExecFileHandler = (file, args, _opts, cb) => {
         if (file === 'which') {
           cb(null, '/usr/local/bin/yt-dlp\n', '')
-        } else if (args.includes('--dump-json')) {
+        } else if (args.includes('--print')) {
           capturedArgs = args
-          cb(null, DUMP_JSON_FIXTURE, '')
+          cb(null, METADATA_FIXTURE, '')
         } else {
           cb(null, '2024.11.18', '')
         }
@@ -261,6 +406,28 @@ describe('YtdlpService', () => {
       expect(capturedArgs).toContain('chrome')
       expect(capturedArgs).toContain('--no-warnings')
       expect(capturedArgs).toContain('--ffmpeg-location')
+    })
+
+    it('requests only the metadata fields it reads instead of the full info JSON', async () => {
+      let capturedArgs: string[] = []
+
+      mockExecFileHandler = (file, args, _opts, cb) => {
+        if (file === 'which') {
+          cb(null, '/usr/local/bin/yt-dlp\n', '')
+        } else if (args.includes('--print')) {
+          capturedArgs = args
+          cb(null, METADATA_FIXTURE, '')
+        } else {
+          cb(null, '2024.11.18', '')
+        }
+      }
+
+      await service.fetchMetadata('https://www.youtube.com/watch?v=long')
+      expect(capturedArgs).not.toContain('--dump-json')
+      expect(capturedArgs).toContain('--skip-download')
+      expect(capturedArgs[capturedArgs.indexOf('--print') + 1]).toBe(
+        '%(.{title,channel,uploader,duration,thumbnail,upload_date})j'
+      )
     })
   })
 

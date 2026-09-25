@@ -160,6 +160,25 @@ function App(): React.JSX.Element {
     hydrateModelStatus()
   }, [hydrate, hydrateModelStatus])
 
+  // A background sweep changes feed freshness and new counts underneath us.
+  useEffect(() => {
+    if (!window.api.onFeedsRefreshed) return
+    return window.api.onFeedsRefreshed(() => {
+      const { loadFeeds, loadFeedNewCounts } = useAppStore.getState()
+      void loadFeeds()
+      void loadFeedNewCounts()
+    })
+  }, [])
+
+  // Every check reports itself, so a feed swept in the background shows the
+  // same spinner as one the user asked to refresh.
+  useEffect(() => {
+    if (!window.api.onFeedRefreshing) return
+    return window.api.onFeedRefreshing(({ feedId, refreshing }) => {
+      useAppStore.getState().setFeedRefreshing(feedId, refreshing)
+    })
+  }, [])
+
   useEffect(() => {
     if (!hydrated) return
     if (recordingPrototypeEnabled) {

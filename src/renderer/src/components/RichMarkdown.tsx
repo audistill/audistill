@@ -1,4 +1,12 @@
-import { useState, useEffect, useRef, type ComponentPropsWithoutRef } from 'react'
+import {
+  Children,
+  isValidElement,
+  useState,
+  useEffect,
+  useRef,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { remarkMark } from 'remark-mark-highlight'
@@ -6,11 +14,12 @@ import { remarkMark } from 'remark-mark-highlight'
 interface RichMarkdownProps {
   content: string
   streaming?: boolean
+  mermaidTheme?: 'auto' | 'light'
 }
 
 let mermaidPromise: Promise<typeof import('mermaid')['default']> | null = null
 let mermaidInstance: typeof import('mermaid')['default'] | null = null
-let lastThemeMode: 'light' | 'dark' | null = null
+let lastThemeSignature: string | null = null
 let renderCounter = 0
 
 function getMermaid(): Promise<typeof import('mermaid')['default']> {
@@ -35,13 +44,12 @@ function getMermaid(): Promise<typeof import('mermaid')['default']> {
  * Light mode: sand paper nodes, terracotta ink borders & edges
  * Dark mode: elevated surface nodes, terracotta glow borders & edges
  */
-function applyMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+function applyMermaidTheme(
+  mermaid: typeof import('mermaid')['default'],
+  requestedTheme: 'auto' | 'light'
+): void {
+  const isDark = requestedTheme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches
   const mode = isDark ? 'dark' : 'light'
-
-  // Skip re-init if mode hasn't changed
-  if (lastThemeMode === mode) return
-  lastThemeMode = mode
 
   const root = document.documentElement
   const style = getComputedStyle(root)
@@ -55,14 +63,27 @@ function applyMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
   const accent = style.getPropertyValue('--accent').trim()
 
   // Fallback values per brand-kit
-  const t = {
-    bg: bg || (isDark ? '#141413' : '#faf9f5'),
-    surface: surface || (isDark ? '#1e1e1c' : '#e8e6dc'),
-    border: border || (isDark ? '#2a2a28' : '#d4d2c8'),
-    text: text || (isDark ? '#faf9f5' : '#141413'),
-    secondary: secondary || (isDark ? '#c2c0b8' : '#7a7870'),
-    accent: accent || '#d97757',
-  }
+  const t = requestedTheme === 'light'
+    ? {
+        bg: '#ffffff',
+        surface: '#f3f1eb',
+        border: '#d8d4ca',
+        text: '#1c1b19',
+        secondary: '#6f6c65',
+        accent: '#b95637',
+      }
+    : {
+        bg: bg || (isDark ? '#141413' : '#faf9f5'),
+        surface: surface || (isDark ? '#1e1e1c' : '#e8e6dc'),
+        border: border || (isDark ? '#2a2a28' : '#d4d2c8'),
+        text: text || (isDark ? '#faf9f5' : '#141413'),
+        secondary: secondary || (isDark ? '#c2c0b8' : '#7a7870'),
+        accent: accent || '#d97757',
+      }
+
+  const themeSignature = JSON.stringify({ mode, ...t })
+  if (lastThemeSignature === themeSignature) return
+  lastThemeSignature = themeSignature
 
   // Node fill: needs to contrast from the container background.
   // Light: use surface (sand) — sits on parchment container
@@ -161,7 +182,7 @@ function applyMermaidTheme(mermaid: typeof import('mermaid')['default']): void {
   })
 }
 
-function MermaidBlock({ code }: { code: string }): React.JSX.Element {
+function MermaidBlock({ code, theme }: { code: string; theme: 'auto' | 'light' }): React.JSX.Element {
   const [svg, setSvg] = useState<string | null>(null)
   const [error, setError] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -174,14 +195,15 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
     getMermaid()
       .then((mermaid) => {
         if (cancelled) return
-        applyMermaidTheme(mermaid)
+        applyMermaidTheme(mermaid, theme)
         return mermaid.render(currentId, code)
       })
       .then((result) => {
         if (cancelled || !result) return
         setSvg(result.svg)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error('Mermaid rendering failed', error)
         // Defensive cleanup: remove any orphaned temp element Mermaid
         // may have injected into the DOM before throwing
         document.getElementById(`d${currentId}`)?.remove()
@@ -191,11 +213,11 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [code])
+  }, [code, theme])
 
   if (error) {
     return (
-      <div data-mermaid-error="">
+      <div data-mermaid-error="" data-mermaid-state="fallback">
         <span className="text-xs text-[var(--secondary)] block mb-1">⚠ diagram syntax error</span>
         <pre className="bg-[var(--surface)] p-3 rounded-xl overflow-x-auto">
           <code>{code}</code>
@@ -208,6 +230,7 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
     return (
       <div
         data-mermaid=""
+        data-mermaid-state="rendered"
         ref={containerRef}
         dangerouslySetInnerHTML={{ __html: svg }}
       />
@@ -216,9 +239,11 @@ function MermaidBlock({ code }: { code: string }): React.JSX.Element {
 
   // Loading state — show raw code until render completes
   return (
-    <pre className="bg-[var(--surface)] p-3 rounded-xl overflow-x-auto">
-      <code>{code}</code>
-    </pre>
+    <div data-mermaid-state="pending">
+      <pre className="bg-[var(--surface)] p-3 rounded-xl overflow-x-auto">
+        <code>{code}</code>
+      </pre>
+    </div>
   )
 }
 
@@ -242,13 +267,6 @@ function AnchorComponent({ href, children, ...props }: AnchorProps): React.JSX.E
 type CodeProps = ComponentPropsWithoutRef<'code'>
 
 function CodeComponent({ className, children, ...props }: CodeProps): React.JSX.Element {
-  const isMermaid = className?.includes('language-mermaid')
-  const code = String(children).replace(/\n$/, '')
-
-  if (isMermaid) {
-    return <MermaidBlock code={code} />
-  }
-
   return (
     <code className={className} {...props}>
       {children}
@@ -256,14 +274,37 @@ function CodeComponent({ className, children, ...props }: CodeProps): React.JSX.
   )
 }
 
-const components = {
-  code: CodeComponent,
-  a: AnchorComponent,
+type PreProps = ComponentPropsWithoutRef<'pre'> & { children?: ReactNode }
+
+function PreComponent({
+  children,
+  mermaidTheme,
+  ...props
+}: PreProps & { mermaidTheme: 'auto' | 'light' }): React.JSX.Element {
+  const child = Children.toArray(children)[0]
+  if (Children.count(children) === 1 && isValidElement(child)) {
+    const childProps = child.props as { className?: string; children?: ReactNode }
+    if (childProps.className?.includes('language-mermaid')) {
+      const code = String(childProps.children).replace(/\n$/, '')
+      return <MermaidBlock code={code} theme={mermaidTheme} />
+    }
+  }
+  return <pre {...props}>{children}</pre>
 }
 
-export function RichMarkdown({ content }: RichMarkdownProps): React.JSX.Element {
+export function RichMarkdown({
+  content,
+  mermaidTheme = 'auto',
+}: RichMarkdownProps): React.JSX.Element {
   return (
-    <Markdown remarkPlugins={[remarkGfm, remarkMark]} components={components}>
+    <Markdown
+      remarkPlugins={[remarkGfm, remarkMark]}
+      components={{
+        code: CodeComponent,
+        a: AnchorComponent,
+        pre: (props) => <PreComponent {...props} mermaidTheme={mermaidTheme} />,
+      }}
+    >
       {content}
     </Markdown>
   )

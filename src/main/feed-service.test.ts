@@ -52,11 +52,18 @@ const ATOM_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
   </entry>
 </feed>`
 
-function createMockResponse(body: string, ok = true, status = 200) {
+function createMockResponse(
+  body: string,
+  ok = true,
+  status = 200,
+  headers: Record<string, string> = {}
+) {
+  const lower = new Map(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]))
   return {
     ok,
     status,
     text: () => Promise.resolve(body),
+    headers: { get: (name: string) => lower.get(name.toLowerCase()) ?? null },
   }
 }
 
@@ -64,8 +71,50 @@ describe('FeedService', () => {
   let service: FeedService
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    mockFetch.mockReset()
     service = new FeedService()
+  })
+
+  it('reports a feed as unchanged when the server answers 304', async () => {
+    mockFetch.mockResolvedValue(createMockResponse('', false, 304))
+
+    const result = await service.fetchFeed('https://example.com/feed.xml', {
+      etag: 'W/"abc"',
+      lastModified: 'Wed, 02 Sep 2026 10:00:00 GMT',
+    })
+
+    expect(result.notModified).toBe(true)
+    expect(result.items).toEqual([])
+
+    const [, init] = mockFetch.mock.calls[0]
+    expect(init.headers['If-None-Match']).toBe('W/"abc"')
+    expect(init.headers['If-Modified-Since']).toBe('Wed, 02 Sep 2026 10:00:00 GMT')
+  })
+
+  it('sends no validators when the feed has never been fetched', async () => {
+    mockFetch.mockResolvedValue(createMockResponse(RSS_FIXTURE))
+
+    await service.fetchFeed('https://example.com/feed.xml')
+
+    const [, init] = mockFetch.mock.calls[0]
+    expect(init.headers['If-None-Match']).toBeUndefined()
+    expect(init.headers['If-Modified-Since']).toBeUndefined()
+  })
+
+  it('returns the validators the server supplied so the next check can reuse them', async () => {
+    mockFetch.mockResolvedValue(
+      createMockResponse(RSS_FIXTURE, true, 200, {
+        ETag: 'W/"next"',
+        'Last-Modified': 'Thu, 03 Sep 2026 10:00:00 GMT',
+      })
+    )
+
+    const result = await service.fetchFeed('https://example.com/feed.xml')
+
+    expect(result.notModified).toBe(false)
+    expect(result.etag).toBe('W/"next"')
+    expect(result.lastModified).toBe('Thu, 03 Sep 2026 10:00:00 GMT')
+    expect(result.items).toHaveLength(3)
   })
 
   it('parses RSS 2.0 feed with iTunes extensions', async () => {
@@ -91,6 +140,22 @@ describe('FeedService', () => {
     expect(firstItem.duration).toBe('1:23:45')
     expect(firstItem.description).toBe('Third episode description')
     expect(firstItem.pubDate).toBeDefined()
+  })
+
+  it('delegates YouTube subscriptions to the configured metadata provider', async () => {
+    const feedUrl = 'https://www.youtube.com/feeds/videos.xml?channel_id=UCfallback'
+    const result = {
+      title: 'Fallback Channel',
+      image: null,
+      feedUrl,
+      items: [],
+    }
+    const fetchYouTubeFeed = vi.fn().mockResolvedValue(result)
+    service = new FeedService({ fetchYouTubeFeed })
+
+    await expect(service.fetchFeed(feedUrl, { etag: 'ignored' })).resolves.toBe(result)
+    expect(fetchYouTubeFeed).toHaveBeenCalledWith(feedUrl)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('handles Atom feeds', async () => {

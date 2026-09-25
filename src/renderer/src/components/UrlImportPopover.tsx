@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { parseYouTubeUrl } from '../../../shared/youtube-url'
 import { classifyUrl, isSupportedMediaType } from '../../../shared/classify-url'
+import { useAppStore } from '../store/app-store'
 
 interface YouTubeMetadata {
   title: string
@@ -31,9 +32,13 @@ interface FeedItem {
 }
 
 interface FeedPreview {
+  kind?: 'rss' | 'youtube'
   title: string
   image: string | null
   feedUrl: string
+  siteUrl?: string | null
+  etag?: string | null
+  lastModified?: string | null
   items: FeedItem[]
 }
 
@@ -42,7 +47,7 @@ type PopoverState =
   | { step: 'checking' }
   | { step: 'install' }
   | { step: 'loading'; url: string }
-  | { step: 'preview-youtube'; canonicalUrl: string; metadata: YouTubeMetadata }
+  | { step: 'preview-youtube'; canonicalUrl: string; metadata: YouTubeMetadata; feed?: FeedPreview }
   | { step: 'preview-direct'; url: string; metadata: DirectMetadata; title: string }
   | { step: 'preview-list'; feed: FeedPreview }
   | { step: 'duplicate'; episode: DuplicateEpisode }
@@ -63,6 +68,9 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
   const inputRef = useRef<HTMLInputElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const autoSubmitted = useRef(false)
+  const feeds = useAppStore((s) => s.feeds)
+  const loadFeeds = useAppStore((s) => s.loadFeeds)
+  const [youtubeSubscribing, setYoutubeSubscribing] = useState(false)
 
   useEffect(() => {
     if (anchorRef?.current) {
@@ -96,7 +104,7 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
 
   const handleSubmitRef = useRef<() => void>(() => {})
 
-  const fetchYouTubePreview = useCallback(async (canonicalUrl: string) => {
+  const fetchYouTubePreview = useCallback(async (canonicalUrl: string, feed?: FeedPreview) => {
     setState({ step: 'loading', url: canonicalUrl })
 
     const duplicate = await window.api.ytdlpCheckDuplicate(canonicalUrl)
@@ -109,8 +117,13 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
     if ('code' in result) {
       setState({ step: 'error', message: result.message })
     } else {
-      setState({ step: 'preview-youtube', canonicalUrl, metadata: result })
+      setState({ step: 'preview-youtube', canonicalUrl, metadata: result, feed })
     }
+  }, [])
+
+  const resolveYouTubeFeed = useCallback(async (inputUrl: string): Promise<FeedPreview> => {
+    const feed = await window.api.feedResolveYouTube(inputUrl)
+    return { ...feed, kind: 'youtube' }
   }, [])
 
   const fetchDirectPreview = useCallback(async (inputUrl: string, contentType: string, contentLength: number | null) => {
@@ -150,14 +163,41 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
       return
     }
 
+    const parsedUrl = new URL(trimmed)
+    const youtubeHost = parsedUrl.hostname.replace(/^www\./, '').replace(/^m\./, '')
+    const isYouTube = youtubeHost === 'youtube.com' || youtubeHost === 'youtu.be'
     const ytResult = parseYouTubeUrl(trimmed)
     if ('videoId' in ytResult) {
       setState({ step: 'checking' })
-      const detected = await window.api.ytdlpDetect()
+      const [detected, feed] = await Promise.all([
+        window.api.ytdlpDetect(),
+        resolveYouTubeFeed(trimmed).catch(() => undefined),
+      ])
       if (detected) {
-        fetchYouTubePreview(ytResult.canonical)
+        fetchYouTubePreview(ytResult.canonical, feed)
+      } else if (feed) {
+        setState({ step: 'preview-list', feed })
       } else {
         setState({ step: 'install' })
+      }
+      return
+    }
+
+    if (isYouTube) {
+      setState({ step: 'checking' })
+      if (!await window.api.ytdlpDetect()) {
+        setState({ step: 'install' })
+        return
+      }
+
+      setState({ step: 'loading', url: trimmed })
+      try {
+        setState({ step: 'preview-list', feed: await resolveYouTubeFeed(trimmed) })
+      } catch (err) {
+        setState({
+          step: 'error',
+          message: err instanceof Error ? err.message : 'Could not resolve this YouTube Subscription',
+        })
       }
       return
     }
@@ -196,7 +236,7 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
       const message = err instanceof Error ? err.message : 'Failed to fetch URL'
       setState({ step: 'error', message })
     }
-  }, [url, fetchYouTubePreview, fetchDirectPreview])
+  }, [url, fetchYouTubePreview, resolveYouTubeFeed, fetchDirectPreview])
 
   handleSubmitRef.current = handleSubmit
 
@@ -295,7 +335,23 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
   }
 
   if (state.step === 'preview-youtube') {
-    const { metadata, canonicalUrl } = state
+    const { metadata, canonicalUrl, feed } = state
+    const isSubscribed = feed ? feeds.some((candidate) => candidate.url === feed.feedUrl) : false
+    const handleYouTubeSubscribe = async (): Promise<void> => {
+      if (!feed || youtubeSubscribing) return
+      if (isSubscribed) {
+        onClose()
+        return
+      }
+      setYoutubeSubscribing(true)
+      try {
+        await window.api.feedSubscribe(feed.feedUrl, feed)
+        await loadFeeds()
+        onClose()
+      } finally {
+        setYoutubeSubscribing(false)
+      }
+    }
     return (
       <div
         ref={popoverRef}
@@ -318,10 +374,19 @@ export function UrlImportPopover({ anchorRef, onClose, onImport, onImportDirect,
         <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-white/[0.08] transition-colors"
+            className="px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-white/[0.08] transition-colors"
           >
             Cancel
           </button>
+          {feed && (
+            <button
+              onClick={() => void handleYouTubeSubscribe()}
+              disabled={youtubeSubscribing}
+              className="flex-1 px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-white/[0.08] disabled:opacity-50 transition-colors"
+            >
+              {isSubscribed ? 'Open Feed' : youtubeSubscribing ? 'Subscribing…' : 'Subscribe to channel'}
+            </button>
+          )}
           <button
             onClick={() => onImport(canonicalUrl, metadata)}
             className="flex-1 px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
@@ -514,9 +579,34 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
   onClose: () => void
   onImport: (items: FeedItem[]) => void
 }): React.JSX.Element {
+  const feeds = useAppStore((s) => s.feeds)
+  const loadFeeds = useAppStore((s) => s.loadFeeds)
+  const isSubscribed = feeds.some((f) => f.url === feed.feedUrl)
+  const isYoutube = feed.kind === 'youtube'
+  const [subscribing, setSubscribing] = useState(false)
+  const [justSubscribed, setJustSubscribed] = useState(false)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [showAll, setShowAll] = useState(false)
   const [duplicateUrls, setDuplicateUrls] = useState<Set<string>>(new Set())
+
+  const handleSubscribe = async (): Promise<void> => {
+    if (subscribing) return
+    if (isSubscribed) {
+      onClose()
+      return
+    }
+    setSubscribing(true)
+    try {
+      await window.api.feedSubscribe(feed.feedUrl, feed)
+      await loadFeeds()
+      setJustSubscribed(true)
+      setTimeout(() => {
+        onClose()
+      }, 400)
+    } finally {
+      setSubscribing(false)
+    }
+  }
 
   useEffect(() => {
     const urls = feed.items.map((item) => item.enclosureUrl)
@@ -562,9 +652,16 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
           <img src={feed.image} alt="" className="w-10 h-10 rounded-[6px] object-cover" />
         )}
         <div className="min-w-0">
-          <h3 className="text-sm font-heading font-semibold text-[var(--text)] truncate">
-            {feed.title}
-          </h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-sm font-heading font-semibold text-[var(--text)] truncate">
+              {feed.title}
+            </h3>
+            {isSubscribed && (
+              <span className="shrink-0 bg-white/[0.08] text-[var(--secondary)] text-[10px] px-1.5 py-0.5 rounded">
+                Subscribed
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-[var(--secondary)]">
             {feed.items.length} episodes
           </p>
@@ -572,12 +669,12 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
       </div>
 
       <div className="flex items-center justify-between mb-2 shrink-0">
-        <button
+        {!isYoutube && <button
           onClick={toggleAll}
           className="text-[10px] text-[var(--accent)] hover:underline"
         >
           {selected.size === visibleItems.length ? 'Deselect all' : 'Select all'}
-        </button>
+        </button>}
         {hasMore && !showAll && (
           <button
             onClick={() => setShowAll(true)}
@@ -596,13 +693,13 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
               key={item.enclosureUrl}
               className={`flex items-start gap-2 py-1.5 px-1 rounded ${isDuplicate ? 'opacity-40 cursor-default' : 'hover:bg-white/[0.04] cursor-pointer'}`}
             >
-              <input
+              {!isYoutube && <input
                 type="checkbox"
                 checked={selected.has(index)}
                 onChange={() => toggleItem(index)}
                 disabled={isDuplicate}
                 className="mt-0.5 rounded border-[var(--surface)] accent-[var(--accent)] disabled:opacity-50"
-              />
+              />}
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-[var(--text)] truncate">
                   {item.title}
@@ -621,11 +718,22 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
       <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--surface)] shrink-0">
         <button
           onClick={onClose}
-          className="flex-1 px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-white/[0.08] transition-colors"
+          className="px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-white/[0.08] transition-colors"
         >
           Cancel
         </button>
         <button
+          onClick={handleSubscribe}
+          disabled={subscribing}
+          className={`flex-1 px-3 py-2 text-xs font-medium rounded-[8px] border border-[var(--border)] transition-colors ${
+            isSubscribed || justSubscribed
+              ? 'bg-white/[0.04] text-[var(--secondary)] hover:bg-white/[0.08]'
+              : 'bg-[var(--surface)] text-[var(--text)] hover:bg-white/[0.08]'
+          }`}
+        >
+          {justSubscribed ? 'Subscribed!' : isSubscribed ? 'Open Feed' : subscribing ? 'Subscribing…' : 'Subscribe'}
+        </button>
+        {!isYoutube && <button
           onClick={() => {
             const selectedItems = [...selected].map((i) => visibleItems[i])
             onImport(selectedItems)
@@ -634,7 +742,7 @@ function RssPreviewList({ feed, popoverRef, popoverClass, pos, onClose, onImport
           className="flex-1 px-3 py-2 text-xs font-medium rounded-[8px] bg-[var(--accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Import {selected.size > 0 ? `(${selected.size})` : ''}
-        </button>
+        </button>}
       </div>
     </div>
   )

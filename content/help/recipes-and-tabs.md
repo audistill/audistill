@@ -33,6 +33,8 @@ Generated Tabs keep provenance such as when they were generated and which Model 
 
 Use Regenerate when you want to run the original Recipe again against the current Transcript and replace that Tab's content with fresh output. If generation fails, Audistill restores the previous Tab content.
 
-The Tab toolbar can copy a Tab to the clipboard or export that Tab as Markdown. The Episode context menu can export the whole Episode as Markdown, including Tabs and the Transcript. Multi-select can export several Episodes to a folder.
+The Tab toolbar can copy a Tab to the clipboard or open an export menu. Choose **Markdown (.md)** for editable source that preserves the Tab's exact Markdown, or **PDF (.pdf)** for a formatted document with the Tab name and Episode title. PDF export keeps rich content such as tables, highlights, code, links, task lists, and Mermaid diagrams in a light layout suited to sharing or printing.
+
+The Episode context menu can export the whole Episode as Markdown, including Tabs and the Transcript. Multi-select can export several Episodes to a folder.
 
 Tabs render rich Markdown, including tables, task lists, highlights, and Mermaid diagrams when the content contains them.

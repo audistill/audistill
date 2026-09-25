@@ -10,6 +10,7 @@ import { TranscriptPanel } from './TranscriptPanel'
 import { ModelDownloadBanner } from './ModelDownloadBanner'
 import { EmptyLibraryState, NoTabsOpenState } from './EmptyState'
 import { RecordingWorkspace } from './RecordingWorkspace'
+import { FeedView } from './FeedView'
 
 export function ContentPane(): React.JSX.Element {
   const settingsOpen = useAppStore((s) => s.settingsOpen)
@@ -17,6 +18,8 @@ export function ContentPane(): React.JSX.Element {
   const helpTarget = useAppStore((s) => s.helpTarget)
   const activeTabId = useAppStore((s) => s.activeTabId)
   const recordingWorkspaceActive = useAppStore((s) => s.recordingWorkspaceActive)
+  const feedWorkspaceActive = useAppStore((s) => s.feedWorkspaceActive)
+  const activeFeedId = useAppStore((s) => s.activeFeedId)
   const episodes = useAppStore((s) => s.episodes)
 
   if (settingsOpen) {
@@ -42,6 +45,15 @@ export function ContentPane(): React.JSX.Element {
       <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
         <ModelDownloadBanner />
         <RecordingWorkspace />
+      </div>
+    )
+  }
+
+  if (feedWorkspaceActive && activeFeedId) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
+        <ModelDownloadBanner />
+        <FeedView feedId={activeFeedId} />
       </div>
     )
   }

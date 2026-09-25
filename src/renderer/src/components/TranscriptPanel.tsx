@@ -224,7 +224,7 @@ export function TranscriptPanel({ episodeId, transcript, duration }: { episodeId
         <button
           onClick={() => setSearchOpen(!searchOpen)}
           className={`p-1 rounded transition-colors ${
-            searchOpen ? 'text-[var(--accent)] bg-[var(--accent)]/10' : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
+            searchOpen ? 'text-[var(--accent)] bg-[var(--accent-bg)]' : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
           }`}
           aria-label="Search transcript"
         >

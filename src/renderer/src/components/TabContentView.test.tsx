@@ -2,7 +2,7 @@
  * @vitest-environment happy-dom
  */
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TabContentView } from './TabContentView'
 import { ContentTab, useContentTabStore } from '../store/content-tab-store'
@@ -20,7 +20,7 @@ vi.mock('./RichMarkdown', () => ({
 
 const mockApi = {
   exportCopyTab: vi.fn().mockResolvedValue(undefined),
-  exportSaveTab: vi.fn().mockResolvedValue(undefined),
+  exportTab: vi.fn().mockResolvedValue({ status: 'saved' }),
   tabsExecuteRecipe: vi.fn().mockResolvedValue(undefined),
   tabsUpdateContent: vi.fn().mockResolvedValue(undefined),
 }
@@ -107,5 +107,129 @@ describe('TabContentView provenance toolbar', () => {
     render(<TabContentView />)
 
     expect(screen.queryByText(/Generated Jul 1, 2026/)).not.toBeInTheDocument()
+  })
+})
+
+describe('TabContentView export menu', () => {
+  it('opens a format-neutral menu with Markdown and PDF descriptions', () => {
+    render(<TabContentView />)
+
+    const trigger = screen.getByRole('button', { name: 'Export Tab' })
+    expect(trigger).toHaveAttribute('title', 'Export Tab')
+    fireEvent.click(trigger)
+
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ })).toHaveTextContent('Editable source')
+    const pdf = screen.getByRole('menuitem', { name: /PDF \(\.pdf\)/ })
+    expect(pdf).toHaveTextContent('Formatted for sharing')
+    expect(pdf).toBeEnabled()
+  })
+
+  it('sends current renderer content and context through the format-aware interface', async () => {
+    mockApi.exportTab.mockImplementationOnce(async () => {
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      return { status: 'saved' }
+    })
+    render(<TabContentView />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export Tab' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ }))
+
+    await waitFor(() => {
+      expect(mockApi.exportTab).toHaveBeenCalledWith({
+        format: 'markdown',
+        content: 'Generated body',
+        episodeTitle: 'Episode title',
+        tabName: 'Brief',
+      })
+    })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('dismisses on an outside pointer action and restores trigger focus', async () => {
+    render(<TabContentView />)
+
+    const trigger = screen.getByRole('button', { name: 'Export Tab' })
+    fireEvent.click(trigger)
+    fireEvent.mouseDown(document.body)
+
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(trigger).toHaveFocus()
+  })
+
+  it('supports Arrow keys, Enter, Escape, and predictable focus', async () => {
+    render(<TabContentView />)
+
+    const trigger = screen.getByRole('button', { name: 'Export Tab' })
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+
+    const markdown = await screen.findByRole('menuitem', { name: /Markdown \(\.md\)/ })
+    await waitFor(() => expect(markdown).toHaveFocus())
+    fireEvent.keyDown(markdown, { key: 'ArrowDown' })
+    fireEvent.keyDown(markdown, { key: 'ArrowUp' })
+    fireEvent.keyDown(markdown, { key: 'Enter' })
+
+    await waitFor(() => expect(mockApi.exportTab).toHaveBeenCalledTimes(1))
+    expect(trigger).toHaveFocus()
+
+    fireEvent.click(trigger)
+    fireEvent.keyDown(await screen.findByRole('menu'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+    expect(trigger).toHaveFocus()
+  })
+
+  it('is disabled for empty and actively streaming Tabs', () => {
+    useContentTabStore.setState({ tabs: [makeTab({ content: '' })] })
+    const { rerender } = render(<TabContentView />)
+    expect(screen.getByRole('button', { name: 'Export Tab' })).toBeDisabled()
+
+    useContentTabStore.setState({ tabs: [makeTab({ content: 'Partial' })], streamingTabId: 'tab-1' })
+    rerender(<TabContentView />)
+    expect(screen.getByRole('button', { name: 'Export Tab' })).toBeDisabled()
+  })
+
+  it('prevents competing exports while PDF generation is active and reports success', async () => {
+    let finishExport!: (result: { status: 'saved' }) => void
+    mockApi.exportTab.mockReturnValueOnce(new Promise((resolve) => { finishExport = resolve }))
+    render(<TabContentView />)
+
+    const trigger = screen.getByRole('button', { name: 'Export Tab' })
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: /PDF \(\.pdf\)/ }))
+
+    await waitFor(() => expect(trigger).toBeDisabled())
+    expect(trigger).toHaveAccessibleName('Exporting Tab')
+    fireEvent.click(trigger)
+    expect(mockApi.exportTab).toHaveBeenCalledTimes(1)
+
+    finishExport({ status: 'saved' })
+    expect(await screen.findByRole('status')).toHaveTextContent('PDF exported')
+    await waitFor(() => expect(trigger).toBeEnabled())
+  })
+
+  it('returns to idle silently after PDF cancellation', async () => {
+    mockApi.exportTab.mockResolvedValueOnce({ status: 'cancelled' })
+    render(<TabContentView />)
+
+    const trigger = screen.getByRole('button', { name: 'Export Tab' })
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: /PDF \(\.pdf\)/ }))
+
+    await waitFor(() => expect(trigger).toBeEnabled())
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('shows a clear error when PDF export fails', async () => {
+    mockApi.exportTab.mockRejectedValueOnce(new Error('Print rendering timed out'))
+    render(<TabContentView />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export Tab' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /PDF \(\.pdf\)/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't export PDF: Print rendering timed out"
+    )
+    expect(screen.getByRole('button', { name: 'Export Tab' })).toBeEnabled()
   })
 })

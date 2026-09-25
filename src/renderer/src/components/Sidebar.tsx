@@ -6,9 +6,11 @@ import { SelectionActionBar } from './SelectionActionBar'
 import { DragDropLayer, DRAG_MIME } from './DragDropLayer'
 import { FolderTreePopover } from './FolderTreePopover'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
+import { UnsubscribeFeedModal } from './UnsubscribeFeedModal'
 import { UrlImportPopover } from './UrlImportPopover'
 import { groupInboxEpisodes } from '../lib/sort-inbox'
 import { useIngestGate } from '../lib/use-ingest-gate'
+import type { Feed } from '../../../shared/feed-subscription'
 
 function formatRelativeDate(dateStr: string): string {
   const now = Date.now()
@@ -72,20 +74,35 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
   const starEpisode = useAppStore((s) => s.starEpisode)
   const unstarEpisode = useAppStore((s) => s.unstarEpisode)
   const starredEpisodes = useAppStore((s) => s.starredEpisodes)
+  const feeds = useAppStore((s) => s.feeds)
+  const feedsCollapsed = useAppStore((s) => s.feedsCollapsed)
+  const toggleFeedsCollapsed = useAppStore((s) => s.toggleFeedsCollapsed)
+  const reorderFeeds = useAppStore((s) => s.reorderFeeds)
+  const newFeedItemCounts = useAppStore((s) => s.newFeedItemCounts)
+  const refreshingFeedIds = useAppStore((s) => s.refreshingFeedIds)
+  const refreshAllFeeds = useAppStore((s) => s.refreshAllFeeds)
+  const refreshFeed = useAppStore((s) => s.refreshFeed)
+  const clearFeedNew = useAppStore((s) => s.clearFeedNew)
+  const unsubscribeFeed = useAppStore((s) => s.unsubscribeFeed)
+  const feedWorkspaceActive = useAppStore((s) => s.feedWorkspaceActive)
+  const activeFeedId = useAppStore((s) => s.activeFeedId)
+  const openFeedWorkspace = useAppStore((s) => s.openFeedWorkspace)
+  const recordingWorkspaceActive = useAppStore((s) => s.recordingWorkspaceActive)
 
-  const selectedEpisodeIds = useSelectionStore((s) => s.selectedEpisodeIds)
-  const toggleEpisodeSelection = useSelectionStore((s) => s.toggleEpisodeSelection)
-  const selectEpisodeRange = useSelectionStore((s) => s.selectEpisodeRange)
+  const selectedIds = useSelectionStore((s) => s.selectedIds)
+  const toggleSelection = useSelectionStore((s) => s.toggleSelection)
+  const selectRange = useSelectionStore((s) => s.selectRange)
   const selectAllInContainer = useSelectionStore((s) => s.selectAllInContainer)
   const clearSelection = useSelectionStore((s) => s.clearSelection)
 
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
-    type: 'folder' | 'folders-header' | 'episode'
+    type: 'folder' | 'folders-header' | 'episode' | 'feed'
     folderId?: string
     parentId?: string | null
     episodeId?: string
+    feedId?: string
   } | null>(null)
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
   const [editingEpisodeId, setEditingEpisodeId] = useState<string | null>(null)
@@ -96,13 +113,15 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
   const [movePopoverEpisodeId, setMovePopoverEpisodeId] = useState<string | null>(null)
   const [deleteModalEpisodeId, setDeleteModalEpisodeId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const [feedDropTargetId, setFeedDropTargetId] = useState<string | null>(null)
+  const [unsubscribingFeed, setUnsubscribingFeed] = useState<Feed | null>(null)
   const [pulsingFolderId, setPulsingFolderId] = useState<string | null>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const treeRef = useRef<HTMLDivElement>(null)
   const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const ingestGate = useIngestGate()
-  const utilityOpen = settingsOpen || helpOpen
+  const utilityOpen = settingsOpen || helpOpen || recordingWorkspaceActive || feedWorkspaceActive
 
   useEffect(() => {
     window.api.recordingSession.isAvailable().then(setRecordingAvailable).catch(() => setRecordingAvailable(false))
@@ -130,7 +149,7 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
   useEffect(() => {
     if (prototypeReadOnly) return
     const handler = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && selectedEpisodeIds.size > 0) {
+      if (e.key === 'Escape' && selectedIds.size > 0) {
         clearSelection()
       }
       if (e.key === 'a' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
@@ -160,7 +179,7 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [prototypeReadOnly, selectedEpisodeIds.size, clearSelection, selectAllInContainer, episodes, starEpisode, unstarEpisode])
+  }, [prototypeReadOnly, selectedIds.size, clearSelection, selectAllInContainer, episodes, starEpisode, unstarEpisode])
 
   const filteredEpisodes = searchQuery
     ? episodes.filter((ep) => {
@@ -178,6 +197,8 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
     : starredEpisodes()
 
   const inboxItems = filteredEpisodes.filter((e) => e.folder_id === null)
+  const totalNewFeedItems = feeds.reduce((sum, feed) => sum + (newFeedItemCounts[feed.id] ?? 0), 0)
+  const isRefreshingAnyFeed = refreshingFeedIds.length > 0
   const inboxGroups = groupInboxEpisodes(inboxItems, inboxSort)
   const inboxVisibleIds = inboxGroups.flatMap((g) => g.episodes.map((ep) => ep.id))
   const folderEpisodes = (folderId: string) =>
@@ -187,12 +208,12 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
     lastInteractedContainer.current = container
     if (e.metaKey || e.ctrlKey) {
       e.preventDefault()
-      toggleEpisodeSelection(episodeId, container)
+      toggleSelection(episodeId, container)
     } else if (e.shiftKey) {
       e.preventDefault()
-      selectEpisodeRange(episodeId, visibleIds, container)
+      selectRange(episodeId, visibleIds, container)
     } else {
-      if (selectedEpisodeIds.size > 0) {
+      if (selectedIds.size > 0) {
         clearSelection()
       }
       useSelectionStore.setState({ lastToggledId: episodeId, selectionContainer: container })
@@ -205,12 +226,12 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
     let dragTitle: string
     let dragCount: number
 
-    if (selectedEpisodeIds.size > 0 && selectedEpisodeIds.has(episode.id)) {
-      dragIds = [...selectedEpisodeIds]
+    if (selectedIds.size > 0 && selectedIds.has(episode.id)) {
+      dragIds = [...selectedIds]
       dragTitle = episode.title || episode.file_path?.split('/').pop() || 'Untitled'
       dragCount = dragIds.length
     } else {
-      if (selectedEpisodeIds.size > 0) {
+      if (selectedIds.size > 0) {
         clearSelection()
       }
       dragIds = [episode.id]
@@ -317,6 +338,40 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
 
   const getChildFolders = (parentId: string | null) =>
     folders.filter((f) => f.parent_id === parentId).sort((a, b) => a.sort_order - b.sort_order)
+
+  const handleFeedDragStart = (e: React.DragEvent, feedId: string): void => {
+    e.dataTransfer.setData('text/feed-id', feedId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleFeedDragOver = (e: React.DragEvent, feedId: string): void => {
+    if (e.dataTransfer.types.includes('text/feed-id')) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      if (feedDropTargetId !== feedId) {
+        setFeedDropTargetId(feedId)
+      }
+    }
+  }
+
+  const handleFeedDragLeave = (): void => {
+    setFeedDropTargetId(null)
+  }
+
+  const handleFeedDrop = (e: React.DragEvent, targetFeedId: string): void => {
+    e.preventDefault()
+    setFeedDropTargetId(null)
+    const sourceFeedId = e.dataTransfer.getData('text/feed-id')
+    if (!sourceFeedId || sourceFeedId === targetFeedId) return
+    const currentIds = feeds.map((f) => f.id)
+    const sourceIndex = currentIds.indexOf(sourceFeedId)
+    const targetIndex = currentIds.indexOf(targetFeedId)
+    if (sourceIndex === -1 || targetIndex === -1) return
+    const newIds = [...currentIds]
+    newIds.splice(sourceIndex, 1)
+    newIds.splice(targetIndex, 0, sourceFeedId)
+    reorderFeeds(newIds)
+  }
 
   const handleFolderContextMenu = (e: React.MouseEvent, folderId: string): void => {
     e.preventDefault()
@@ -554,7 +609,7 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
         ref={treeRef}
         className="flex-1 overflow-y-auto px-2 pb-4"
         onClick={(e) => {
-          if (e.target === e.currentTarget && selectedEpisodeIds.size > 0) {
+          if (e.target === e.currentTarget && selectedIds.size > 0) {
             clearSelection()
           }
         }}
@@ -594,7 +649,7 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
                   key={`starred-${ep.id}`}
                   episode={ep}
                   isActive={activeTabId === ep.id && !utilityOpen}
-                  isSelected={selectedEpisodeIds.has(ep.id)}
+                  isSelected={selectedIds.has(ep.id)}
                   isEditing={editingEpisodeId === ep.id}
                   isFading={fadingEpisodeIds.has(ep.id)}
                   isStarred={true}
@@ -610,6 +665,118 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
                   onRenameCancel={() => setEditingEpisodeId(null)}
                 />
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Feeds */}
+        {feeds.length > 0 && (
+          <div className="mb-4">
+            <div
+              className="group/feeds flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-heading font-medium text-[var(--secondary)] uppercase tracking-wide cursor-pointer transition-[background-color] duration-150"
+              onClick={toggleFeedsCollapsed}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`transition-[transform] duration-200 shrink-0 ${feedsCollapsed ? '' : 'rotate-90'}`}
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 11a9 9 0 0 1 9 9" />
+                <path d="M4 4a16 16 0 0 1 16 16" />
+                <circle cx="5" cy="19" r="1" />
+              </svg>
+              Feeds
+              {totalNewFeedItems > 0 && (
+                <span className="bg-[var(--accent-bg)] text-[var(--accent)] px-1.5 py-0.5 rounded text-[10px]">
+                  {totalNewFeedItems}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void refreshAllFeeds()
+                }}
+                title="Check all feeds"
+                aria-label="Check all feeds"
+                className="ml-auto p-1 -m-1 rounded text-[var(--secondary)] opacity-0 group-hover/feeds:opacity-100 focus-visible:opacity-100 hover:text-[var(--text)] transition-opacity"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={isRefreshingAnyFeed ? 'animate-spin' : ''}
+                >
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                  <polyline points="21 3 21 9 15 9" />
+                </svg>
+              </button>
+            </div>
+            <div className={`overflow-hidden transition-[max-height] duration-200 ${feedsCollapsed ? 'max-h-0' : 'max-h-[2000px]'}`}>
+              {feeds.map((feed) => {
+                const isFeedActive = feedWorkspaceActive && activeFeedId === feed.id && !settingsOpen && !helpOpen
+                return (
+                  <div
+                    key={`feed-${feed.id}`}
+                    draggable
+                    onDragStart={(e) => handleFeedDragStart(e, feed.id)}
+                    onDragOver={(e) => handleFeedDragOver(e, feed.id)}
+                    onDragLeave={handleFeedDragLeave}
+                    onDrop={(e) => handleFeedDrop(e, feed.id)}
+                    onClick={() => openFeedWorkspace(feed.id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setContextMenu({ x: e.clientX, y: e.clientY, type: 'feed', feedId: feed.id })
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs cursor-pointer group transition-colors ${
+                      isFeedActive
+                        ? 'bg-[var(--surface)] text-[var(--text)]'
+                        : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-white/[0.04]'
+                    } ${feedDropTargetId === feed.id ? 'bg-[var(--accent-drop-bg)] ring-1 ring-[var(--accent-drop-ring)]' : ''}`}
+                  >
+                    {feed.image ? (
+                      <img src={feed.image} alt="" className="w-4 h-4 rounded-[4px] object-cover shrink-0" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-[4px] bg-[var(--surface)] flex items-center justify-center shrink-0 text-[var(--secondary)]">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M4 11a9 9 0 0 1 9 9" />
+                          <path d="M4 4a16 16 0 0 1 16 16" />
+                          <circle cx="5" cy="19" r="1" />
+                        </svg>
+                      </div>
+                    )}
+                    <span className="truncate flex-1 text-[var(--text)]">{feed.title}</span>
+                    {refreshingFeedIds.includes(feed.id) ? (
+                      <span
+                        aria-label={`Checking ${feed.title}`}
+                        className="w-3 h-3 shrink-0 rounded-full border border-[var(--secondary)] border-t-transparent animate-spin"
+                      />
+                    ) : newFeedItemCounts[feed.id] > 0 ? (
+                      <span className="shrink-0 bg-[var(--accent-bg)] text-[var(--accent)] px-1.5 py-0.5 rounded text-[10px]">
+                        {newFeedItemCounts[feed.id]}
+                      </span>
+                    ) : null}
+                    {feed.last_error && (
+                      <span
+                        title={feed.last_error}
+                        aria-label={`${feed.title} could not be reached`}
+                        className="shrink-0 w-1.5 h-1.5 rounded-full bg-[var(--secondary)]"
+                      />
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
@@ -670,7 +837,7 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
                     key={ep.id}
                     episode={ep}
                     isActive={activeTabId === ep.id && !utilityOpen}
-                    isSelected={selectedEpisodeIds.has(ep.id)}
+                    isSelected={selectedIds.has(ep.id)}
                     isEditing={editingEpisodeId === ep.id}
                     isFading={fadingEpisodeIds.has(ep.id)}
                     onClick={(e) => handleEpisodeClick(e, ep.id, 'inbox', inboxVisibleIds)}
@@ -740,7 +907,7 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
             editingFolderId={editingFolderId}
             editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
-            selectedEpisodeIds={selectedEpisodeIds}
+            selectedIds={selectedIds}
             fadingEpisodeIds={fadingEpisodeIds}
             dropTargetId={dropTargetId}
             pulsingFolderId={pulsingFolderId}
@@ -843,6 +1010,55 @@ export function Sidebar({ prototypeReadOnly = false }: { prototypeReadOnly?: boo
           y={contextMenu.y}
           items={[{ type: 'action', label: 'New Folder', action: () => handleNewFolder(null) }]}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+      {contextMenu && contextMenu.type === 'feed' && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[
+            {
+              type: 'action',
+              label: 'Check now',
+              action: () => {
+                const feedId = contextMenu.feedId!
+                setContextMenu(null)
+                void refreshFeed(feedId)
+              },
+            },
+            {
+              type: 'action',
+              label: 'Clear new',
+              action: () => {
+                const feedId = contextMenu.feedId!
+                setContextMenu(null)
+                void clearFeedNew(feedId)
+              },
+            },
+            { type: 'separator' },
+            {
+              type: 'action',
+              label: 'Unsubscribe',
+              danger: true,
+              action: () => {
+                const targetFeed = feeds.find((f) => f.id === contextMenu.feedId)
+                setContextMenu(null)
+                if (targetFeed) setUnsubscribingFeed(targetFeed)
+              },
+            },
+          ]}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+      {unsubscribingFeed && (
+        <UnsubscribeFeedModal
+          feedTitle={unsubscribingFeed.title}
+          onConfirm={async () => {
+            const feedId = unsubscribingFeed.id
+            setUnsubscribingFeed(null)
+            await unsubscribeFeed(feedId)
+          }}
+          onCancel={() => setUnsubscribingFeed(null)}
         />
       )}
     </div>
@@ -1057,7 +1273,7 @@ function FolderNode({
   editingFolderId,
   editingEpisodeId,
   creatingFolder,
-  selectedEpisodeIds,
+  selectedIds,
   fadingEpisodeIds,
   dropTargetId,
   pulsingFolderId,
@@ -1089,7 +1305,7 @@ function FolderNode({
   editingFolderId: string | null
   editingEpisodeId: string | null
   creatingFolder: { parentId: string | null } | null
-  selectedEpisodeIds: Set<string>
+  selectedIds: Set<string>
   fadingEpisodeIds: Set<string>
   dropTargetId: string | null
   pulsingFolderId: string | null
@@ -1182,7 +1398,7 @@ function FolderNode({
             editingFolderId={editingFolderId}
             editingEpisodeId={editingEpisodeId}
             creatingFolder={creatingFolder}
-            selectedEpisodeIds={selectedEpisodeIds}
+            selectedIds={selectedIds}
             fadingEpisodeIds={fadingEpisodeIds}
             dropTargetId={dropTargetId}
             pulsingFolderId={pulsingFolderId}
@@ -1213,7 +1429,7 @@ function FolderNode({
             <SidebarEpisode
               episode={ep}
               isActive={activeTabId === ep.id && !settingsOpen}
-              isSelected={selectedEpisodeIds.has(ep.id)}
+              isSelected={selectedIds.has(ep.id)}
               isEditing={editingEpisodeId === ep.id}
               isFading={fadingEpisodeIds.has(ep.id)}
               onClick={(e) => onEpisodeClick(e, ep.id, folder.id, children.map((c) => c.id))}

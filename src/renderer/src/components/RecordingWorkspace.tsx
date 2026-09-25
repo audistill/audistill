@@ -185,7 +185,7 @@ export function RecordingWorkspace(): React.JSX.Element {
         </div>
 
         {state.phase === 'recovery' && state.recoveryCandidate ? (
-          <div className="rounded-[16px] border border-[var(--border)] bg-[var(--surface)]/40 px-6 py-6 text-sm">
+          <div className="rounded-[16px] border border-[var(--border)] bg-[var(--surface-hover)] px-6 py-6 text-sm">
             <p className="font-medium">Captured {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(state.recoveryCandidate.startedAt))}</p>
             <p className="mt-2 text-[var(--secondary)]">
               Sources: {state.recoveryCandidate.sourceKinds.map(sourceKindLabel).join(' and ')}
@@ -193,7 +193,7 @@ export function RecordingWorkspace(): React.JSX.Element {
             <p className="mt-3 text-[var(--secondary)]">AudiStill found usable temporary audio from an interrupted Recording Session.</p>
           </div>
         ) : state.phase === 'finalizing' ? (
-          <div className="rounded-[16px] border border-[var(--border)] bg-[var(--surface)]/40 px-6 py-8 text-center">
+          <div className="rounded-[16px] border border-[var(--border)] bg-[var(--surface-hover)] px-6 py-8 text-center">
             <LoaderCircle className="recording-spinner mx-auto text-[var(--accent)]" size={25} />
             <p className="mt-4 text-sm font-medium">Preparing your Recorded Episode…</p>
           </div>

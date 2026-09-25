@@ -9,6 +9,12 @@ export function TabBar(): React.JSX.Element {
   const activeTabId = useAppStore((s) => s.activeTabId)
   const recordingWorkspaceOpen = useAppStore((s) => s.recordingWorkspaceOpen)
   const recordingWorkspaceActive = useAppStore((s) => s.recordingWorkspaceActive)
+  const feedWorkspaceOpen = useAppStore((s) => s.feedWorkspaceOpen)
+  const feedWorkspaceActive = useAppStore((s) => s.feedWorkspaceActive)
+  const activeFeedId = useAppStore((s) => s.activeFeedId)
+  const feeds = useAppStore((s) => s.feeds)
+  const activateFeedWorkspace = useAppStore((s) => s.activateFeedWorkspace)
+  const closeFeedWorkspace = useAppStore((s) => s.closeFeedWorkspace)
   const settingsOpen = useAppStore((s) => s.settingsOpen)
   const helpOpen = useAppStore((s) => s.helpOpen)
   const episodes = useAppStore((s) => s.episodes)
@@ -51,13 +57,14 @@ export function TabBar(): React.JSX.Element {
   const recordingLive = recordingState?.phase === 'recording'
   const recordingPaused = recordingState?.phase === 'paused'
   const recordingRecovery = recordingState?.phase === 'recovery'
+  const activeFeed = feeds.find((f) => f.id === activeFeedId)
 
   return (
     <div className="flex items-center w-full">
       {/* Left sidebar toggle */}
       <button
         onClick={toggleLeftSidebar}
-        className="flex items-center justify-center w-[36px] h-[28px] shrink-0 rounded-md transition-colors hover:bg-[var(--surface)]/50"
+        className="flex items-center justify-center w-[36px] h-[28px] shrink-0 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         title="Toggle left sidebar (Cmd+B)"
       >
@@ -84,7 +91,7 @@ export function TabBar(): React.JSX.Element {
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors ${
               recordingWorkspaceActive && !settingsOpen && !helpOpen
                 ? 'bg-[var(--surface)] text-[var(--text)]'
-                : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]/50'
+                : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
             }`}
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             title="Recording Workspace"
@@ -98,6 +105,45 @@ export function TabBar(): React.JSX.Element {
             )}
           </button>
         )}
+        {feedWorkspaceOpen && activeFeed && (
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+              feedWorkspaceActive && !settingsOpen && !helpOpen
+                ? 'bg-[var(--surface)] text-[var(--text)]'
+                : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
+            }`}
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            onClick={activateFeedWorkspace}
+            title={activeFeed.title}
+          >
+            {activeFeed.image ? (
+              <img src={activeFeed.image} alt="" className="w-3.5 h-3.5 rounded-[3px] object-cover shrink-0" />
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-[var(--accent)]">
+                <path d="M4 11a9 9 0 0 1 9 9" />
+                <path d="M4 4a16 16 0 0 1 16 16" />
+                <circle cx="5" cy="19" r="1" />
+              </svg>
+            )}
+            <span className="truncate max-w-[120px]">{activeFeed.title}</span>
+            <svg
+              onClick={(e) => {
+                e.stopPropagation()
+                closeFeedWorkspace()
+              }}
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="shrink-0 opacity-0 hover:opacity-100"
+              style={{ opacity: feedWorkspaceActive && !settingsOpen && !helpOpen ? 0.5 : undefined }}
+            >
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </div>
+        )}
         {tabs.map((tab) => {
           const ep = episodes.find((e) => e.id === tab.id)
           if (!ep) return null
@@ -109,7 +155,7 @@ export function TabBar(): React.JSX.Element {
             <div
               key={tab.id}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                isActive ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]/50'
+                isActive ? 'bg-[var(--surface)] text-[var(--text)]' : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
               } ${tab.preview ? 'italic opacity-80' : ''}`}
               style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
               onClick={() => activateTab(tab.id)}
@@ -194,7 +240,7 @@ export function TabBar(): React.JSX.Element {
       {/* Right sidebar toggle */}
       <button
         onClick={toggleRightSidebar}
-        className="flex items-center justify-center w-[36px] h-[28px] shrink-0 rounded-md transition-colors hover:bg-[var(--surface)]/50"
+        className="flex items-center justify-center w-[36px] h-[28px] shrink-0 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         title="Toggle right sidebar (Cmd+Shift+L)"
       >

@@ -13,13 +13,19 @@ If the banner says the model is downloading, wait for it to finish. If it says t
 
 ## A YouTube URL will not import
 
-YouTube Ingest requires `yt-dlp`. If Audistill cannot find it, run `brew install yt-dlp`, then use the URL popover or Settings → YouTube Import to check the binary. Audistill supplies FFmpeg; do not install FFmpeg or Deno separately for YouTube Ingest.
+YouTube Ingest requires `yt-dlp`. If Audistill cannot find it, run `brew install yt-dlp`, then use the URL popover or Settings → YouTube Import to check the binary. Audistill supplies FFmpeg; you do not need to install it separately. Current YouTube extraction may also require Deno as a JavaScript runtime. If Audistill reports that no runtime is available, run `brew install deno`.
 
 If the video needs cookies, membership access, or other special options, add them in Settings → YouTube Import → Custom arguments. Some videos may still be blocked by the site, region, account permissions, or a stale yt-dlp install.
 
 ## An RSS or direct media URL will not import
 
-For feeds, confirm the URL points to an RSS or Atom feed with audio or video enclosures. Audistill fetches the feed on demand; it does not subscribe to it.
+For feeds, confirm the URL points to an RSS or Atom feed with audio or video enclosures. Importing from a feed fetches it once; selecting **Subscribe** keeps it in the sidebar and checks it periodically.
+
+## A subscribed feed is not picking up new episodes
+
+Open the feed and use the check button in its header to check it now. If the feed could not be reached, its sidebar row shows a small grey dot and hovering it gives the reason — usually a temporary server or network problem, which Audistill retries on its own.
+
+Checks look for items the feed has published since you last looked, so an episode you already imported does not reappear, and one whose audio is already in your Library is marked as imported rather than counted as new.
 
 For direct URLs, the server needs to return a supported audio or video media file. HTML pages, login pages, and links that require credentials usually cannot be imported directly.
 

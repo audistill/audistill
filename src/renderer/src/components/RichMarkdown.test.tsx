@@ -94,22 +94,28 @@ describe('RichMarkdown - Mermaid diagrams', () => {
 
   it('renders valid mermaid code blocks as SVG', async () => {
     const mockSvg = '<svg><text>Mock diagram</text></svg>'
+    let finishRender!: (result: { svg: string }) => void
     vi.doMock('mermaid', () => ({
       default: {
         initialize: vi.fn(),
-        render: vi.fn().mockResolvedValue({ svg: mockSvg }),
+        render: vi.fn().mockReturnValue(new Promise((resolve) => { finishRender = resolve })),
       },
     }))
     const { RichMarkdown: RM } = await import('./RichMarkdown')
 
     const content = '```mermaid\ngraph TD\n  A --> B\n```'
-    const { container } = render(<RM content={content} />)
+    const { container } = render(<RM content={content} mermaidTheme="light" />)
+
+    expect(container.querySelector('[data-mermaid-state="pending"]')).toBeInTheDocument()
+    await waitFor(() => expect(finishRender).toBeTypeOf('function'))
+    finishRender({ svg: mockSvg })
 
     await waitFor(() => {
-      const svgContainer = container.querySelector('[data-mermaid]')
+      const svgContainer = container.querySelector('[data-mermaid-state="rendered"]')
       expect(svgContainer).toBeInTheDocument()
       expect(svgContainer!.innerHTML).toContain('<svg')
     })
+    expect(container.querySelector('pre > div')).not.toBeInTheDocument()
   })
 
   it('falls back to code block with error indicator on invalid mermaid', async () => {
@@ -125,7 +131,7 @@ describe('RichMarkdown - Mermaid diagrams', () => {
     const { container } = render(<RM content={content} />)
 
     await waitFor(() => {
-      const errorIndicator = container.querySelector('[data-mermaid-error]')
+      const errorIndicator = container.querySelector('[data-mermaid-state="fallback"]')
       expect(errorIndicator).toBeInTheDocument()
     })
     // Should show the raw code
@@ -139,5 +145,38 @@ describe('RichMarkdown - Mermaid diagrams', () => {
     const pre = container.querySelector('pre')
     expect(pre).toBeInTheDocument()
     expect(container.querySelector('[data-mermaid]')).not.toBeInTheDocument()
+  })
+
+  it('forces deterministic light Mermaid colors even when the OS theme is dark', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }))
+    const initialize = vi.fn()
+    vi.doMock('mermaid', () => ({
+      default: {
+        initialize,
+        render: vi.fn().mockResolvedValue({ svg: '<svg />' }),
+      },
+    }))
+    const { RichMarkdown: RM } = await import('./RichMarkdown')
+
+    render(<RM content={'```mermaid\ngraph TD\n A --> B\n```'} mermaidTheme="light" />)
+
+    await waitFor(() => expect(initialize).toHaveBeenCalled())
+    expect(initialize).toHaveBeenCalledWith(expect.objectContaining({
+      themeVariables: expect.objectContaining({
+        primaryTextColor: '#1c1b19',
+        primaryBorderColor: '#b95637',
+      }),
+    }))
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps raw HTML inert', () => {
+    const { container } = render(
+      <RichMarkdown content={'Before<script>window.__unsafe = true</script><img src=x onerror="window.__unsafe = true">After'} />
+    )
+
+    expect(container.querySelector('script')).not.toBeInTheDocument()
+    expect(container.querySelector('img')).not.toBeInTheDocument()
+    expect((window as unknown as { __unsafe?: boolean }).__unsafe).toBeUndefined()
   })
 })

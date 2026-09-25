@@ -101,7 +101,7 @@ export function HelpView({ target }: { target: HelpTarget | null }): React.JSX.E
                   className={`w-full text-left px-3 py-2 rounded-[10px] text-sm transition-colors ${
                     active
                       ? 'bg-[var(--surface)] text-[var(--text)]'
-                      : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]/60'
+                      : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
                   }`}
                 >
                   {article.title}
@@ -121,7 +121,7 @@ export function HelpView({ target }: { target: HelpTarget | null }): React.JSX.E
               className={`w-full text-left px-3 py-2 rounded-[10px] text-sm transition-colors ${
                 selection.kind === 'release-index'
                   ? 'bg-[var(--surface)] text-[var(--text)]'
-                  : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]/60'
+                  : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
               }`}
             >
               All releases
@@ -135,7 +135,7 @@ export function HelpView({ target }: { target: HelpTarget | null }): React.JSX.E
                   className={`w-full text-left px-3 py-2 rounded-[10px] text-sm transition-colors ${
                     active
                       ? 'bg-[var(--surface)] text-[var(--text)]'
-                      : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]/60'
+                      : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
                   }`}
                 >
                   v{note.version}

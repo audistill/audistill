@@ -31,13 +31,34 @@ export default defineConfig({
       }
     }
   },
-  preload: {},
+  preload: {
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/preload/index.ts'),
+          'print-export': resolve('src/preload/print-export.ts')
+        },
+        output: {
+          format: 'cjs',
+          entryFileNames: '[name].cjs'
+        }
+      }
+    }
+  },
   renderer: {
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [react()]
+    plugins: [react()],
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve('src/renderer/index.html'),
+          print: resolve('src/renderer/print.html')
+        }
+      }
+    }
   }
 })

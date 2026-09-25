@@ -14,6 +14,12 @@
     --accent-bg: rgba(217, 119, 87, 0.10);
     --accent-drop-ring: rgba(217, 119, 87, 0.55);
     --accent-drop-bg: rgba(217, 119, 87, 0.20);
+    /* Translucent overlays — layer over any background. Do not express these
+       as opacity modifiers on the base tokens: Tailwind v3 cannot apply an
+       opacity modifier to an arbitrary var() holding a hex value and drops
+       the declaration entirely. */
+    --surface-hover: rgba(20, 20, 19, 0.05);
+    --surface-subtle: rgba(232, 230, 220, 0.40);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -28,6 +34,8 @@
       --accent-bg: rgba(217, 119, 87, 0.10);
       --accent-drop-ring: rgba(217, 119, 87, 0.55);
       --accent-drop-bg: rgba(217, 119, 87, 0.20);
+      --surface-hover: rgba(250, 249, 245, 0.06);
+      --surface-subtle: rgba(30, 30, 28, 0.55);
     }
   }
 
@@ -288,6 +296,17 @@
   }
   .canvas-button-glow {
     animation: canvas-glow 1s ease-in-out 3;
+  }
+
+  @keyframes feed-enter {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+  .feed-enter {
+    animation: feed-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .feed-enter { animation: none; }
   }
 
   .scrollbar-hide {

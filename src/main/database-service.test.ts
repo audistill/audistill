@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { DatabaseService } from './database-service'
 
@@ -195,3 +198,117 @@ describe('DatabaseService - source_type backfill migration', () => {
     expect(ep2!.source_type).toBe('youtube')
   })
 })
+
+describe('DatabaseService - Feeds and Feed Items schema & operations', () => {
+  let db: DatabaseService
+
+  beforeEach(() => {
+    db = new DatabaseService(':memory:')
+  })
+
+  it('initializes feeds and feed_items tables idempotently', () => {
+    expect(db.getFeeds()).toEqual([])
+
+    // Re-running table creation / migration is idempotent
+    expect(() => db.createFeed({ url: 'https://example.com/feed.xml', kind: 'rss', title: 'Test Feed' })).not.toThrow()
+    const feeds = db.getFeeds()
+    expect(feeds.length).toBe(1)
+    expect(feeds[0].title).toBe('Test Feed')
+  })
+
+  it('migrates legacy dismissed Feed Items to seen when reopening a database', () => {
+    const root = mkdtempSync(join(tmpdir(), 'audistill-feed-migration-'))
+    const path = join(root, 'audistill.db')
+    const original = new DatabaseService(path)
+    const feedId = original.createFeed({
+      url: 'https://example.com/legacy.xml',
+      kind: 'rss',
+      title: 'Legacy Feed',
+    })
+    original.createFeedItems([{
+      id: 'legacy-dismissed',
+      feed_id: feedId,
+      guid: 'legacy-dismissed',
+      title: 'Previously dismissed',
+      media_url: 'https://example.com/legacy.mp3',
+      state: 'seen',
+    }])
+    original.run("UPDATE feed_items SET state = 'dismissed' WHERE id = 'legacy-dismissed'")
+    original.close()
+
+    const reopened = new DatabaseService(path)
+    expect(reopened.getFeedItems(feedId)[0].state).toBe('seen')
+    reopened.close()
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('deleteFeed cascades feed_items but preserves episodes', () => {
+    const episodeId = db.createEpisode({
+      title: 'Imported Episode',
+      source_url: 'https://example.com/ep1.mp3',
+      source_type: 'rss',
+      status: 'complete',
+    })
+
+    const feedId = db.createFeed({
+      url: 'https://example.com/rss.xml',
+      kind: 'rss',
+      title: 'Show',
+    })
+
+    db.createFeedItems([
+      {
+        feed_id: feedId,
+        guid: 'guid-1',
+        title: 'Ep 1',
+        media_url: 'https://example.com/ep1.mp3',
+        state: 'ingested',
+        episode_id: episodeId,
+      },
+      {
+        feed_id: feedId,
+        guid: 'guid-2',
+        title: 'Ep 2',
+        media_url: 'https://example.com/ep2.mp3',
+        state: 'seen',
+      },
+    ])
+
+    expect(db.getFeedItems(feedId).length).toBe(2)
+
+    // Delete feed
+    db.deleteFeed(feedId)
+
+    // Feed and items are deleted
+    expect(db.getFeed(feedId)).toBeUndefined()
+    expect(db.getFeedItems(feedId)).toEqual([])
+
+    // Episode is untouched
+    const ep = db.getEpisode(episodeId)
+    expect(ep).toBeDefined()
+    expect(ep!.title).toBe('Imported Episode')
+  })
+
+  it('searchEpisodes does not search feed_items', () => {
+    const feedId = db.createFeed({
+      url: 'https://example.com/podcast.xml',
+      kind: 'rss',
+      title: 'Quantum Computing Podcast',
+    })
+
+    db.createFeedItems([
+      {
+        feed_id: feedId,
+        guid: 'quantum-1',
+        title: 'Quantum Superposition Explained',
+        description: 'Deep dive into qubits and entanglement',
+        media_url: 'https://example.com/quantum1.mp3',
+        state: 'seen',
+      },
+    ])
+
+    const results = db.searchEpisodes('Quantum')
+    expect(results).toEqual([])
+  })
+})
+

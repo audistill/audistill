@@ -2,8 +2,10 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { RichMarkdown } from './RichMarkdown'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useAppStore } from '../store/app-store'
+import type { TabExportFormat } from '../../../shared/tab-export'
 
 type CopyState = 'idle' | 'copied'
+type ExportState = 'idle' | 'exporting' | 'saved' | 'error'
 
 function CopyButton({ content, disabled }: { content: string; disabled: boolean }): React.JSX.Element {
   const [state, setState] = useState<CopyState>('idle')
@@ -54,29 +56,184 @@ function ExportButton({
   tabName: string
   disabled: boolean
 }): React.JSX.Element {
-  const handleExport = async () => {
-    if (disabled || !content) return
-    await window.api.exportSaveTab(content, episodeTitle, tabName)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [state, setState] = useState<ExportState>('idle')
+  const [feedback, setFeedback] = useState('')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const markdownRef = useRef<HTMLButtonElement>(null)
+  const pdfRef = useRef<HTMLButtonElement>(null)
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+  }, [])
+
+  const dismissMenu = useCallback(() => {
+    setMenuOpen(false)
+    triggerRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    markdownRef.current?.focus()
+
+    const handleOutsidePointer = (event: MouseEvent): void => {
+      if (!wrapperRef.current?.contains(event.target as Node)) dismissMenu()
+    }
+    document.addEventListener('mousedown', handleOutsidePointer)
+    return () => document.removeEventListener('mousedown', handleOutsidePointer)
+  }, [dismissMenu, menuOpen])
+
+  const openMenu = (): void => {
+    if (disabled || !content || state === 'exporting') return
+    setFeedback('')
+    setState('idle')
+    setMenuOpen(true)
   }
 
+  const showFeedback = (nextState: 'saved' | 'error', message: string): void => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+    setState(nextState)
+    setFeedback(message)
+    feedbackTimerRef.current = setTimeout(() => {
+      setState('idle')
+      setFeedback('')
+    }, nextState === 'saved' ? 1800 : 4000)
+  }
+
+  const exportFormat = (format: TabExportFormat): void => {
+    dismissMenu()
+    setState('exporting')
+    setFeedback('')
+    queueMicrotask(() => {
+      void window.api.exportTab({
+        format,
+        content,
+        episodeTitle,
+        tabName,
+      })
+        .then((result) => {
+          if (result.status === 'cancelled') {
+            setState('idle')
+            return
+          }
+          showFeedback('saved', format === 'pdf' ? 'PDF exported' : 'Markdown exported')
+        })
+        .catch((error: unknown) => {
+          const formatName = format === 'pdf' ? 'PDF' : 'Markdown'
+          const detail = error instanceof Error ? error.message.trim() : ''
+          showFeedback(
+            'error',
+            detail ? `Couldn't export ${formatName}: ${detail}` : `Couldn't export ${formatName}. Try again.`
+          )
+        })
+    })
+  }
+
+  const handleTriggerKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>): void => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+    event.preventDefault()
+    openMenu()
+  }
+
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      dismissMenu()
+      return
+    }
+    if (event.key === 'Enter' && event.target === markdownRef.current) {
+      event.preventDefault()
+      exportFormat('markdown')
+      return
+    }
+    if (event.key === 'Enter' && event.target === pdfRef.current) {
+      event.preventDefault()
+      exportFormat('pdf')
+      return
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const items = [markdownRef.current, pdfRef.current].filter(
+        (item): item is HTMLButtonElement => item !== null
+      )
+      const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement)
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      const nextIndex = (currentIndex + direction + items.length) % items.length
+      items[nextIndex]?.focus()
+    }
+  }
+
+  const isUnavailable = disabled || !content || state === 'exporting'
+
   return (
-    <button
-      onClick={handleExport}
-      disabled={disabled || !content}
-      className={`p-1.5 rounded-md transition-colors ${
-        disabled || !content
-          ? 'text-[var(--secondary)] opacity-40 cursor-not-allowed'
-          : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
-      }`}
-      aria-label="Export as file"
-      title="Export as .md file"
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="7 10 12 15 17 10" />
-        <line x1="12" y1="15" x2="12" y2="3" />
-      </svg>
-    </button>
+    <div ref={wrapperRef} className="relative">
+      <button
+        ref={triggerRef}
+        onClick={() => (menuOpen ? dismissMenu() : openMenu())}
+        onKeyDown={handleTriggerKeyDown}
+        disabled={isUnavailable}
+        className={`p-1.5 rounded-md transition-colors ${
+          isUnavailable
+            ? 'text-[var(--secondary)] opacity-40 cursor-not-allowed'
+            : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
+        }`}
+        aria-label={state === 'exporting' ? 'Exporting Tab' : 'Export Tab'}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        title={state === 'exporting' ? 'Exporting Tab' : 'Export Tab'}
+      >
+        {state === 'exporting' ? (
+          <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 12a9 9 0 1 1-5.2-8.2" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        )}
+      </button>
+      {menuOpen && (
+        <div
+          role="menu"
+          aria-label="Export format"
+          onKeyDown={handleMenuKeyDown}
+          className="absolute left-0 top-full z-50 mt-1 w-52 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+        >
+          <button
+            ref={markdownRef}
+            role="menuitem"
+            onClick={() => exportFormat('markdown')}
+            className="flex w-full flex-col items-start rounded-md px-2.5 py-2 text-left hover:bg-white/[0.08] focus:bg-white/[0.08] focus:outline-none"
+          >
+            <span className="text-xs font-medium text-[var(--text)]">Markdown (.md)</span>
+            <span className="text-[11px] text-[var(--secondary)]">Editable source</span>
+          </button>
+          <button
+            ref={pdfRef}
+            role="menuitem"
+            onClick={() => exportFormat('pdf')}
+            className="flex w-full flex-col items-start rounded-md px-2.5 py-2 text-left hover:bg-white/[0.08] focus:bg-white/[0.08] focus:outline-none"
+          >
+            <span className="text-xs font-medium text-[var(--text)]">PDF (.pdf)</span>
+            <span className="text-[11px] text-[var(--secondary)]">Formatted for sharing</span>
+          </button>
+        </div>
+      )}
+      {state === 'saved' && feedback && (
+        <div role="status" className="absolute left-0 top-full z-50 mt-1 whitespace-nowrap rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs text-emerald-500 shadow-lg">
+          {feedback}
+        </div>
+      )}
+      {state === 'error' && feedback && (
+        <div role="alert" className="absolute left-0 top-full z-50 mt-1 w-52 rounded-md border border-red-500/30 bg-[var(--surface)] px-2.5 py-1.5 text-xs text-red-400 shadow-lg">
+          {feedback}
+        </div>
+      )}
+    </div>
   )
 }
 

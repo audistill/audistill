@@ -6,8 +6,12 @@ export function slugify(input: string): string {
     .replace(/^-|-$/g, '')
 }
 
-export function buildTabFilename(episodeTitle: string, tabName: string): string {
-  return `${slugify(episodeTitle)}--${slugify(tabName)}.md`
+export function buildTabFilename(
+  episodeTitle: string,
+  tabName: string,
+  extension: 'md' | 'pdf' = 'md'
+): string {
+  return `${slugify(episodeTitle)}--${slugify(tabName)}.${extension}`
 }
 
 export interface AssembleEpisodeInput {

@@ -42,7 +42,7 @@ export function ContentTabBar({ episodeId }: { episodeId: string }): React.JSX.E
         onClick={toggleTranscriptPanel}
         className={`ml-2 flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
           transcriptPanelOpen
-            ? 'text-[var(--accent)] bg-[var(--accent)]/10'
+            ? 'text-[var(--accent)] bg-[var(--accent-bg)]'
             : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
         }`}
         aria-label="Toggle transcript panel"
@@ -228,7 +228,7 @@ function TabItem({
       className={`group relative flex items-center gap-1 px-3 py-1.5 rounded-t-[8px] text-sm font-medium cursor-pointer select-none transition-colors shrink-0 ${
         isActive
           ? `bg-[var(--bg)] text-[var(--text)]${editing ? '' : ' border-b-2 border-[var(--accent)]'}`
-          : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)]/50'
+          : 'text-[var(--secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
       }`}
       onClick={onActivate}
       onDoubleClick={handleDoubleClick}

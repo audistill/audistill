@@ -39,11 +39,29 @@ Transcription remains on-device. Captured audio is temporary and is deleted afte
 
 ## URL Sources
 
-YouTube Ingest uses the Homebrew-installed `yt-dlp`. If Audistill cannot find it, run `brew install yt-dlp`, then check again. Audistill supplies its own FFmpeg to `yt-dlp`; you do not need to install FFmpeg or Deno separately. You can also set the `yt-dlp` path and custom arguments in Settings, such as cookies arguments for Sources that require your browser session.
+YouTube Ingest uses the Homebrew-installed `yt-dlp`. If Audistill cannot find it, run `brew install yt-dlp`, then check again. Audistill supplies its own FFmpeg to `yt-dlp`; you do not need to install FFmpeg separately. Current YouTube extraction may also require Deno as a JavaScript runtime; if Audistill reports that no runtime is available, run `brew install deno`. You can also set the `yt-dlp` path and custom arguments in Settings, such as cookies arguments for Sources that require your browser session.
 
 If a download is interrupted or YouTube temporarily refuses or limits it, Audistill retries once from a clean temporary file. If Ingest still fails, open **Show details** on the Episode to see Diagnostic Details alongside the concise explanation.
 
-RSS and Atom feeds open a preview list so you can choose one or more feed items. Items that are already in your Library are marked as imported and cannot be selected again.
+RSS and Atom feeds open a preview list so you can choose one or more feed items. Items that are already in your Library are marked as imported and cannot be selected again. You can also **Subscribe** to a feed instead of importing from it once.
+
+## Feed subscriptions
+
+A Subscription appears in the Feeds section of the sidebar. Subscribing is silent: everything already in the feed is recorded as seen, so subscribing to a long-running podcast does not hand you its whole back catalogue.
+
+You can also paste a YouTube channel URL, `@handle`, playlist, or individual video URL and subscribe to the channel or playlist behind it. Audistill uses your configured `yt-dlp` both to read YouTube Feed metadata and to add one of its videos to the Library. If `yt-dlp` is missing, the same installation guidance appears as for normal YouTube Ingest. If YouTube extraction reports that no JavaScript runtime is available, install Deno with `brew install deno`.
+
+Audistill checks subscribed feeds shortly after launch and periodically while it is open, and you can check one feed from its header or all of them from the Feeds section. A check fetches feed metadata only — nothing is downloaded, transcribed, or sent to a Model, and it works the same on Trial or with a License. Feeds are checked one at a time. RSS checks reuse server cache validators; YouTube checks run one bounded `yt-dlp` metadata lookup.
+
+Items that arrive after you subscribe are counted on the feed's row and totalled on the Feeds header, and carry an accent dot in the Feed Workspace. Opening a Feed does not clear this New state. Choose **Clear new** when you no longer need those indicators; the Items remain available and an Undo action briefly lets you reverse the change. Nothing becomes an Episode until you choose it: a Subscription never adds to your Library on its own.
+
+Use **New** to focus on Items that still need attention and **All** for the complete catalogue. New is always a subset of All. Activating a New row marks it seen; in New it then moves out of the list, with a brief **Undo** action. Added Items no longer count as New but remain identifiable as **In Library** in All.
+
+Choose **Select** before selecting several Items. While Select mode is active, row clicks only toggle the bulk selection and do not mark Items seen. Use the selection bar to add the selected Items, then choose **Done** or press Escape to leave Select mode. Add, Check, and Clear new show progress and results where the action happened, and failures stay in the Feed Workspace.
+
+Audistill retains every Item returned by an RSS or Atom check and loads long catalogues incrementally. YouTube checks remain limited to the latest 30 Items returned by `yt-dlp`. If new Items arrive while you are reading farther down a feed, Audistill keeps your position and shows a **new items above** button instead of moving the list underneath you.
+
+A Subscription that could not be reached shows a small grey dot on its sidebar row; hover it to read the reason. The Feed Workspace also shows the error so you can check again. Audistill does not interrupt you about it and tries again on the next round.
 
 Direct media URLs show a single preview with an editable Episode title before you import.
 

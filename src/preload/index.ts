@@ -8,6 +8,15 @@ import type {
   StartRecordingSessionInput,
   StopRecordingSessionResult,
 } from '../shared/recording-session'
+import type {
+  FeedItemIngestResult,
+  FeedItemMutationResult,
+  FeedItemPage,
+  FeedItemPageRequest,
+  FeedRefreshResult,
+  RssIngestItem,
+} from '../shared/feed-subscription'
+import type { TabExportRequest, TabExportResult } from '../shared/tab-export'
 
 export type { UpdateStatus }
 
@@ -101,7 +110,7 @@ const api = {
     ipcRenderer.invoke('ingest:add-url', canonicalUrl, metadata),
   addDirectUrl: (url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }): Promise<string> =>
     ipcRenderer.invoke('ingest:add-direct-url', url, metadata),
-  addRssItems: (items: { title: string; enclosureUrl: string; guid: string | null; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]): Promise<string[]> =>
+  addRssItems: (items: RssIngestItem[]): Promise<string[]> =>
     ipcRenderer.invoke('ingest:add-rss-items', items),
   retryEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:retry', id),
   cancelEpisode: (id: string): Promise<void> => ipcRenderer.invoke('ingest:cancel', id),
@@ -149,8 +158,47 @@ const api = {
     title: string
     image: string | null
     feedUrl: string
-    items: { title: string; enclosureUrl: string; guid: string | null; pubDate: string | null; duration: string | null; description: string | null }[]
+    siteUrl?: string | null
+    etag?: string | null
+    lastModified?: string | null
+    items: { title: string; enclosureUrl: string; guid: string | null; pubDate: string | null; duration: string | null; description: string | null; image?: string | null }[]
   }> => ipcRenderer.invoke('feed:fetch-metadata', url),
+  feedResolveYouTube: (url: string) => ipcRenderer.invoke('feed:resolve-youtube', url),
+
+  // Feeds API
+  feedSubscribe: (url: string, previewData?: any) => ipcRenderer.invoke('feed:subscribe', url, previewData),
+  feedUnsubscribe: (id: string) => ipcRenderer.invoke('feed:unsubscribe', id),
+  feedGetSubscriptions: () => ipcRenderer.invoke('feed:list'),
+  feedReorder: (feedIds: string[]) => ipcRenderer.invoke('feed:reorder', feedIds),
+  feedGetItems: (feedId: string, request: FeedItemPageRequest): Promise<FeedItemPage> =>
+    ipcRenderer.invoke('feed:get-items', feedId, request),
+  feedIngestItems: (feedId: string, itemIds: string[]): Promise<FeedItemIngestResult[]> =>
+    ipcRenderer.invoke('feed:ingest-items', feedId, itemIds),
+  feedRefresh: (feedId: string): Promise<FeedRefreshResult> =>
+    ipcRenderer.invoke('feed:refresh', feedId),
+  feedRefreshAll: (): Promise<FeedRefreshResult[]> => ipcRenderer.invoke('feed:refresh-all'),
+  feedAcknowledgeItems: (feedId: string, itemIds: string[]): Promise<FeedItemMutationResult> =>
+    ipcRenderer.invoke('feed:acknowledge-items', feedId, itemIds),
+  feedClearNewItems: (feedId: string): Promise<FeedItemMutationResult> =>
+    ipcRenderer.invoke('feed:clear-new-items', feedId),
+  feedRestoreNewItems: (feedId: string, itemIds: string[]): Promise<void> =>
+    ipcRenderer.invoke('feed:restore-new-items', feedId, itemIds),
+  feedGetNewCounts: (): Promise<Record<string, number>> => ipcRenderer.invoke('feed:new-counts'),
+  feedStartScheduler: (): Promise<void> => ipcRenderer.invoke('feed:start-scheduler'),
+  onFeedRefreshing: (callback: (state: { feedId: string; refreshing: boolean }) => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      state: { feedId: string; refreshing: boolean }
+    ): void => callback(state)
+    ipcRenderer.on('feed:refreshing', handler)
+    return () => ipcRenderer.removeListener('feed:refreshing', handler)
+  },
+  onFeedsRefreshed: (callback: (results: FeedRefreshResult[]) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, results: FeedRefreshResult[]): void =>
+      callback(results)
+    ipcRenderer.on('feed:refreshed', handler)
+    return () => ipcRenderer.removeListener('feed:refreshed', handler)
+  },
 
   // Tab streaming events
   tabsExecuteRecipe: (episodeId: string, tabId: string) => ipcRenderer.invoke('tabs:execute-recipe', episodeId, tabId),
@@ -197,8 +245,8 @@ const api = {
   exportCopyTab: (markdown: string): Promise<void> => ipcRenderer.invoke('export:copy-tab', markdown),
   exportCopyTranscript: (episodeId: string, withTimestamps: boolean): Promise<void> =>
     ipcRenderer.invoke('export:copy-transcript', episodeId, withTimestamps),
-  exportSaveTab: (content: string, episodeTitle: string, tabName: string): Promise<void> =>
-    ipcRenderer.invoke('export:save-tab', content, episodeTitle, tabName),
+  exportTab: (request: TabExportRequest): Promise<TabExportResult> =>
+    ipcRenderer.invoke('export:tab', request),
   exportSaveEpisode: (episodeId: string): Promise<void> =>
     ipcRenderer.invoke('export:save-episode', episodeId),
   exportSaveEpisodes: (episodeIds: string[]): Promise<boolean> =>

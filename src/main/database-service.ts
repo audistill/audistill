@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
+import type { Feed, FeedItem, FeedItemState, NewFeedItemCounts } from '../shared/feed-subscription'
 
 export interface Episode {
   id: string
@@ -64,6 +65,12 @@ export interface LicenseRecord {
   machine_id: string | null
 }
 
+export interface FeedItemQueryCursor {
+  publishedAt: number
+  firstSeenAt: string
+  id: string
+}
+
 export class DatabaseService {
   private db: Database.Database
 
@@ -73,6 +80,10 @@ export class DatabaseService {
     this.db.pragma('journal_mode = WAL')
     this.db.pragma('foreign_keys = ON')
     this.init()
+  }
+
+  runInTransaction<T>(operation: () => T): T {
+    return this.db.transaction(operation)()
   }
 
   private init(): void {
@@ -164,6 +175,44 @@ export class DatabaseService {
         last_validated_at TEXT,
         machine_id TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS feeds (
+        id                    TEXT PRIMARY KEY,
+        url                   TEXT NOT NULL UNIQUE,
+        kind                  TEXT NOT NULL,
+        title                 TEXT NOT NULL,
+        image                 TEXT,
+        site_url              TEXT,
+        etag                  TEXT,
+        last_modified         TEXT,
+        last_fetched_at       TEXT,
+        last_error            TEXT,
+        auto_ingest           INTEGER NOT NULL DEFAULT 0,
+        auto_ingest_folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
+        min_duration_sec      INTEGER,
+        max_duration_sec      INTEGER,
+        skip_live             INTEGER NOT NULL DEFAULT 1,
+        sort_order            INTEGER NOT NULL DEFAULT 0,
+        created_at            TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS feed_items (
+        id            TEXT PRIMARY KEY,
+        feed_id       TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+        guid          TEXT NOT NULL,
+        title         TEXT NOT NULL,
+        media_url     TEXT NOT NULL,
+        page_url      TEXT,
+        pub_date      TEXT,
+        duration_sec  INTEGER,
+        description   TEXT,
+        state         TEXT NOT NULL,
+        episode_id    TEXT REFERENCES episodes(id) ON DELETE SET NULL,
+        first_seen_at TEXT NOT NULL,
+        UNIQUE (feed_id, guid)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_feed_items_feed_state ON feed_items(feed_id, state);
     `)
   }
 
@@ -235,6 +284,48 @@ export class DatabaseService {
     if (!finalColumnNames.has('error_details')) {
       this.db.exec('ALTER TABLE episodes ADD COLUMN error_details TEXT')
     }
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS feeds (
+        id                    TEXT PRIMARY KEY,
+        url                   TEXT NOT NULL UNIQUE,
+        kind                  TEXT NOT NULL,
+        title                 TEXT NOT NULL,
+        image                 TEXT,
+        site_url              TEXT,
+        etag                  TEXT,
+        last_modified         TEXT,
+        last_fetched_at       TEXT,
+        last_error            TEXT,
+        auto_ingest           INTEGER NOT NULL DEFAULT 0,
+        auto_ingest_folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL,
+        min_duration_sec      INTEGER,
+        max_duration_sec      INTEGER,
+        skip_live             INTEGER NOT NULL DEFAULT 1,
+        sort_order            INTEGER NOT NULL DEFAULT 0,
+        created_at            TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS feed_items (
+        id            TEXT PRIMARY KEY,
+        feed_id       TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+        guid          TEXT NOT NULL,
+        title         TEXT NOT NULL,
+        media_url     TEXT NOT NULL,
+        page_url      TEXT,
+        pub_date      TEXT,
+        duration_sec  INTEGER,
+        description   TEXT,
+        state         TEXT NOT NULL,
+        episode_id    TEXT REFERENCES episodes(id) ON DELETE SET NULL,
+        first_seen_at TEXT NOT NULL,
+        UNIQUE (feed_id, guid)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_feed_items_feed_state ON feed_items(feed_id, state);
+
+      UPDATE feed_items SET state = 'seen' WHERE state = 'dismissed';
+    `)
   }
 
   getEpisodes(folderId?: string | null): Episode[] {
@@ -312,7 +403,13 @@ export class DatabaseService {
   }
 
   deleteEpisode(id: string): void {
-    this.db.prepare('DELETE FROM episodes WHERE id = ?').run(id)
+    const transaction = this.db.transaction((episodeId: string) => {
+      this.db
+        .prepare("UPDATE feed_items SET state = 'seen', episode_id = NULL WHERE episode_id = ?")
+        .run(episodeId)
+      this.db.prepare('DELETE FROM episodes WHERE id = ?').run(episodeId)
+    })
+    transaction(id)
   }
 
   moveEpisodes(ids: string[], folderId: string | null): void {
@@ -329,9 +426,13 @@ export class DatabaseService {
   deleteEpisodes(ids: string[]): void {
     if (ids.length === 0) return
     const txn = this.db.transaction(() => {
-      const stmt = this.db.prepare('DELETE FROM episodes WHERE id = ?')
+      const resolveFeedItems = this.db.prepare(
+        "UPDATE feed_items SET state = 'seen', episode_id = NULL WHERE episode_id = ?"
+      )
+      const deleteEpisode = this.db.prepare('DELETE FROM episodes WHERE id = ?')
       for (const id of ids) {
-        stmt.run(id)
+        resolveFeedItems.run(id)
+        deleteEpisode.run(id)
       }
     })
     txn()
@@ -585,6 +686,308 @@ export class DatabaseService {
       const values = entries.map(([, val]) => val ?? null)
       this.db.prepare(`UPDATE license SET ${sets} WHERE id = 1`).run(...values)
     }
+  }
+
+  getFeeds(): Feed[] {
+    return this.db
+      .prepare('SELECT * FROM feeds ORDER BY sort_order ASC, created_at ASC')
+      .all() as Feed[]
+  }
+
+  getFeed(id: string): Feed | undefined {
+    return this.db.prepare('SELECT * FROM feeds WHERE id = ?').get(id) as Feed | undefined
+  }
+
+  getFeedByUrl(url: string): Feed | undefined {
+    return this.db.prepare('SELECT * FROM feeds WHERE url = ?').get(url) as Feed | undefined
+  }
+
+  createFeed(data: {
+    id?: string
+    url: string
+    kind: 'rss' | 'youtube'
+    title: string
+    image?: string | null
+    site_url?: string | null
+    etag?: string | null
+    last_modified?: string | null
+    last_fetched_at?: string | null
+    last_error?: string | null
+    auto_ingest?: number
+    auto_ingest_folder_id?: string | null
+    min_duration_sec?: number | null
+    max_duration_sec?: number | null
+    skip_live?: number
+    sort_order?: number
+    created_at?: string
+  }): string {
+    const id = data.id ?? randomUUID()
+    const createdAt = data.created_at ?? new Date().toISOString()
+    let sortOrder = data.sort_order
+    if (sortOrder === undefined) {
+      const row = this.db.prepare('SELECT COALESCE(MAX(sort_order), -1) as max_order FROM feeds').get() as { max_order: number }
+      sortOrder = row.max_order + 1
+    }
+
+    this.db
+      .prepare(
+        `INSERT INTO feeds (
+          id, url, kind, title, image, site_url, etag, last_modified,
+          last_fetched_at, last_error, auto_ingest, auto_ingest_folder_id,
+          min_duration_sec, max_duration_sec, skip_live, sort_order, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        id,
+        data.url,
+        data.kind,
+        data.title,
+        data.image ?? null,
+        data.site_url ?? null,
+        data.etag ?? null,
+        data.last_modified ?? null,
+        data.last_fetched_at ?? null,
+        data.last_error ?? null,
+        data.auto_ingest ?? 0,
+        data.auto_ingest_folder_id ?? null,
+        data.min_duration_sec ?? null,
+        data.max_duration_sec ?? null,
+        data.skip_live ?? 1,
+        sortOrder,
+        createdAt
+      )
+    return id
+  }
+
+  deleteFeed(id: string): void {
+    const transaction = this.db.transaction((feedId: string) => {
+      this.db.prepare('DELETE FROM feed_items WHERE feed_id = ?').run(feedId)
+      this.db.prepare('DELETE FROM feeds WHERE id = ?').run(feedId)
+    })
+    transaction(id)
+  }
+
+  reorderFeeds(feedIds: string[]): void {
+    const update = this.db.prepare('UPDATE feeds SET sort_order = ? WHERE id = ?')
+    const transaction = this.db.transaction((ids: string[]) => {
+      for (let i = 0; i < ids.length; i++) {
+        update.run(i, ids[i])
+      }
+    })
+    transaction(feedIds)
+  }
+
+  /**
+   * Record the outcome of a refresh.
+   *
+   * `validators` is only supplied when a fresh body came back, and then it
+   * replaces what was stored outright — including with nulls. Coalescing here
+   * would pin a stale ETag forever once a server stopped sending one, and
+   * replaying it risks a spurious 304 and permanently missed items.
+   */
+  updateFeedFetchState(
+    id: string,
+    state: {
+      last_fetched_at: string
+      last_error: string | null
+      validators?: { etag: string | null; last_modified: string | null }
+    }
+  ): void {
+    if (state.validators) {
+      this.db
+        .prepare(
+          `UPDATE feeds
+           SET etag = ?, last_modified = ?, last_fetched_at = ?, last_error = ?
+           WHERE id = ?`
+        )
+        .run(
+          state.validators.etag,
+          state.validators.last_modified,
+          state.last_fetched_at,
+          state.last_error,
+          id
+        )
+      return
+    }
+    this.db
+      .prepare('UPDATE feeds SET last_fetched_at = ?, last_error = ? WHERE id = ?')
+      .run(state.last_fetched_at, state.last_error, id)
+  }
+
+  /** New Feed Items per feed. Feeds with none are absent rather than zero. */
+  getNewFeedItemCounts(): NewFeedItemCounts {
+    const rows = this.db
+      .prepare("SELECT feed_id, COUNT(*) as count FROM feed_items WHERE state = 'new' GROUP BY feed_id")
+      .all() as { feed_id: string; count: number }[]
+    return Object.fromEntries(rows.map((r) => [r.feed_id, r.count]))
+  }
+
+  acknowledgeFeedItems(feedId: string, itemIds: string[]): string[] {
+    if (itemIds.length === 0) return []
+    const uniqueIds = [...new Set(itemIds)]
+    const placeholders = uniqueIds.map(() => '?').join(', ')
+    return this.db.transaction(() => {
+      const rows = this.db
+        .prepare(
+          `SELECT id FROM feed_items
+           WHERE feed_id = ? AND id IN (${placeholders}) AND state = 'new'`
+        )
+        .all(feedId, ...uniqueIds) as { id: string }[]
+      const acknowledgedIds = rows.map((row) => row.id)
+      if (acknowledgedIds.length > 0) {
+        const acknowledgedPlaceholders = acknowledgedIds.map(() => '?').join(', ')
+        this.db
+          .prepare(
+            `UPDATE feed_items SET state = 'seen'
+             WHERE feed_id = ? AND id IN (${acknowledgedPlaceholders}) AND state = 'new'`
+          )
+          .run(feedId, ...acknowledgedIds)
+      }
+      return acknowledgedIds
+    })()
+  }
+
+  clearNewFeedItems(feedId: string): string[] {
+    return this.db.transaction(() => {
+      const rows = this.db
+        .prepare("SELECT id FROM feed_items WHERE feed_id = ? AND state = 'new'")
+        .all(feedId) as { id: string }[]
+      const itemIds = rows.map((row) => row.id)
+      this.db.prepare("UPDATE feed_items SET state = 'seen' WHERE feed_id = ? AND state = 'new'").run(feedId)
+      return itemIds
+    })()
+  }
+
+  restoreNewFeedItems(feedId: string, itemIds: string[]): void {
+    if (itemIds.length === 0) return
+    const placeholders = itemIds.map(() => '?').join(', ')
+    this.db
+      .prepare(
+        `UPDATE feed_items SET state = 'new'
+         WHERE feed_id = ? AND id IN (${placeholders}) AND state = 'seen'`
+      )
+      .run(feedId, ...itemIds)
+  }
+
+  getFeedItems(feedId: string): FeedItem[] {
+    return this.db
+      .prepare('SELECT * FROM feed_items WHERE feed_id = ? ORDER BY pub_date DESC, first_seen_at DESC')
+      .all(feedId) as FeedItem[]
+  }
+
+  getFeedItemPage(
+    feedId: string,
+    options: { filter: 'new' | 'all'; cursor?: FeedItemQueryCursor; limit: number }
+  ): { items: FeedItem[]; nextCursor: FeedItemQueryCursor | null; total: number } {
+    const stateSql = options.filter === 'new'
+      ? "state = 'new'"
+      : "state IN ('new', 'seen', 'ingested')"
+    const cursorSql = options.cursor
+      ? `AND (
+          COALESCE(julianday(pub_date), 0) < ?
+          OR (COALESCE(julianday(pub_date), 0) = ? AND first_seen_at < ?)
+          OR (COALESCE(julianday(pub_date), 0) = ? AND first_seen_at = ? AND id > ?)
+        )`
+      : ''
+    const cursorParams = options.cursor
+      ? [
+          options.cursor.publishedAt,
+          options.cursor.publishedAt,
+          options.cursor.firstSeenAt,
+          options.cursor.publishedAt,
+          options.cursor.firstSeenAt,
+          options.cursor.id,
+        ]
+      : []
+    const rows = this.db
+      .prepare(
+        `SELECT feed_items.*, COALESCE(julianday(pub_date), 0) AS sort_pub_time
+         FROM feed_items
+         WHERE feed_id = ? AND ${stateSql} ${cursorSql}
+         ORDER BY sort_pub_time DESC, first_seen_at DESC, id ASC
+         LIMIT ?`
+      )
+      .all(feedId, ...cursorParams, options.limit + 1) as Array<FeedItem & { sort_pub_time: number }>
+    const hasMore = rows.length > options.limit
+    const pageRows = rows.slice(0, options.limit)
+    const items = pageRows.map(({ sort_pub_time: _sortPubTime, ...item }) => item as FeedItem)
+    const last = pageRows.at(-1)
+    const total = (this.db
+      .prepare(`SELECT COUNT(*) AS count FROM feed_items WHERE feed_id = ? AND ${stateSql}`)
+      .get(feedId) as { count: number }).count
+
+    return {
+      items,
+      nextCursor: hasMore && last
+        ? { publishedAt: last.sort_pub_time, firstSeenAt: last.first_seen_at, id: last.id }
+        : null,
+      total,
+    }
+  }
+
+  getFeedItemsByIds(ids: string[]): FeedItem[] {
+    if (ids.length === 0) return []
+    const placeholders = ids.map(() => '?').join(', ')
+    return this.db
+      .prepare(`SELECT * FROM feed_items WHERE id IN (${placeholders})`)
+      .all(...ids) as FeedItem[]
+  }
+
+  markFeedItemsIngested(updates: { id: string; episode_id: string }[]): void {
+    if (updates.length === 0) return
+    const stmt = this.db.prepare(
+      "UPDATE feed_items SET state = 'ingested', episode_id = ? WHERE id = ?"
+    )
+    const transaction = this.db.transaction((items: { id: string; episode_id: string }[]) => {
+      for (const item of items) {
+        stmt.run(item.episode_id, item.id)
+      }
+    })
+    transaction(updates)
+  }
+
+  createFeedItems(
+    items: Array<{
+      id?: string
+      feed_id: string
+      guid: string
+      title: string
+      media_url: string
+      page_url?: string | null
+      pub_date?: string | null
+      duration_sec?: number | null
+      description?: string | null
+      state?: FeedItemState
+      episode_id?: string | null
+      first_seen_at?: string
+    }>
+  ): void {
+    if (items.length === 0) return
+    const insert = this.db.prepare(
+      `INSERT OR IGNORE INTO feed_items (
+        id, feed_id, guid, title, media_url, page_url, pub_date,
+        duration_sec, description, state, episode_id, first_seen_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    const transaction = this.db.transaction((itemList) => {
+      for (const item of itemList) {
+        insert.run(
+          item.id ?? randomUUID(),
+          item.feed_id,
+          item.guid,
+          item.title,
+          item.media_url,
+          item.page_url ?? null,
+          item.pub_date ?? null,
+          item.duration_sec ?? null,
+          item.description ?? null,
+          item.state ?? 'seen',
+          item.episode_id ?? null,
+          item.first_seen_at ?? new Date().toISOString()
+        )
+      }
+    })
+    transaction(items)
   }
 
   close(): void {

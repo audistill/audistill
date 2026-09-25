@@ -24,6 +24,10 @@ import {
   RecordingSessionCoordinator,
 } from './recording-session-coordinator'
 import { registerRecordingSessionIPC } from './recording-session-ipc'
+import { FeedSubscriptionService } from './feed-subscription-service'
+import { registerFeedSubscriptionIPC } from './feed-subscription-ipc'
+import { FeedRefreshScheduler } from './feed-refresh-scheduler'
+import { stopFeedRefreshForCommittedQuit } from './feed-refresh-lifecycle'
 import { NativeRecordingCaptureBackend } from './native-recording-capture-backend'
 import { reconcileRecordingSessions } from './recording-session-recovery'
 import { machineIdSync } from 'node-machine-id'
@@ -326,9 +330,13 @@ function registerYtdlpHandlers(): void {
   })
 }
 
-function registerUrlHandlers(): void {
-  const feedService = new FeedService()
+const feedService = new FeedService({
+  fetchYouTubeFeed: (url) => ytdlpService.fetchFeed(url),
+})
+let feedSubscriptionService: FeedSubscriptionService
+let feedRefreshScheduler: FeedRefreshScheduler | null = null
 
+function registerUrlHandlers(): void {
   ipcMain.handle('url:head', async (_event, url: string) => {
     return fetchUrlHead(url)
   })
@@ -371,20 +379,21 @@ function registerExportHandlers(): void {
     clipboard.write({ text, html })
   })
 
-  ipcMain.handle('export:save-tab', async (_event, content: string, episodeTitle: string, tabName: string) => {
-    const { buildTabFilename } = await import('../shared/export-assembler')
+  ipcMain.handle('export:tab', async (_event, request: import('../shared/tab-export').TabExportRequest) => {
+    const { exportTab } = await import('./tab-export')
+    const { createTabPrintSurface } = await import('./tab-print-surface')
     const { writeFile } = await import('fs/promises')
     const win = BrowserWindow.getFocusedWindow()
-    if (!win) return
-
-    const suggestedFilename = buildTabFilename(episodeTitle, tabName)
-    const result = await dialog.showSaveDialog(win, {
-      defaultPath: suggestedFilename,
-      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    return exportTab(request, {
+      showSaveDialog: (options) =>
+        win ? dialog.showSaveDialog(win, options) : dialog.showSaveDialog(options),
+      writeFile,
+      createPrintSurface: () => createTabPrintSurface({
+        preloadPath: join(__dirname, '../preload/print-export.cjs'),
+        rendererHtmlPath: join(__dirname, '../renderer/print.html'),
+        rendererUrl: is.dev ? process.env['ELECTRON_RENDERER_URL'] : undefined,
+      }),
     })
-
-    if (result.canceled || !result.filePath) return
-    await writeFile(result.filePath, content, 'utf-8')
   })
 
   ipcMain.handle('export:save-episode', async (_event, episodeId: string) => {
@@ -521,7 +530,7 @@ function createWindow(): void {
     visualEffectState: 'active',
     show: false,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(__dirname, '../preload/index.cjs'),
       sandbox: false
     }
   })
@@ -609,6 +618,31 @@ app.whenReady().then(() => {
   registerSourceLocatorHandlers()
   registerLicenseHandlers()
 
+  feedSubscriptionService = new FeedSubscriptionService(db, feedService)
+
+  const broadcastToWindows = (channel: string, payload: unknown): void => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel, payload)
+      }
+    }
+  }
+
+  // Every check reports itself, whoever triggered it, so a feed being swept in
+  // the background shows the same spinner as one the user asked to refresh.
+  feedSubscriptionService.onFeedRefreshActivity((feedId, refreshing) => {
+    broadcastToWindows('feed:refreshing', { feedId, refreshing })
+  })
+
+  feedRefreshScheduler = new FeedRefreshScheduler(feedSubscriptionService, {
+    onSweepComplete: (results) => broadcastToWindows('feed:refreshed', results),
+  })
+  registerFeedSubscriptionIPC(
+    feedSubscriptionService,
+    () => feedRefreshScheduler?.start(),
+    (url) => ytdlpService.fetchFeed(url)
+  )
+
   updateService = new UpdateService(db)
   updateService.registerIPC()
   updateService.init()
@@ -660,6 +694,7 @@ app.whenReady().then(() => {
   ingestPipeline.setLicenseService(licenseService)
   ingestPipeline.recoverOrphanedEpisodes()
   ingestPipeline.registerIPC()
+  feedSubscriptionService.setIngestPipeline(ingestPipeline)
 
   const supportedMacOS = process.platform === 'darwin' && Number.parseInt(osRelease().split('.')[0], 10) >= 22
   const useFakeRecording = !app.isPackaged && process.env.AUDISTILL_FAKE_RECORDING === 'true'
@@ -714,6 +749,10 @@ app.whenReady().then(() => {
 let quittingAfterCaptureCleanup = false
 let recordingQuitDecisionInProgress = false
 app.on('before-quit', (event) => {
+  stopFeedRefreshForCommittedQuit(feedRefreshScheduler, {
+    quitCommitted: quittingAfterCaptureCleanup,
+    hasRecordingCoordinator: Boolean(recordingCoordinator),
+  })
   if (quittingAfterCaptureCleanup || !recordingCoordinator) return
   event.preventDefault()
   if (recordingQuitDecisionInProgress) return

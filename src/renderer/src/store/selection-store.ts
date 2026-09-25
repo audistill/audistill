@@ -1,102 +1,117 @@
 import { create } from 'zustand'
 
-interface SelectionState {
-  selectedEpisodeIds: Set<string>
+export interface SelectionState {
+  selectedIds: Set<string>
   selectionContainer: string | null
   lastToggledId: string | null
 
-  toggleEpisodeSelection: (id: string, container: string) => void
-  selectEpisodeRange: (toId: string, visibleIds: string[], container: string) => void
+  selectOnly: (id: string, container: string) => void
+  toggleSelection: (id: string, container: string) => void
+  toggle: (id: string, container: string) => void
+  selectRange: (toId: string, visibleIds: string[], container: string) => void
   selectAllInContainer: (ids: string[], container: string) => void
   clearSelection: () => void
 }
 
-export const useSelectionStore = create<SelectionState>((set, get) => ({
-  selectedEpisodeIds: new Set(),
-  selectionContainer: null,
-  lastToggledId: null,
-
-  toggleEpisodeSelection: (id, container) => {
-    const { selectedEpisodeIds, selectionContainer } = get()
+export const useSelectionStore = create<SelectionState>((set, get) => {
+  const toggleSelection = (id: string, container: string): void => {
+    const { selectedIds, selectionContainer } = get()
 
     if (selectionContainer !== null && selectionContainer !== container) {
       set({
-        selectedEpisodeIds: new Set([id]),
+        selectedIds: new Set([id]),
         selectionContainer: container,
         lastToggledId: id,
       })
       return
     }
 
-    const next = new Set(selectedEpisodeIds)
+    const next = new Set(selectedIds)
     if (next.has(id)) {
       next.delete(id)
     } else {
       next.add(id)
     }
     set({
-      selectedEpisodeIds: next,
+      selectedIds: next,
       selectionContainer: container,
       lastToggledId: id,
     })
-  },
+  }
 
-  selectEpisodeRange: (toId, visibleIds, container) => {
-    const { lastToggledId, selectionContainer } = get()
+  return {
+    selectedIds: new Set(),
+    selectionContainer: null,
+    lastToggledId: null,
 
-    if (selectionContainer !== null && selectionContainer !== container) {
+    selectOnly: (id, container) => {
       set({
-        selectedEpisodeIds: new Set([toId]),
+        selectedIds: new Set([id]),
         selectionContainer: container,
-        lastToggledId: toId,
+        lastToggledId: id,
       })
-      return
-    }
+    },
 
-    if (!lastToggledId) {
+    toggleSelection,
+    toggle: toggleSelection,
+
+    selectRange: (toId, visibleIds, container) => {
+      const { lastToggledId, selectionContainer } = get()
+
+      if (selectionContainer !== null && selectionContainer !== container) {
+        set({
+          selectedIds: new Set([toId]),
+          selectionContainer: container,
+          lastToggledId: toId,
+        })
+        return
+      }
+
+      if (!lastToggledId) {
+        set({
+          selectedIds: new Set([toId]),
+          selectionContainer: container,
+          lastToggledId: toId,
+        })
+        return
+      }
+
+      const fromIndex = visibleIds.indexOf(lastToggledId)
+      const toIndex = visibleIds.indexOf(toId)
+
+      if (fromIndex === -1 || toIndex === -1) {
+        set({
+          selectedIds: new Set([toId]),
+          selectionContainer: container,
+          lastToggledId: toId,
+        })
+        return
+      }
+
+      const start = Math.min(fromIndex, toIndex)
+      const end = Math.max(fromIndex, toIndex)
+      const rangeIds = visibleIds.slice(start, end + 1)
+
       set({
-        selectedEpisodeIds: new Set([toId]),
+        selectedIds: new Set(rangeIds),
         selectionContainer: container,
-        lastToggledId: toId,
       })
-      return
-    }
+    },
 
-    const fromIndex = visibleIds.indexOf(lastToggledId)
-    const toIndex = visibleIds.indexOf(toId)
-
-    if (fromIndex === -1 || toIndex === -1) {
+    selectAllInContainer: (ids, container) => {
       set({
-        selectedEpisodeIds: new Set([toId]),
+        selectedIds: new Set(ids),
         selectionContainer: container,
-        lastToggledId: toId,
+        lastToggledId: null,
       })
-      return
-    }
+    },
 
-    const start = Math.min(fromIndex, toIndex)
-    const end = Math.max(fromIndex, toIndex)
-    const rangeIds = visibleIds.slice(start, end + 1)
-
-    set({
-      selectedEpisodeIds: new Set(rangeIds),
-      selectionContainer: container,
-    })
-  },
-
-  selectAllInContainer: (ids, container) => {
-    set({
-      selectedEpisodeIds: new Set(ids),
-      selectionContainer: container,
-      lastToggledId: null,
-    })
-  },
-
-  clearSelection: () => {
-    set({
-      selectedEpisodeIds: new Set(),
-      selectionContainer: null,
-      lastToggledId: null,
-    })
-  },
-}))
+    clearSelection: () => {
+      set({
+        selectedIds: new Set(),
+        selectionContainer: null,
+        lastToggledId: null,
+      })
+    },
+  }
+})

@@ -5,7 +5,7 @@ import { FolderTreePopover } from './FolderTreePopover'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
 
 export function SelectionActionBar(): React.JSX.Element | null {
-  const selectedIds = useSelectionStore((s) => s.selectedEpisodeIds)
+  const selectedIds = useSelectionStore((s) => s.selectedIds)
   const selectionContainer = useSelectionStore((s) => s.selectionContainer)
   const clearSelection = useSelectionStore((s) => s.clearSelection)
   const episodes = useAppStore((s) => s.episodes)
@@ -13,9 +13,10 @@ export function SelectionActionBar(): React.JSX.Element | null {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
 
   const selectedCount = selectedIds.size
+  const isEpisodeSelection = selectionContainer !== null && !selectionContainer.startsWith('feed:')
 
   useEffect(() => {
-    if (selectedCount === 0) return
+    if (selectedCount === 0 || !isEpisodeSelection) return
     const handler = (e: KeyboardEvent): void => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
@@ -24,9 +25,9 @@ export function SelectionActionBar(): React.JSX.Element | null {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [selectedCount])
+  }, [isEpisodeSelection, selectedCount])
 
-  if (selectedCount === 0) return null
+  if (selectedCount === 0 || !isEpisodeSelection) return null
 
   const selectedTitles = [...selectedIds].map((id) => {
     const ep = episodes.find((e) => e.id === id)

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { DbEpisode, DbFolder, DbOpenTab } from '../../../preload/index.d'
 import type { InboxSortMode } from '../lib/sort-inbox'
+import type { Feed, FeedRefreshResult, NewFeedItemCounts } from '../../../shared/feed-subscription'
 
 export interface Episode {
   id: string
@@ -52,6 +53,10 @@ interface AppState {
   activeTabId: string | null
   recordingWorkspaceOpen: boolean
   recordingWorkspaceActive: boolean
+  feedWorkspaceOpen: boolean
+  feedWorkspaceActive: boolean
+  activeFeedId: string | null
+  previousActiveTabId: string | null
   settingsOpen: boolean
   helpOpen: boolean
   helpTarget: HelpTarget | null
@@ -68,6 +73,12 @@ interface AppState {
   inboxSort: InboxSortMode
   inboxCollapsed: boolean
   starredCollapsed: boolean
+  feeds: Feed[]
+  feedsCollapsed: boolean
+  /** New Feed Item counts keyed by feed id. Feeds with nothing new are absent. */
+  newFeedItemCounts: NewFeedItemCounts
+  /** Feeds with a check in flight, so their rows can show it. */
+  refreshingFeedIds: string[]
   licenseGateModal: { open: boolean; action: string }
 
   starredEpisodes: () => Episode[]
@@ -80,6 +91,9 @@ interface AppState {
   restoreRecordingWorkspace: () => void
   activateRecordingWorkspace: () => void
   closeRecordingWorkspace: () => void
+  openFeedWorkspace: (feedId: string) => void
+  closeFeedWorkspace: () => void
+  activateFeedWorkspace: () => void
   replaceRecordingWorkspace: (episode: Episode) => void
   openSettings: () => void
   closeSettings: () => void
@@ -109,6 +123,15 @@ interface AppState {
   cycleInboxSort: () => void
   toggleInboxCollapsed: () => void
   toggleStarredCollapsed: () => void
+  toggleFeedsCollapsed: () => void
+  loadFeeds: () => Promise<void>
+  loadFeedNewCounts: () => Promise<void>
+  refreshFeed: (id: string) => Promise<FeedRefreshResult | undefined>
+  refreshAllFeeds: () => Promise<void>
+  clearFeedNew: (id: string) => Promise<void>
+  setFeedRefreshing: (id: string, refreshing: boolean) => void
+  reorderFeeds: (feedIds: string[]) => Promise<void>
+  unsubscribeFeed: (id: string) => Promise<void>
   starEpisode: (id: string) => Promise<void>
   unstarEpisode: (id: string) => Promise<void>
   openLicenseGateModal: (action: string) => void
@@ -171,6 +194,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTabId: null,
   recordingWorkspaceOpen: false,
   recordingWorkspaceActive: false,
+  feedWorkspaceOpen: false,
+  feedWorkspaceActive: false,
+  activeFeedId: null,
+  previousActiveTabId: null,
   settingsOpen: false,
   helpOpen: false,
   helpTarget: null,
@@ -187,6 +214,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   inboxSort: (getLocalStorageItem('inboxSort') as InboxSortMode) || 'newest',
   inboxCollapsed: getLocalStorageItem('inboxCollapsed') === 'true',
   starredCollapsed: getLocalStorageItem('starredCollapsed') === 'true',
+  feeds: [],
+  feedsCollapsed: getLocalStorageItem('feedsCollapsed') === 'true',
+  newFeedItemCounts: {},
+  refreshingFeedIds: [],
   licenseGateModal: { open: false, action: '' },
 
   starredEpisodes: () => {
@@ -200,11 +231,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   hydrate: async () => {
-    const [dbEpisodes, dbFolders, dbTabs, savedRatio] = await Promise.all([
+    const [dbEpisodes, dbFolders, dbTabs, savedRatio, feeds, newFeedItemCounts] = await Promise.all([
       window.api.getEpisodes(),
       window.api.getFolders(),
       window.api.getOpenTabs(),
       window.api.getSetting('transcript_panel_ratio'),
+      window.api.feedGetSubscriptions ? window.api.feedGetSubscriptions() : Promise.resolve([]),
+      window.api.feedGetNewCounts ? window.api.feedGetNewCounts() : Promise.resolve({}),
     ])
 
     const episodes = dbEpisodes.map(dbEpisodeToEpisode)
@@ -221,14 +254,29 @@ export const useAppStore = create<AppState>((set, get) => ({
     const expandedFolders = new Set(folders.map((f) => f.id))
     const transcriptPanelRatio = savedRatio ? parseFloat(savedRatio) : 0.4
 
-    set({ episodes, folders, tabs: validTabs, activeTabId, expandedFolders, hydrated: true, transcriptPanelRatio })
+    set({
+      episodes,
+      folders,
+      tabs: validTabs,
+      activeTabId,
+      expandedFolders,
+      hydrated: true,
+      transcriptPanelRatio,
+      feeds: feeds || [],
+      newFeedItemCounts: newFeedItemCounts || {},
+      feedWorkspaceOpen: false,
+      feedWorkspaceActive: false,
+      activeFeedId: null,
+      previousActiveTabId: null,
+    })
+    await window.api.feedStartScheduler?.()
   },
 
   selectEpisode: (id) => {
     const { tabs } = get()
     const existingTab = tabs.find((t) => t.id === id)
     if (existingTab) {
-      set({ activeTabId: id, recordingWorkspaceActive: false, settingsOpen: false, helpOpen: false })
+      set({ activeTabId: id, recordingWorkspaceActive: false, feedWorkspaceActive: false, settingsOpen: false, helpOpen: false })
     } else {
       const previewIdx = tabs.findIndex((t) => t.preview)
       const newTabs = [...tabs]
@@ -237,7 +285,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       } else {
         newTabs.push({ id, episodeId: id, preview: true })
       }
-      set({ tabs: newTabs, activeTabId: id, recordingWorkspaceActive: false, settingsOpen: false, helpOpen: false })
+      set({ tabs: newTabs, activeTabId: id, recordingWorkspaceActive: false, feedWorkspaceActive: false, settingsOpen: false, helpOpen: false })
       get().persistTabs()
     }
   },
@@ -247,15 +295,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const existingTab = tabs.find((t) => t.id === id)
     if (existingTab) {
       const newTabs = tabs.map((t) => (t.id === id ? { ...t, preview: false } : t))
-      set({ tabs: newTabs, activeTabId: id, recordingWorkspaceActive: false, settingsOpen: false, helpOpen: false })
+      set({ tabs: newTabs, activeTabId: id, recordingWorkspaceActive: false, feedWorkspaceActive: false, settingsOpen: false, helpOpen: false })
     } else {
       const newTabs = [...tabs, { id, episodeId: id, preview: false }]
-      set({ tabs: newTabs, activeTabId: id, recordingWorkspaceActive: false, settingsOpen: false, helpOpen: false })
+      set({ tabs: newTabs, activeTabId: id, recordingWorkspaceActive: false, feedWorkspaceActive: false, settingsOpen: false, helpOpen: false })
     }
     get().persistTabs()
   },
 
-  activateTab: (id) => set({ activeTabId: id, recordingWorkspaceActive: false, settingsOpen: false, helpOpen: false }),
+  activateTab: (id) => set({ activeTabId: id, recordingWorkspaceActive: false, feedWorkspaceActive: false, settingsOpen: false, helpOpen: false }),
 
   closeTab: (id) => {
     const { tabs, activeTabId } = get()
@@ -275,6 +323,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   openRecordingWorkspace: () => set({
     recordingWorkspaceOpen: true,
     recordingWorkspaceActive: true,
+    feedWorkspaceActive: false,
     activeTabId: null,
     settingsOpen: false,
     helpOpen: false,
@@ -283,6 +332,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   restoreRecordingWorkspace: () => set({
     recordingWorkspaceOpen: true,
     recordingWorkspaceActive: true,
+    feedWorkspaceActive: false,
     activeTabId: null,
     settingsOpen: false,
     helpOpen: false,
@@ -290,6 +340,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   activateRecordingWorkspace: () => set({
     recordingWorkspaceActive: true,
+    feedWorkspaceActive: false,
     activeTabId: null,
     settingsOpen: false,
     helpOpen: false,
@@ -302,6 +353,42 @@ export const useAppStore = create<AppState>((set, get) => ({
       recordingWorkspaceActive: false,
       activeTabId: nextActiveTabId,
     }
+  }),
+
+  openFeedWorkspace: (feedId) => {
+    const { activeTabId, feedWorkspaceActive } = get()
+    const previousActiveTabId = !feedWorkspaceActive && activeTabId ? activeTabId : get().previousActiveTabId
+    set({
+      feedWorkspaceOpen: true,
+      feedWorkspaceActive: true,
+      activeFeedId: feedId,
+      previousActiveTabId,
+      settingsOpen: false,
+      helpOpen: false,
+      recordingWorkspaceActive: false,
+    })
+  },
+
+  closeFeedWorkspace: () => {
+    const { previousActiveTabId, tabs } = get()
+    const fallbackTabId = tabs.length > 0 ? tabs[tabs.length - 1].id : null
+    const targetTabId = previousActiveTabId && tabs.some((t) => t.id === previousActiveTabId)
+      ? previousActiveTabId
+      : fallbackTabId
+    set({
+      feedWorkspaceOpen: false,
+      feedWorkspaceActive: false,
+      activeFeedId: null,
+      previousActiveTabId: null,
+      activeTabId: targetTabId,
+    })
+  },
+
+  activateFeedWorkspace: () => set({
+    feedWorkspaceActive: true,
+    settingsOpen: false,
+    helpOpen: false,
+    recordingWorkspaceActive: false,
   }),
 
   replaceRecordingWorkspace: (episode) => {
@@ -324,7 +411,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().persistTabs()
   },
 
-  openSettings: () => set({ settingsOpen: true, helpOpen: false, recordingWorkspaceActive: false }),
+  openSettings: () => set({ settingsOpen: true, helpOpen: false, recordingWorkspaceActive: false, feedWorkspaceActive: false }),
 
   closeSettings: () => {
     const { tabs } = get()
@@ -341,6 +428,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     helpTarget: target ?? state.helpTarget ?? { kind: 'help' },
     settingsOpen: false,
     recordingWorkspaceActive: false,
+    feedWorkspaceActive: false,
   })),
 
   closeHelp: () => set((state) => ({
@@ -533,6 +621,82 @@ export const useAppStore = create<AppState>((set, get) => ({
     const next = !get().starredCollapsed
     setLocalStorageItem('starredCollapsed', String(next))
     set({ starredCollapsed: next })
+  },
+
+  toggleFeedsCollapsed: () => {
+    const next = !get().feedsCollapsed
+    setLocalStorageItem('feedsCollapsed', String(next))
+    set({ feedsCollapsed: next })
+  },
+
+  loadFeeds: async () => {
+    if (!window.api.feedGetSubscriptions) return
+    const feeds = await window.api.feedGetSubscriptions()
+    set({ feeds: feeds || [] })
+  },
+
+  loadFeedNewCounts: async () => {
+    if (!window.api.feedGetNewCounts) return
+    set({ newFeedItemCounts: (await window.api.feedGetNewCounts()) || {} })
+  },
+
+  refreshFeed: async (id: string) => {
+    if (!window.api.feedRefresh || get().refreshingFeedIds.includes(id)) return
+    // The spinner is driven by feed:refreshing from main, which covers
+    // background sweeps too, so it is not set optimistically here.
+    const result = await window.api.feedRefresh(id)
+    await get().loadFeeds()
+    await get().loadFeedNewCounts()
+    return result
+  },
+
+  refreshAllFeeds: async () => {
+    if (!window.api.feedRefreshAll) return
+    await window.api.feedRefreshAll()
+    await get().loadFeeds()
+    await get().loadFeedNewCounts()
+  },
+
+  setFeedRefreshing: (id: string, refreshing: boolean) => {
+    const current = get().refreshingFeedIds
+    if (refreshing) {
+      if (!current.includes(id)) set({ refreshingFeedIds: [...current, id] })
+    } else {
+      set({ refreshingFeedIds: current.filter((f) => f !== id) })
+    }
+  },
+
+  clearFeedNew: async (id: string) => {
+    if (!window.api.feedClearNewItems) return
+    await window.api.feedClearNewItems(id)
+    const { [id]: _cleared, ...rest } = get().newFeedItemCounts
+    set({ newFeedItemCounts: rest })
+  },
+
+  reorderFeeds: async (feedIds: string[]) => {
+    const currentFeeds = get().feeds
+    const feedMap = new Map(currentFeeds.map((f) => [f.id, f]))
+    const newFeeds = feedIds
+      .map((id, index) => {
+        const feed = feedMap.get(id)
+        return feed ? { ...feed, sort_order: index } : null
+      })
+      .filter((f): f is Feed => f !== null)
+    set({ feeds: newFeeds })
+    if (window.api.feedReorder) {
+      await window.api.feedReorder(feedIds)
+    }
+  },
+
+  unsubscribeFeed: async (id: string) => {
+    if (get().activeFeedId === id) {
+      get().closeFeedWorkspace()
+    }
+    if (window.api.feedUnsubscribe) {
+      await window.api.feedUnsubscribe(id)
+    }
+    const { [id]: _removed, ...remainingCounts } = get().newFeedItemCounts
+    set({ feeds: get().feeds.filter((f) => f.id !== id), newFeedItemCounts: remainingCounts })
   },
 
   starEpisode: async (id) => {

@@ -7,8 +7,21 @@ import type {
   StartRecordingSessionInput,
   StopRecordingSessionResult,
 } from '../shared/recording-session'
+import type {
+  Feed,
+  FeedItem,
+  FeedItemIngestResult,
+  FeedItemMutationResult,
+  FeedItemPage,
+  FeedItemPageRequest,
+  FeedRefreshResult,
+  NewFeedItemCounts,
+  RssIngestItem,
+  SubscribeFeedResult,
+} from '../shared/feed-subscription'
+import type { TabExportRequest, TabExportResult } from '../shared/tab-export'
 
-export type { UpdateStatus }
+export type { UpdateStatus, Feed, FeedItem, FeedItemIngestResult, FeedItemMutationResult, FeedItemPage, FeedItemPageRequest, FeedRefreshResult, NewFeedItemCounts, RssIngestItem, SubscribeFeedResult }
 
 export interface DbEpisode {
   id: string
@@ -118,7 +131,7 @@ interface AudistillApi {
   // Export API
   exportCopyTab: (markdown: string) => Promise<void>
   exportCopyTranscript: (episodeId: string, withTimestamps: boolean) => Promise<void>
-  exportSaveTab: (content: string, episodeTitle: string, tabName: string) => Promise<void>
+  exportTab: (request: TabExportRequest) => Promise<TabExportResult>
   exportSaveEpisode: (episodeId: string) => Promise<void>
   exportSaveEpisodes: (episodeIds: string[]) => Promise<boolean>
 
@@ -171,7 +184,7 @@ interface AudistillApi {
   addFiles: (filePaths: string[]) => Promise<string[]>
   addUrl: (canonicalUrl: string, metadata: { title: string; channel: string; duration: number; thumbnail: string; uploadDate: string }) => Promise<string>
   addDirectUrl: (url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }) => Promise<string>
-  addRssItems: (items: { title: string; enclosureUrl: string; guid: string | null; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => Promise<string[]>
+  addRssItems: (items: RssIngestItem[]) => Promise<string[]>
   retryEpisode: (id: string) => Promise<void>
   cancelEpisode: (id: string) => Promise<void>
 
@@ -208,8 +221,37 @@ interface AudistillApi {
     title: string
     image: string | null
     feedUrl: string
-    items: { title: string; enclosureUrl: string; guid: string | null; pubDate: string | null; duration: string | null; description: string | null }[]
+    siteUrl?: string | null
+    etag?: string | null
+    lastModified?: string | null
+    items: { title: string; enclosureUrl: string; guid: string | null; pubDate: string | null; duration: string | null; description: string | null; image?: string | null }[]
   }>
+  feedResolveYouTube: (url: string) => Promise<{
+    title: string
+    image: string | null
+    feedUrl: string
+    siteUrl?: string | null
+    etag?: string | null
+    lastModified?: string | null
+    items: { title: string; enclosureUrl: string; guid: string | null; pubDate: string | null; duration: string | null; description: string | null; image?: string | null }[]
+  }>
+
+  // Feeds API
+  feedSubscribe: (url: string, previewData?: any) => Promise<SubscribeFeedResult>
+  feedUnsubscribe: (id: string) => Promise<void>
+  feedGetSubscriptions: () => Promise<Feed[]>
+  feedReorder: (feedIds: string[]) => Promise<void>
+  feedGetItems: (feedId: string, request: FeedItemPageRequest) => Promise<FeedItemPage>
+  feedIngestItems: (feedId: string, itemIds: string[]) => Promise<FeedItemIngestResult[]>
+  feedRefresh: (feedId: string) => Promise<FeedRefreshResult>
+  feedRefreshAll: () => Promise<FeedRefreshResult[]>
+  feedAcknowledgeItems: (feedId: string, itemIds: string[]) => Promise<FeedItemMutationResult>
+  feedClearNewItems: (feedId: string) => Promise<FeedItemMutationResult>
+  feedRestoreNewItems: (feedId: string, itemIds: string[]) => Promise<void>
+  feedGetNewCounts: () => Promise<NewFeedItemCounts>
+  feedStartScheduler: () => Promise<void>
+  onFeedRefreshing: (callback: (state: { feedId: string; refreshing: boolean }) => void) => () => void
+  onFeedsRefreshed: (callback: (results: FeedRefreshResult[]) => void) => () => void
 
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
   onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => () => void

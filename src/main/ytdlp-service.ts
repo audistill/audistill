@@ -1,8 +1,10 @@
 import { spawn, ChildProcess, execFile } from 'node:child_process'
 import { DatabaseService } from './database-service'
 import { resolveFFmpegBin } from './audio-preprocessor'
+import type { FeedItem, FeedResult } from './feed-service'
 
 const MAX_STDERR_BYTES = 64 * 1024
+const METADATA_PRINT_TEMPLATE = '%(.{title,channel,uploader,duration,thumbnail,upload_date})j'
 
 export interface YtdlpMetadata {
   title: string
@@ -60,6 +62,156 @@ export class YtdlpService {
     return pathResult
   }
 
+  async fetchFeed(url: string): Promise<FeedResult> {
+    const binPath = await this.detect()
+    if (!binPath) throw new Error('yt-dlp not found')
+
+    const sourceUrl = this.youtubeFeedSourceUrl(url)
+    const stdout = await this.execBinary(binPath, [
+      ...this.getCustomArgs(),
+      '--flat-playlist',
+      '--playlist-end', '30',
+      '--dump-single-json',
+      sourceUrl,
+    ])
+    let data = JSON.parse(stdout)
+    const playlistId = this.youtubePlaylistId(url)
+    let channelId = this.youtubeChannelId(data)
+
+    // A video URL resolves its owner but does not contain the owner's upload
+    // list. Fetch that list once so subscribing from a video has the same
+    // complete preview as subscribing from the channel URL.
+    if (!playlistId && channelId && !Array.isArray(data.entries)) {
+      const channelUrl = `https://www.youtube.com/channel/${channelId}/videos`
+      const channelStdout = await this.execBinary(binPath, [
+        ...this.getCustomArgs(),
+        '--flat-playlist',
+        '--playlist-end', '30',
+        '--dump-single-json',
+        channelUrl,
+      ])
+      data = JSON.parse(channelStdout)
+      channelId = this.youtubeChannelId(data) ?? channelId
+    }
+
+    if (!playlistId && !channelId) {
+      throw new Error('Could not find a YouTube channel for this URL')
+    }
+
+    const feedUrl = playlistId
+      ? `https://www.youtube.com/feeds/videos.xml?playlist_id=${playlistId}`
+      : `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`
+    const items = (Array.isArray(data.entries) ? data.entries : [])
+      .map((entry: any) => this.youtubeFeedItem(entry))
+      .filter((entry: FeedItem | null): entry is FeedItem => entry !== null)
+
+    return {
+      title: playlistId
+        ? data.title ?? data.channel ?? data.uploader ?? 'Untitled YouTube Feed'
+        : data.channel ?? data.uploader ?? data.title ?? 'Untitled YouTube Feed',
+      image: this.lastThumbnailUrl(data.thumbnails)
+        ?? items.find((item: FeedItem) => item.image)?.image
+        ?? null,
+      feedUrl,
+      siteUrl: data.channel_url ?? data.uploader_url ?? data.webpage_url ?? sourceUrl,
+      items,
+      notModified: false,
+      etag: null,
+      lastModified: null,
+    }
+  }
+
+  private youtubeChannelId(data: any): string | null {
+    return data.channel_id
+      ?? data.uploader_id
+      ?? (typeof data.id === 'string' && data.id.startsWith('UC') ? data.id : null)
+      ?? data.entries?.[0]?.channel_id
+      ?? null
+  }
+
+  private youtubeFeedSourceUrl(url: string): string {
+    try {
+      const parsed = new URL(url)
+      if (parsed.hostname.replace(/^www\./, '').replace(/^m\./, '') === 'youtube.com') {
+        if (parsed.pathname === '/feeds/videos.xml') {
+          const channelId = parsed.searchParams.get('channel_id')
+          if (channelId) return `https://www.youtube.com/channel/${channelId}/videos`
+          const playlistId = parsed.searchParams.get('playlist_id')
+          if (playlistId) return `https://www.youtube.com/playlist?list=${playlistId}`
+        }
+
+        if (/^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/.test(parsed.pathname)) {
+          parsed.pathname = `${parsed.pathname.replace(/\/$/, '')}/videos`
+          return parsed.toString()
+        }
+      }
+    } catch {
+      // yt-dlp reports malformed or unsupported URLs with its normal diagnostics.
+    }
+    return url
+  }
+
+  private youtubePlaylistId(url: string): string | null {
+    try {
+      const parsed = new URL(url)
+      if (parsed.pathname === '/playlist') return parsed.searchParams.get('list')
+      if (parsed.pathname === '/feeds/videos.xml') return parsed.searchParams.get('playlist_id')
+    } catch {
+      return null
+    }
+    return null
+  }
+
+  private youtubeFeedItem(entry: any): FeedItem | null {
+    const videoId = typeof entry?.id === 'string' ? entry.id : null
+    if (!videoId) return null
+
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`
+    return {
+      title: entry.title ?? 'Untitled',
+      enclosureUrl: watchUrl,
+      guid: `yt:video:${videoId}`,
+      pubDate: this.youtubeUploadDate(entry),
+      duration: this.youtubeDuration(entry.duration),
+      description: typeof entry.description === 'string' ? entry.description : null,
+      image: typeof entry.thumbnail === 'string'
+        ? entry.thumbnail
+        : this.lastThumbnailUrl(entry.thumbnails),
+      link: watchUrl,
+    }
+  }
+
+  private youtubeDuration(value: unknown): string | null {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null
+    const totalSeconds = Math.floor(value)
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+    return hours > 0
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      : `${minutes}:${String(seconds).padStart(2, '0')}`
+  }
+
+  private youtubeUploadDate(entry: any): string | null {
+    if (Number.isFinite(entry?.timestamp)) {
+      return new Date(entry.timestamp * 1000).toISOString()
+    }
+    if (typeof entry?.upload_date === 'string' && /^\d{8}$/.test(entry.upload_date)) {
+      const value = entry.upload_date
+      return new Date(`${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T00:00:00.000Z`).toISOString()
+    }
+    return null
+  }
+
+  private lastThumbnailUrl(thumbnails: unknown): string | null {
+    if (!Array.isArray(thumbnails)) return null
+    for (let index = thumbnails.length - 1; index >= 0; index--) {
+      const url = thumbnails[index]?.url
+      if (typeof url === 'string' && url) return url
+    }
+    return null
+  }
+
   async fetchMetadata(url: string): Promise<YtdlpMetadata | YtdlpError> {
     const binPath = await this.detect()
     if (!binPath) {
@@ -67,7 +219,8 @@ export class YtdlpService {
     }
 
     const customArgs = this.getCustomArgs()
-    const args = [...this.ffmpegArgs(), ...customArgs, '--dump-json', url]
+    // --dump-json can exceed execFile's output buffer (formats and captions alone reach >10 MB), so print only the fields read below.
+    const args = [...this.ffmpegArgs(), ...customArgs, '--skip-download', '--print', METADATA_PRINT_TEMPLATE, url]
 
     try {
       const stdout = await this.execBinary(binPath, args)
@@ -84,9 +237,13 @@ export class YtdlpService {
       const typed = this.classifyError(stderr)
 
       if (typed.code === 'extraction-failed') {
-        const version = await this.checkVersion().catch(() => null)
-        if (version && this.isStale(version)) {
-          typed.message += `. Your yt-dlp may be outdated (installed: ${version}). Try: brew upgrade yt-dlp`
+        if (this.needsJavaScriptRuntime(stderr)) {
+          typed.message += '. YouTube extraction needs a JavaScript runtime. Install Deno with: brew install deno'
+        } else {
+          const version = await this.checkVersion().catch(() => null)
+          if (version && this.isStale(version)) {
+            typed.message += `. Your yt-dlp may be outdated (installed: ${version}). Try: brew upgrade yt-dlp`
+          }
         }
       }
 
@@ -287,6 +444,10 @@ export class YtdlpService {
     const raw = this.db.getSetting('ytdlp_custom_args')
     if (!raw) return []
     return raw.split(/\s+/).filter(Boolean)
+  }
+
+  private needsJavaScriptRuntime(details: string): boolean {
+    return /no (?:supported|suitable) javascript runtime|javascript runtime could not be found|js runtimes?: none|install (?:a )?supported javascript runtime/i.test(details)
   }
 
   private classifyError(stderr: string): YtdlpError {

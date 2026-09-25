@@ -67,7 +67,7 @@ function RecipeRow({
           </svg>
           <span className="text-sm font-medium text-[var(--text)]">{recipe.name}</span>
           {recipe.is_builtin === 1 && (
-            <span className="px-1.5 py-0.5 text-[10px] rounded bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
+            <span className="px-1.5 py-0.5 text-[10px] rounded bg-[var(--accent-bg)] text-[var(--accent)] font-medium">
               built-in
             </span>
           )}
@@ -132,7 +132,7 @@ function RecipeRow({
             <div className="flex gap-2 pt-2">
               <button
                 onClick={onDuplicate}
-                className="px-3 py-1.5 text-xs rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] transition-colors"
+                className="px-3 py-1.5 text-xs rounded-[8px] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--accent-bg)] hover:text-[var(--accent)] transition-colors"
               >
                 Duplicate
               </button>
@@ -435,7 +435,7 @@ function TranscriptionModelSection(): React.JSX.Element {
         )
       case 'downloading':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-[var(--accent)]/10 text-[var(--accent)]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-[var(--accent-bg)] text-[var(--accent)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
             Downloading {percent}%
           </span>
@@ -464,7 +464,7 @@ function TranscriptionModelSection(): React.JSX.Element {
         Local model used for on-device speech recognition.
       </p>
 
-      <div className="max-w-lg p-4 rounded-[12px] border border-[var(--surface)] bg-[var(--surface)]/30">
+      <div className="max-w-lg p-4 rounded-[12px] border border-[var(--surface)] bg-[var(--surface-subtle)]">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">

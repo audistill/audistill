@@ -9,12 +9,13 @@ import { ModelManager } from './model-manager'
 import { DatabaseService, Episode } from './database-service'
 import { RecipeService } from './recipe-service'
 import { TabService } from './tab-service'
-import { YtdlpDownloadError, YtdlpService } from './ytdlp-service'
+import { YtdlpDownloadError, YtdlpService, type YtdlpMetadata } from './ytdlp-service'
 import { HttpDownloadService } from './http-download-service'
 import { SUPPORTED_FILE_FILTER } from '../shared/supported-formats'
 import { LicenseService } from './license-service'
 import { requireLicense } from './license-guard'
 import { readAndValidateRecordingManifest } from './recording-session-coordinator'
+import type { RssIngestItem } from '../shared/feed-subscription'
 
 const TMP_DIR = join(homedir(), '.audistill', 'tmp')
 
@@ -112,19 +113,8 @@ export class IngestPipeline {
       return ids
     })
 
-    ipcMain.handle('ingest:add-url', async (_event, canonicalUrl: string, metadata: { title: string; channel: string; duration: number; thumbnail: string; uploadDate: string }) => {
-      if (this.licenseService) requireLicense(this.licenseService)
-      const id = this.db.createEpisode({
-        title: metadata.title,
-        source_url: canonicalUrl,
-        source_type: 'youtube',
-        source_meta: JSON.stringify({ channel: metadata.channel, uploadDate: metadata.uploadDate, thumbnail: metadata.thumbnail }),
-        status: 'downloading',
-      })
-      this.queue.push(id)
-      this.broadcastEpisodeUpdate(id)
-      this.processQueue()
-      return id
+    ipcMain.handle('ingest:add-url', async (_event, canonicalUrl: string, metadata: YtdlpMetadata) => {
+      return this.addYoutubeItems([{ url: canonicalUrl, metadata }])[0]
     })
 
     ipcMain.handle('ingest:add-direct-url', async (_event, url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }) => {
@@ -142,31 +132,8 @@ export class IngestPipeline {
       return id
     })
 
-    ipcMain.handle('ingest:add-rss-items', async (_event, items: { title: string; enclosureUrl: string; guid: string | null; feedUrl: string; feedTitle: string; feedImage: string | null; pubDate: string | null; description: string | null; duration: string | null }[]) => {
-      if (this.licenseService) requireLicense(this.licenseService)
-      const ids: string[] = []
-      for (const item of items) {
-        const id = this.db.createEpisode({
-          title: item.title,
-          source_url: item.enclosureUrl,
-          source_type: 'rss',
-          source_meta: JSON.stringify({
-            feedUrl: item.feedUrl,
-            feedTitle: item.feedTitle,
-            feedImage: item.feedImage,
-            pubDate: item.pubDate,
-            description: item.description,
-            duration: item.duration,
-            guid: item.guid,
-          }),
-          status: 'downloading',
-        })
-        ids.push(id)
-        this.queue.push(id)
-        this.broadcastEpisodeUpdate(id)
-      }
-      this.processQueue()
-      return ids
+    ipcMain.handle('ingest:add-rss-items', async (_event, items: RssIngestItem[]) => {
+      return this.addRssItems(items)
     })
 
     ipcMain.handle('ingest:select-files', async () => {
@@ -243,6 +210,85 @@ export class IngestPipeline {
       if (this.licenseService) requireLicense(this.licenseService)
       await this.regenerateTab(episodeId, tabId)
     })
+  }
+
+  async addYoutubeUrls(
+    urls: string[],
+    linkCreatedEpisodes?: (episodeIds: string[]) => void
+  ): Promise<string[]> {
+    if (this.licenseService) requireLicense(this.licenseService)
+
+    const items: Array<{ url: string; metadata: YtdlpMetadata }> = []
+    for (const url of urls) {
+      const metadata = await this.ytdlpService.fetchMetadata(url)
+      if ('code' in metadata) throw new Error(metadata.message)
+      items.push({ url, metadata })
+    }
+    return this.addYoutubeItems(items, linkCreatedEpisodes)
+  }
+
+  addYoutubeItems(
+    items: Array<{ url: string; metadata: YtdlpMetadata }>,
+    linkCreatedEpisodes?: (episodeIds: string[]) => void
+  ): string[] {
+    if (this.licenseService) requireLicense(this.licenseService)
+
+    const ids = this.db.runInTransaction(() => {
+      const createdIds = items.map(({ url, metadata }) => this.db.createEpisode({
+        title: metadata.title,
+        source_url: url,
+        source_type: 'youtube',
+        source_meta: JSON.stringify({
+          channel: metadata.channel,
+          uploadDate: metadata.uploadDate,
+          thumbnail: metadata.thumbnail,
+        }),
+        status: 'downloading',
+      }))
+      linkCreatedEpisodes?.(createdIds)
+      return createdIds
+    })
+
+    for (const id of ids) {
+      this.queue.push(id)
+      this.broadcastEpisodeUpdate(id)
+    }
+    if (ids.length > 0) this.processQueue()
+    return ids
+  }
+
+  addRssItems(
+    items: RssIngestItem[],
+    linkCreatedEpisodes?: (episodeIds: string[]) => void
+  ): string[] {
+    if (this.licenseService) requireLicense(this.licenseService)
+
+    const ids = this.db.runInTransaction(() => {
+      const createdIds = items.map((item) => this.db.createEpisode({
+        title: item.title,
+        source_url: item.enclosureUrl,
+        source_type: 'rss',
+        source_meta: JSON.stringify({
+          feedUrl: item.feedUrl,
+          feedTitle: item.feedTitle,
+          feedImage: item.feedImage,
+          pubDate: item.pubDate,
+          description: item.description,
+          duration: item.duration,
+          guid: item.guid,
+        }),
+        status: 'downloading',
+      }))
+      linkCreatedEpisodes?.(createdIds)
+      return createdIds
+    })
+
+    for (const id of ids) {
+      this.queue.push(id)
+      this.broadcastEpisodeUpdate(id)
+    }
+    if (ids.length > 0) this.processQueue()
+    return ids
   }
 
   enqueueEpisode(episodeId: string): void {
