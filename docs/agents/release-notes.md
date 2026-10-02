@@ -7,7 +7,7 @@ Audistill bundles Help and Release Notes from local Markdown under `content/`. U
 Add or update a fragment under `content/releases/unreleased/` for changes that a user can notice or benefit from, including:
 
 - new user-facing features or workflows
-- changed behavior in the app UI, import flow, export flow, licensing, updates, Settings, Chat, Recipes, Tabs, or Ingest
+- changed behavior in the app UI, import flow, export flow, updates, Settings, Chat, Recipes, Tabs, or Ingest
 - visible performance or reliability improvements
 - user-facing bug fixes, especially when they unblock a workflow or remove a confusing error
 
@@ -78,7 +78,6 @@ Update files under `content/help/` when behavior users rely on changes, especial
 - onboarding or setup steps
 - Ingest, Source support, Transcription, and Transcription Model behavior
 - Recipes, Tabs, Chat, Models, and custom instructions
-- Licensing, Trial, Activation, or gated actions
 - troubleshooting guidance and recovery steps
 
-Use Audistill domain language from `CONTEXT.md`: Episode, Transcript, Tab, Recipe, Source, Ingest, Chat, Model, Transcription Model, License, Trial, and Activation.
+Use Audistill domain language from `CONTEXT.md`: Episode, Transcript, Tab, Recipe, Source, Ingest, Chat, Model, and Transcription Model.

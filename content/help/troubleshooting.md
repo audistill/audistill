@@ -3,7 +3,7 @@ title: Troubleshooting
 order: 70
 ---
 
-Most issues fall into a few categories: the Transcription Model is not ready, a Source cannot be downloaded, a Model request failed, or a License needs attention.
+Most issues fall into a few categories: the Transcription Model is not ready, a Source cannot be downloaded, or a Model request failed.
 
 ## Add or Ingest is disabled
 
@@ -41,14 +41,10 @@ Open Settings and check that your OpenRouter API key is saved. Then check the se
 
 Model lists and Model requests come from OpenRouter, so network issues, account limits, or a provider outage can also cause failures.
 
-## A License action failed
-
-Open Settings → License and verify the current License state. If Activation limits are reached, use the customer portal to deactivate another machine. If the key is not recognized, double-check for typos. If the server cannot be reached, check your connection and try again.
-
 ## Still stuck
 
 Retry the Episode when available. If the same Source keeps failing, copy the explanation and Diagnostic Details before asking for help.
 
 ## Contact
 
-Email [info@audistill.com](mailto:info@audistill.com) for support. Include the error message, Source type, URL or filename, and what you were trying to do. Please do not send private audio, full Transcripts, API keys, or License keys unless support asks for them.
+Email [info@audistill.com](mailto:info@audistill.com) for support. Include the error message, Source type, URL or filename, and what you were trying to do. Please do not send private audio, full Transcripts, or API keys unless support asks for them.

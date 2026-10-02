@@ -46,7 +46,6 @@ const { appState, sampleFeed } = vi.hoisted(() => {
     appState: {
       feeds: [sampleFeed],
       selectEpisode: vi.fn(),
-      openLicenseGateModal: vi.fn(),
       refreshFeed: vi.fn(),
       loadFeedNewCounts: vi.fn(),
       newFeedItemCounts: { 'feed-123': 1 } as Record<string, number>,
@@ -111,7 +110,6 @@ describe('FeedView', () => {
     appState.selectEpisode = vi.fn()
     appState.refreshFeed = vi.fn().mockResolvedValue({ feedId: 'feed-123', newItemCount: 0 })
     appState.loadFeedNewCounts = vi.fn().mockResolvedValue(undefined)
-    appState.openLicenseGateModal = vi.fn()
     mockFeedAcknowledgeItems.mockResolvedValue({ itemIds: ['fresh'] })
     mockFeedRestoreNewItems.mockResolvedValue(undefined)
     mockFeedClearNewItems.mockResolvedValue({ itemIds: [] })

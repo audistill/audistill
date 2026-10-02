@@ -256,14 +256,6 @@ interface AudistillApi {
   onEpisodeUpdated: (callback: (episode: DbEpisode) => void) => () => void
   onIngestProgress: (callback: (data: { episodeId: string; stage: string; percent: number }) => void) => () => void
 
-  // License API
-  license: {
-    getState: () => Promise<LicenseStateSnapshot>
-    activate: (key: string) => Promise<{ success: boolean; error?: { type: string; message: string } }>
-    deactivate: () => Promise<void>
-    onStateChange: (callback: (snapshot: LicenseStateSnapshot) => void) => () => void
-  }
-
   // Update API
   update: {
     getStatus: () => Promise<UpdateStatus>
@@ -272,13 +264,6 @@ interface AudistillApi {
     dismiss: (version: string) => Promise<void>
     onStatusChanged: (callback: (status: UpdateStatus) => void) => () => void
   }
-}
-
-export interface LicenseStateSnapshot {
-  state: 'trial' | 'trial-expired' | 'licensed' | 'license-invalid'
-  trialDaysRemaining?: number
-  maskedKey?: string
-  activationLabel?: string
 }
 
 declare global {

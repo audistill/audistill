@@ -14,6 +14,8 @@ Audistill needs two pieces before the full workflow is ready:
 
 You choose the OpenRouter **Model** used for AI-generated writing. The Transcription Model is different: Audistill uses a built-in local model and downloads it for you. You can see its status in the top banner and in Settings, but you do not need to choose between Transcription Models.
 
+Audistill itself is free: there is no Trial, License, or Activation. You pay OpenRouter separately for the Model usage that Recipes and Chat consume.
+
 ## The basic flow
 
 1. Add audio from a local file, YouTube URL, RSS feed item, or direct media URL.

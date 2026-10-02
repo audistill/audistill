@@ -146,7 +146,7 @@ console.log('  ✔ Removed stale artifacts')
 // ─── Build ──────────────────────────────────────────────────────────────────
 
 console.log('\n━━━ Build (electron-vite) ━━━')
-run('OFFICIAL_BUILD=true pnpm run build')
+run('pnpm run build')
 
 // ─── Package + Sign + Notarize ──────────────────────────────────────────────
 

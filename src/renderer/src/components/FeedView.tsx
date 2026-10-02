@@ -3,7 +3,6 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import type { FeedItem, FeedItemFilter, FeedItemPage } from '../../../shared/feed-subscription'
 import { useAppStore } from '../store/app-store'
 import { useSelectionStore } from '../store/selection-store'
-import { isLicenseError } from './LicenseBlockedPrompt'
 
 const COLUMN = 'mx-auto w-full max-w-[820px] px-6'
 const PAGE_SIZE = 60
@@ -306,11 +305,7 @@ export function FeedView({ feedId }: { feedId: string }): React.JSX.Element {
       if (selectMode) leaveSelectMode()
       await loadFeedNewCounts()
     } catch (error) {
-      if (isLicenseError(error)) {
-        useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
-      } else {
-        setActionError(error instanceof Error ? error.message : String(error))
-      }
+      setActionError(error instanceof Error ? error.message : String(error))
     } finally {
       setPendingItemIds((current) => {
         const next = new Set(current)

@@ -6,10 +6,7 @@ import { ChatSidebar } from './components/ChatSidebar'
 import { OnboardingView } from './components/OnboardingView'
 import { DropOverlay } from './components/DropOverlay'
 import { UrlImportPopover } from './components/UrlImportPopover'
-import { TrialBanner } from './components/TrialBanner'
 import { UpdateBanner } from './components/UpdateBanner'
-import { LicenseGateModal } from './components/LicenseGateModal'
-import { isLicenseError } from './components/LicenseBlockedPrompt'
 import {
   ResizeHandle,
   LEFT_SIDEBAR_MIN,
@@ -114,11 +111,7 @@ function App(): React.JSX.Element {
         return
       }
 
-      window.api.addFiles(validPaths).catch((err: unknown) => {
-        if (isLicenseError(err)) {
-          useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
-        }
-      })
+      window.api.addFiles(validPaths).catch(() => {})
 
       if (skippedNames.length > 0) {
         if (skippedNames.length <= 3) {
@@ -357,7 +350,6 @@ function App(): React.JSX.Element {
           inert={recordingPrototypeEnabled || undefined}
         >
           <UpdateBanner />
-          <TrialBanner />
         </div>
         <div className="w-[70px] shrink-0" />
         <div className="flex-1">
@@ -432,31 +424,18 @@ function App(): React.JSX.Element {
           onClose={() => setDroppedUrl(null)}
           onImport={(canonicalUrl, metadata) => {
             setDroppedUrl(null)
-            window.api.addUrl(canonicalUrl, metadata).catch((err: unknown) => {
-              if (isLicenseError(err)) {
-                useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
-              }
-            })
+            window.api.addUrl(canonicalUrl, metadata).catch(() => {})
           }}
           onImportDirect={(url, metadata) => {
             setDroppedUrl(null)
-            window.api.addDirectUrl(url, metadata).catch((err: unknown) => {
-              if (isLicenseError(err)) {
-                useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
-              }
-            })
+            window.api.addDirectUrl(url, metadata).catch(() => {})
           }}
           onImportRss={(items) => {
             setDroppedUrl(null)
-            window.api.addRssItems(items).catch((err: unknown) => {
-              if (isLicenseError(err)) {
-                useAppStore.getState().openLicenseGateModal('Ingesting new episodes')
-              }
-            })
+            window.api.addRssItems(items).catch(() => {})
           }}
         />
       )}
-      {!recordingPrototypeEnabled && <LicenseGateModal />}
       {toast && <Toast message={toast} />}
     </div>
   )

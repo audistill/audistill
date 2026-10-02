@@ -26,7 +26,7 @@ You listen to hours of podcasts, talks, and meetings — and forget most of it. 
 
 - **Private by design.** Speech-to-text runs 100% locally (NVIDIA Parakeet). Your audio never touches a server.
 - **Your AI, your key.** Summaries and chat use your own [OpenRouter](https://openrouter.ai) key — pick any model, pay cents, no middleman markup.
-- **No subscription.** One-time license, or build it from source for free. Forever.
+- **Free and open source.** No subscription, no license key, no trial. Optional donations only.
 
 ## Features
 
@@ -41,14 +41,14 @@ You listen to hours of podcasts, talks, and meetings — and forget most of it. 
 
 ## Download
 
-Audistill is open source (AGPL-3.0) **and** a paid app. Both are intentional:
+Audistill is free and open source (AGPL-3.0). Download the signed macOS build, or build it from source. No payment, registration, or license key is needed.
 
 | | |
 |---|---|
-| 💾 **[Download Audistill — $29 one-time](https://audistill.com/#pricing)** | Notarized build, automatic updates, supports development. 1 year of updates included; the app keeps working forever. |
-| 🛠️ **[Build from source](#build-from-source)** | Free, forever. You handle building and updating yourself. |
+| 💾 **[Download Audistill](https://audistill.com/)** | Signed, notarized build with automatic updates. |
+| 🛠️ **[Build from source](#build-from-source)** | You handle building and updating yourself. |
 
-No subscription either way. If you build from source and end up liking it, buying a license (or starring the repo ⭐) is how you keep the project alive.
+If you like Audistill, you can [optionally buy me a coffee](https://buymeacoffee.com/gaborkh). Donations unlock nothing and carry no support commitment.
 
 ## How it works
 
@@ -60,8 +60,6 @@ No subscription either way. If you build from source and end up liking it, buyin
 The only data that leaves your machine is the transcript text sent to the LLM you chose, with your key, under your control. There's no fully-offline mode: Audistill deliberately doesn't bundle a local LLM, because on-device models aren't good enough at distillation yet and the hardware requirements would rule out too many Macs. Transcription, storage, and search stay local regardless.
 
 ## Build from source
-
-Self-builds have all features unlocked — no license key or trial required.
 
 ```bash
 git clone https://github.com/audistill/audistill.git
@@ -75,18 +73,16 @@ Requirements: macOS 13+, Node 20+, pnpm.
 
 The built app is unsigned — you'll need to allow it in System Settings → Privacy & Security.
 
-> **How it works:** Licensing is only enforced when the `OFFICIAL_BUILD=true` environment variable is set during build (used for signed releases). Dev builds and self-builds skip licensing entirely — all features are available without a key.
-
 ## FAQ
 
 **Is my audio uploaded anywhere?**
 No. Transcription is fully local. Only the resulting text is sent to the LLM provider you configured, with your own API key.
 
-**Why is it paid if it's open source?**
-The $29 license buys convenience (signed build, auto-updates) and funds development. The source being open means you can verify the privacy claims, fix things yourself, and run it free if you want.
+**Is it really free?**
+Yes. There is no trial, license, or activation. Donations are optional and unlock nothing.
 
 **What does summarization cost me?**
-You pay OpenRouter directly — typically a few cents per hour of audio, depending on the model you pick.
+You bring your own OpenRouter API key and pay OpenRouter directly for Model usage — typically a few cents per hour of audio, depending on the model you pick.
 
 **Windows/Linux?**
 macOS only for now.

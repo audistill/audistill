@@ -15,10 +15,6 @@ vi.mock('../store/model-status-store', () => ({
     selector({ status: { state: 'ready', percent: 0 }, hydrate: vi.fn() }),
 }))
 
-vi.mock('./LicensePane', () => ({
-  LicensePane: () => <div />,
-}))
-
 vi.mock('./UpdateSettingsSection', () => ({
   UpdateSettingsSection: () => <div />,
 }))
@@ -54,6 +50,7 @@ const mockApi = {
   modelDelete: vi.fn().mockResolvedValue(undefined),
   modelDownload: vi.fn().mockResolvedValue(undefined),
   selectDirectory: vi.fn().mockResolvedValue(null),
+  openExternal: vi.fn().mockResolvedValue(undefined),
 }
 
 beforeEach(() => {
@@ -94,5 +91,19 @@ describe('SettingsView Recipe copy', () => {
         prompt: '',
       })
     })
+  })
+})
+
+describe('SettingsView support section', () => {
+  it('offers an optional donation link that grants nothing and opens in the default browser', async () => {
+    render(<SettingsView />)
+
+    await waitFor(() => expect(screen.getByText('Support Audistill')).toBeInTheDocument())
+    expect(screen.getByText(/free and open source/)).toBeInTheDocument()
+    expect(screen.getByText(/entirely optional/)).toBeInTheDocument()
+    expect(screen.queryByText(/License/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buy me a coffee' }))
+    expect(mockApi.openExternal).toHaveBeenCalledWith('https://buymeacoffee.com/gaborkh')
   })
 })

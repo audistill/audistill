@@ -3,7 +3,6 @@ import { DatabaseService } from './database-service'
 import { FeedSubscriptionService, parseDurationToSeconds } from './feed-subscription-service'
 import type { FeedService, FeedResult } from './feed-service'
 import { IngestPipeline } from './ingest-pipeline'
-import type { LicenseService } from './license-service'
 
 vi.mock('electron', () => ({
   app: { getPath: () => '/tmp' },
@@ -58,11 +57,9 @@ describe('FeedSubscriptionService', () => {
   })
 
   function attachIngestPipeline(
-    licenseState: 'licensed' | 'trial-expired' = 'licensed',
     ytdlpService: { fetchMetadata: (url: string) => Promise<unknown> } = {} as never
   ) {
     const pipeline = new IngestPipeline(db, {} as never, {} as never, {} as never, ytdlpService as never)
-    pipeline.setLicenseService({ getState: () => licenseState } as LicenseService)
     const processQueue = vi.spyOn(
       pipeline as unknown as { processQueue: () => Promise<void> },
       'processQueue'
@@ -236,7 +233,7 @@ describe('FeedSubscriptionService', () => {
         thumbnail: 'https://i.ytimg.com/vi/upload/hqdefault.jpg',
         uploadDate: '20260903',
       })
-      const { processQueue } = attachIngestPipeline('licensed', { fetchMetadata })
+      const { processQueue } = attachIngestPipeline({ fetchMetadata })
       const feedUrl = 'https://www.youtube.com/feeds/videos.xml?channel_id=UCexample'
       const { feed } = await service.subscribe(feedUrl, {
         title: 'Audistill Channel',
@@ -271,7 +268,7 @@ describe('FeedSubscriptionService', () => {
     })
 
     it('leaves a YouTube Feed Item unchanged when yt-dlp is missing', async () => {
-      attachIngestPipeline('licensed', {
+      attachIngestPipeline({
         fetchMetadata: vi.fn().mockResolvedValue({ code: 'extraction-failed', message: 'yt-dlp not found' }),
       })
       const feedUrl = 'https://www.youtube.com/feeds/videos.xml?channel_id=UCexample'
@@ -346,23 +343,6 @@ describe('FeedSubscriptionService', () => {
       expect(concurrentRepeat).toEqual([])
       expect(laterRepeat).toEqual([])
       expect(db.getEpisodesBySourceUrls([item.media_url])).toHaveLength(1)
-    })
-
-    it('checks the License before linking existing Episodes and leaves items unchanged when blocked', async () => {
-      attachIngestPipeline('trial-expired')
-      const { feed } = await service.subscribe('https://example.com/feed.xml', sampleFeedResult)
-      const item = service.getFeedItems(feed.id)[0]
-      db.createEpisode({
-        title: item.title,
-        source_url: item.media_url,
-        source_type: 'rss',
-        status: 'complete',
-      })
-
-      await expect(service.ingestItems(feed.id, [item.id])).rejects.toThrow('Trial has ended')
-
-      expect(service.getFeedItems(feed.id)[0]).toMatchObject({ state: 'seen', episode_id: null })
-      expect(db.getEpisodes()).toHaveLength(1)
     })
 
     it('rolls back Episode creation when linking Feed Items fails', async () => {

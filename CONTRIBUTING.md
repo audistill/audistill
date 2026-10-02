@@ -25,7 +25,7 @@ A good bug report has:
 - Reproduction steps, if you can find them
 - Relevant log output, with anything private redacted
 
-Please don't paste API keys, license keys, or transcript content you'd rather not publish.
+Please don't paste API keys or transcript content you'd rather not publish.
 
 ## Pull requests
 
@@ -49,7 +49,7 @@ pnpm install
 pnpm dev
 ```
 
-Requirements: macOS 13+, Node 20+, pnpm. Self-builds have all features unlocked — no license key or trial. See the [README](README.md#build-from-source) for details.
+Requirements: macOS 13+, Node 20+, pnpm. Every build has all features unlocked. See the [README](README.md#build-from-source) for details.
 
 Before opening a PR:
 

@@ -3,7 +3,6 @@ import { RichMarkdown } from './RichMarkdown'
 import { useAppStore } from '../store/app-store'
 import { useContentTabStore } from '../store/content-tab-store'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
-import { isLicenseError } from './LicenseBlockedPrompt'
 import { buildSystemPrompt, buildTabsContext } from '../lib/chat-context'
 import type { DbChatMessage } from '../../../preload/index.d'
 
@@ -479,11 +478,7 @@ export function ChatSidebar({ prototypeReadOnly = false }: { prototypeReadOnly?:
     const unsubError = window.api.onChatError((message) => {
       setStreaming(false)
       setStreamingState(null)
-      if (isLicenseError(message)) {
-        useAppStore.getState().openLicenseGateModal('Sending messages')
-      } else {
-        setError(message)
-      }
+      setError(message)
     })
 
     return () => {
@@ -561,11 +556,7 @@ export function ChatSidebar({ prototypeReadOnly = false }: { prototypeReadOnly?:
       setStreaming(false)
       setStreamingState(null)
       const msg = err instanceof Error ? err.message : String(err)
-      if (isLicenseError(msg)) {
-        useAppStore.getState().openLicenseGateModal('Sending messages')
-      } else {
-        setError(msg)
-      }
+      setError(msg)
     })
   }
 
@@ -692,11 +683,7 @@ export function ChatSidebar({ prototypeReadOnly = false }: { prototypeReadOnly?:
       }])
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
-      if (isLicenseError(errorMsg)) {
-        useAppStore.getState().openLicenseGateModal('Running recipes')
-      } else {
-        setError(`Failed to generate ${recipe.name}: ${errorMsg}`)
-      }
+      setError(`Failed to generate ${recipe.name}: ${errorMsg}`)
     } finally {
       setGeneratingRecipe(null)
     }

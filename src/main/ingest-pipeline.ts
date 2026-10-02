@@ -12,8 +12,6 @@ import { TabService } from './tab-service'
 import { YtdlpDownloadError, YtdlpService, type YtdlpMetadata } from './ytdlp-service'
 import { HttpDownloadService } from './http-download-service'
 import { SUPPORTED_FILE_FILTER } from '../shared/supported-formats'
-import { LicenseService } from './license-service'
-import { requireLicense } from './license-guard'
 import { readAndValidateRecordingManifest } from './recording-session-coordinator'
 import type { RssIngestItem } from '../shared/feed-subscription'
 
@@ -26,7 +24,6 @@ export class IngestPipeline {
   private tabService: TabService
   private ytdlpService: YtdlpService
   private httpDownloadService: HttpDownloadService
-  private licenseService: LicenseService | null = null
   private processing = false
   private queue: string[] = []
   private activeWorkers = new Map<string, Worker>()
@@ -39,10 +36,6 @@ export class IngestPipeline {
     this.tabService = tabService
     this.ytdlpService = ytdlpService
     this.httpDownloadService = httpDownloadService ?? new HttpDownloadService()
-  }
-
-  setLicenseService(licenseService: LicenseService): void {
-    this.licenseService = licenseService
   }
 
   recoverOrphanedEpisodes(): void {
@@ -95,7 +88,6 @@ export class IngestPipeline {
 
   registerIPC(): void {
     ipcMain.handle('ingest:add-files', async (_event, filePaths: string[]) => {
-      if (this.licenseService) requireLicense(this.licenseService)
       const ids: string[] = []
       for (const filePath of filePaths) {
         if (!filePath) continue
@@ -118,7 +110,6 @@ export class IngestPipeline {
     })
 
     ipcMain.handle('ingest:add-direct-url', async (_event, url: string, metadata: { title: string; filename: string; contentType: string; fileSize: number | null }) => {
-      if (this.licenseService) requireLicense(this.licenseService)
       const id = this.db.createEpisode({
         title: metadata.title,
         source_url: url,
@@ -150,7 +141,6 @@ export class IngestPipeline {
     })
 
     ipcMain.handle('ingest:retry', async (_event, episodeId: string) => {
-      if (this.licenseService) requireLicense(this.licenseService)
       const episode = this.db.getEpisode(episodeId)
       if (!episode || (episode.status !== 'error' && episode.status !== 'cancelled')) return
       if (episode.source_type === 'recorded' && !episode.transcript && !episode.file_path) return
@@ -207,7 +197,6 @@ export class IngestPipeline {
     })
 
     ipcMain.handle('tabs:execute-recipe', async (_event, episodeId: string, tabId: string) => {
-      if (this.licenseService) requireLicense(this.licenseService)
       await this.regenerateTab(episodeId, tabId)
     })
   }
@@ -216,7 +205,6 @@ export class IngestPipeline {
     urls: string[],
     linkCreatedEpisodes?: (episodeIds: string[]) => void
   ): Promise<string[]> {
-    if (this.licenseService) requireLicense(this.licenseService)
 
     const items: Array<{ url: string; metadata: YtdlpMetadata }> = []
     for (const url of urls) {
@@ -231,7 +219,6 @@ export class IngestPipeline {
     items: Array<{ url: string; metadata: YtdlpMetadata }>,
     linkCreatedEpisodes?: (episodeIds: string[]) => void
   ): string[] {
-    if (this.licenseService) requireLicense(this.licenseService)
 
     const ids = this.db.runInTransaction(() => {
       const createdIds = items.map(({ url, metadata }) => this.db.createEpisode({
@@ -261,7 +248,6 @@ export class IngestPipeline {
     items: RssIngestItem[],
     linkCreatedEpisodes?: (episodeIds: string[]) => void
   ): string[] {
-    if (this.licenseService) requireLicense(this.licenseService)
 
     const ids = this.db.runInTransaction(() => {
       const createdIds = items.map((item) => this.db.createEpisode({

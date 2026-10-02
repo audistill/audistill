@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useOpenRouterModels, type ModelOption } from '../lib/use-openrouter-models'
 import { useModelStatusStore } from '../store/model-status-store'
-import { LicensePane } from './LicensePane'
 import { UpdateSettingsSection } from './UpdateSettingsSection'
 import { ModelPicker } from './ModelPicker'
 
@@ -247,8 +246,6 @@ export function SettingsView(): React.JSX.Element {
 
       <UpdateSettingsSection />
 
-      <LicensePane />
-
       <TranscriptionModelSection />
 
       <div className="mb-8">
@@ -394,6 +391,28 @@ export function SettingsView(): React.JSX.Element {
           ))}
         </div>
       </div>
+
+      <SupportSection />
+    </div>
+  )
+}
+
+const DONATION_URL = 'https://buymeacoffee.com/gaborkh'
+
+function SupportSection(): React.JSX.Element {
+  return (
+    <div className="mb-8 pt-6 border-t border-[var(--surface)]">
+      <h2 className="block font-heading text-sm font-medium text-[var(--text)] mb-0.5">Support Audistill</h2>
+      <p className="text-xs text-[var(--secondary)] mb-2">
+        Audistill is free and open source. Donating is entirely optional and unlocks nothing: no features, license, or support commitment.
+      </p>
+      <button
+        type="button"
+        onClick={() => window.api.openExternal(DONATION_URL)}
+        className="text-xs text-[var(--secondary)] underline underline-offset-2 hover:text-[var(--text)] transition-colors cursor-pointer"
+      >
+        Buy me a coffee
+      </button>
     </div>
   )
 }

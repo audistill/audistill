@@ -14,9 +14,6 @@ import { YtdlpService } from './ytdlp-service'
 import { fetchUrlHead } from './url-head-service'
 import { FeedService } from './feed-service'
 import { getWindowOptions, trackWindowState, getSavedBounds } from './window-state'
-import { LicenseService } from './license-service'
-import { PolarClient } from './polar-client'
-import { requireLicense } from './license-guard'
 import { UpdateService } from './update-service'
 import {
   DevelopmentFakeCaptureBackend,
@@ -30,7 +27,6 @@ import { FeedRefreshScheduler } from './feed-refresh-scheduler'
 import { stopFeedRefreshForCommittedQuit } from './feed-refresh-lifecycle'
 import { NativeRecordingCaptureBackend } from './native-recording-capture-backend'
 import { reconcileRecordingSessions } from './recording-session-recovery'
-import { machineIdSync } from 'node-machine-id'
 import { release as osRelease } from 'node:os'
 import { readFileSync } from 'node:fs'
 import { openEpisodeSource } from './source-locator'
@@ -53,22 +49,8 @@ let tabService: TabService
 let ingestPipeline: IngestPipeline
 let chatService: ChatService
 let ytdlpService: YtdlpService
-let licenseService: LicenseService
 let updateService: UpdateService
 let recordingCoordinator: RecordingSessionCoordinator | null = null
-
-function getLicenseSnapshot(): { state: string; trialDaysRemaining?: number; maskedKey?: string; activationLabel?: string } {
-  const state = licenseService.getState()
-  const snapshot: { state: string; trialDaysRemaining?: number; maskedKey?: string; activationLabel?: string } = { state }
-  if (state === 'trial') {
-    snapshot.trialDaysRemaining = licenseService.getTrialDaysRemaining()
-  }
-  const record = db.getLicenseRecord()
-  if (record?.license_key && (state === 'licensed' || state === 'license-invalid')) {
-    snapshot.maskedKey = '****-' + record.license_key.slice(-6)
-  }
-  return snapshot
-}
 
 function registerSourceLocatorHandlers(): void {
   ipcMain.handle('source:open-episode', (_event, episodeId: unknown) => {
@@ -83,40 +65,9 @@ function registerSourceLocatorHandlers(): void {
   })
 }
 
-function registerLicenseHandlers(): void {
+function registerShellHandlers(): void {
   ipcMain.handle('shell:open-external', (_event, url: string) => {
     shell.openExternal(url)
-  })
-
-  ipcMain.handle('license:open-checkout', () => {
-    shell.openExternal('https://audistill.com/#pricing')
-  })
-
-  ipcMain.handle('license:get-state', () => {
-    return getLicenseSnapshot()
-  })
-
-  ipcMain.handle('license:activate', async (_event, key: string) => {
-    try {
-      await licenseService.activate(key)
-      return { success: true }
-    } catch (err: unknown) {
-      const error = err as { type?: string; message?: string }
-      return { success: false, error: { type: error.type ?? 'unknown', message: error.message ?? 'Activation failed' } }
-    }
-  })
-
-  ipcMain.handle('license:deactivate', async () => {
-    await licenseService.deactivate()
-  })
-
-  licenseService.onStateChange(() => {
-    const snapshot = getLicenseSnapshot()
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) {
-        win.webContents.send('license:state-changed', snapshot)
-      }
-    }
   })
 }
 
@@ -231,7 +182,6 @@ function registerChatHandlers(): void {
   })
 
   ipcMain.handle('chat:send-message', (_event, request) => {
-    requireLicense(licenseService)
     const episodeId = request.episodeId || ''
     const activeContentTabId = request.activeContentTabId || null
     chatService.setToolExecutor((toolName, args) =>
@@ -286,7 +236,6 @@ function registerRecipeHandlers(): void {
   })
 
   ipcMain.handle('recipe:execute', async (event, recipeId: string, transcript: string) => {
-    requireLicense(licenseService)
     await recipeService.executeRecipe(recipeId, transcript, (token) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (win && !win.isDestroyed()) {
@@ -585,29 +534,6 @@ app.whenReady().then(() => {
   chatService = new ChatService(db)
   ytdlpService = new YtdlpService(db)
 
-  const polarBaseUrl = process.env.POLAR_SANDBOX
-    ? 'https://sandbox-api.polar.sh'
-    : 'https://api.polar.sh'
-  const polarOrgId = process.env.POLAR_SANDBOX
-    ? (process.env.POLAR_SANDBOX_ORG_ID ?? '')
-    : '35976264-5788-49be-8f65-1e7cf950c958'
-  const polar = new PolarClient({ baseUrl: polarBaseUrl, organizationId: polarOrgId })
-
-  let machineId = 'unknown'
-  try {
-    machineId = machineIdSync()
-  } catch {
-    // machineIdSync can fail with EPIPE in some environments
-  }
-
-  licenseService = new LicenseService({
-    db,
-    polar,
-    clock: () => Date.now(),
-    machineId,
-    officialBuild: typeof __OFFICIAL_BUILD__ !== 'undefined' ? __OFFICIAL_BUILD__ : false,
-  })
-
   registerDatabaseHandlers()
   registerChatHandlers()
   registerRecipeHandlers()
@@ -616,7 +542,7 @@ app.whenReady().then(() => {
   registerYtdlpHandlers()
   registerUrlHandlers()
   registerSourceLocatorHandlers()
-  registerLicenseHandlers()
+  registerShellHandlers()
 
   feedSubscriptionService = new FeedSubscriptionService(db, feedService)
 
@@ -691,7 +617,6 @@ app.whenReady().then(() => {
   const recordingRecoveryEntries = reconcileRecordingSessions(recordingsDirectory, db)
 
   ingestPipeline = new IngestPipeline(db, modelManager, recipeService, tabService, ytdlpService)
-  ingestPipeline.setLicenseService(licenseService)
   ingestPipeline.recoverOrphanedEpisodes()
   ingestPipeline.registerIPC()
   feedSubscriptionService.setIngestPipeline(ingestPipeline)
@@ -726,7 +651,6 @@ app.whenReady().then(() => {
   recordingCoordinator?.setRecoveryEntries(recordingRecoveryEntries)
   registerRecordingSessionIPC(recordingCoordinator, {
     assertCanStart: () => {
-      requireLicense(licenseService)
       if (modelManager.getStatus().state !== 'ready') {
         throw new Error('The Transcription Model must be ready before recording starts')
       }
@@ -736,8 +660,6 @@ app.whenReady().then(() => {
   powerMonitor.on('resume', () => { void recordingCoordinator?.handleSystemResume().catch(() => {}) })
 
   registerTranscriptionService(modelManager)
-
-  licenseService.init().catch(() => {})
 
   createWindow()
 

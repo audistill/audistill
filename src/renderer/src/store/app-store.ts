@@ -79,7 +79,6 @@ interface AppState {
   newFeedItemCounts: NewFeedItemCounts
   /** Feeds with a check in flight, so their rows can show it. */
   refreshingFeedIds: string[]
-  licenseGateModal: { open: boolean; action: string }
 
   starredEpisodes: () => Episode[]
   hydrate: () => Promise<void>
@@ -134,8 +133,6 @@ interface AppState {
   unsubscribeFeed: (id: string) => Promise<void>
   starEpisode: (id: string) => Promise<void>
   unstarEpisode: (id: string) => Promise<void>
-  openLicenseGateModal: (action: string) => void
-  closeLicenseGateModal: () => void
 }
 
 function dbEpisodeToEpisode(row: DbEpisode): Episode {
@@ -218,7 +215,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   feedsCollapsed: getLocalStorageItem('feedsCollapsed') === 'true',
   newFeedItemCounts: {},
   refreshingFeedIds: [],
-  licenseGateModal: { open: false, action: '' },
 
   starredEpisodes: () => {
     const { episodes } = get()
@@ -719,6 +715,4 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
   },
 
-  openLicenseGateModal: (action) => set({ licenseGateModal: { open: true, action } }),
-  closeLicenseGateModal: () => set({ licenseGateModal: { open: false, action: '' } }),
 }))

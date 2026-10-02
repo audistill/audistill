@@ -14,12 +14,6 @@ function copyPrompts() {
 
 export default defineConfig({
   main: {
-    define: {
-      // Licensing is only enforced in official signed releases.
-      // Self-builds and dev builds have all features unlocked.
-      // Set OFFICIAL_BUILD=true in CI/release scripts to enable licensing.
-      __OFFICIAL_BUILD__: JSON.stringify(process.env.OFFICIAL_BUILD === 'true')
-    },
     plugins: [copyPrompts()],
     build: {
       rollupOptions: {
